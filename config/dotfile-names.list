@@ -3,8 +3,10 @@
 # Linhas vazias e linhas que começam com # são ignoradas.
 
 myfiletotests
+
 # Teste wrong_target: symlink em ~/.wronglink-test deve apontar para outro sítio (ex.: /etc/hostname).
 wronglink-test
+
 gitconfig
 
 .zsh_history
