@@ -277,10 +277,10 @@ dotfiles_repo_git_sync_warnings() {
     ahead=${ahead:-0}
     behind=${behind:-0}
     if ((ahead > 0 && behind > 0)); then
-        echo "Branch divergiu do remoto: ${ahead} commit(s) à frente, ${behind} atrás (resolver com pull/merge e push)."
+        echo "ATENÇÃO: Branch divergiu do remoto: ${ahead} commit(s) à frente, ${behind} atrás (resolver com pull/merge e push)."
     elif ((ahead > 0)); then
-        echo "Há ${ahead} commit(s) local(is) não enviado(s) ao GitHub (git push)."
+        echo "ATENÇÃO: Há ${ahead} commit(s) local(is) não enviado(s) ao GitHub (git push)."
     elif ((behind > 0)); then
-        echo "Há ${behind} commit(s) no GitHub que ainda não estão aqui (git pull)."
+        echo "ATENÇÃO: Há ${behind} commit(s) no GitHub que ainda não estão aqui (git pull)."
     fi
 }

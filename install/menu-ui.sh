@@ -200,16 +200,6 @@ dotfiles_menu_render() {
     printf -v gap '%*s' "$MENU_UI_COL_GAP" ''
 
     echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
     dotfiles_menu_ui_sep_line
     echo "${B}Dotfiles — estado em ${HOME}${R}"
     dotfiles_menu_print_git_sync_warnings
@@ -237,6 +227,8 @@ dotfiles_menu_render() {
     dotfiles_menu_ui_sep_line
     dotfiles_menu_print_legend
     echo ""
+    dotfiles_menu_print_command_help
+    echo ""
 }
 
 # Explica os símbolos; duas variantes conforme cores ativas ou não (cores da coluna marcador).
@@ -246,4 +238,21 @@ dotfiles_menu_print_legend() {
     else
         echo "Legenda: [+] ok  [ ] falta  [~] importar desde ~  [-] sem fonte  [!] link errado  [#] bloqueado"
     fi
+}
+
+# Instruções de add / rm / escolha de linha (alinhado ao prompt em dotfiles-menu.sh).
+dotfiles_menu_print_command_help() {
+    local _w _pad
+    dotfiles_menu_ui_load_config
+    _w="$(dotfiles_menu_ui_table_width)"
+    printf -v _pad '%*s' "$_w" ''
+    _pad="${_pad// /─}"
+
+    echo "$_pad"
+    echo "${B}Comandos${R}"
+    printf '  %-18s  %s\n' "- add <nome>"
+    printf '  %-18s  %s\n' "- rm <numero da linha>"
+    printf '  %-18s  %s\n' "- <N> + enter               ação da coluna action"
+    printf '  %-18s  %s\n' "- Enter (vazio)             Sai do menu."
+    echo "$_pad"
 }

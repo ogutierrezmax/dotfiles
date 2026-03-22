@@ -47,7 +47,11 @@ dotfiles_menu_try_add() {
     local rest name ans
 
     if [[ "$trimmed" =~ ^[Aa][Dd][Dd]$ ]]; then
-        echo "Uso: add nome-do-item   ou   add 'nome com espaços'"
+        echo ""
+        echo "${B}Uso de add${R}"
+        printf '  %s\n' "add nome-do-item"
+        printf '  %s\n' "add 'nome com espaços'"
+        echo ""
         return 0
     fi
     if [[ "$trimmed" =~ ^[Aa][Dd][Dd][[:space:]]+(.+)$ ]]; then
@@ -82,7 +86,9 @@ dotfiles_menu_try_rm() {
     if [[ "${choice,,}" =~ ^rm([0-9]+)$ ]]; then
         rm_num="${BASH_REMATCH[1]}"
         if ((rm_num < 1 || rm_num > ${#_rm_entries[@]})); then
-            echo "Número inválido para rm (use 1–${#_rm_entries[@]})."
+            echo ""
+            echo "Número inválido para rm: use 1–${#_rm_entries[@]} (o mesmo intervalo da coluna # na tabela)."
+            echo ""
             return 0
         fi
         to_rm="${_rm_entries[$((rm_num - 1))]}"

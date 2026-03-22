@@ -41,7 +41,7 @@ main() {
     while true; do
         dotfiles_menu_render entries
 
-        read -r -p "Número, rm N, ou add 'nome' (Enter sair): " raw_choice || true
+        read -r -p "Opção: " raw_choice || true
         # Só espaços ou Enter: sair sem erro.
         [[ -z "${raw_choice// }" ]] && echo "Até logo." && dotfiles_menu_ui_sep_line && exit 0
 
@@ -63,7 +63,7 @@ main() {
 
         # Resto deve ser índice numérico (linha da tabela).
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo "Digite um número, rm N (ex.: rm2) ou add nome / add 'nome'."
+            echo "Opção não reconhecida. Use número, rmN ou add (ver o bloco de comandos acima)."
             continue
         fi
         if ((choice < 1 || choice > ${#entries[@]})); then
