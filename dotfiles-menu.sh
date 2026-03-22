@@ -43,7 +43,7 @@ main() {
 
         read -r -p "Número, rm N, ou add 'nome' (Enter sair): " raw_choice || true
         # Só espaços ou Enter: sair sem erro.
-        [[ -z "${raw_choice// }" ]] && echo "Até logo." && exit 0
+        [[ -z "${raw_choice// }" ]] && echo "Até logo." && dotfiles_menu_ui_sep_line && exit 0
 
         # "add" usa o texto com espaços preservados; por isso trim à parte.
         trimmed="$(dotfiles_menu_trim "$raw_choice")"

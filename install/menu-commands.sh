@@ -16,6 +16,18 @@ dotfiles_menu_trim() {
     printf '%s' "$s"
 }
 
+# Confirmação (s/n): aceita s, sim, y, yes — case-insensitive; trim e CR.
+dotfiles_menu_is_yes() {
+    local a
+    a="$(dotfiles_menu_trim "${1:-n}")"
+    a="${a,,}"
+    a="${a//$'\r'/}"
+    case "$a" in
+        s|sim|y|yes) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Parte depois de "add": aceita aspas simples, duplas ou texto solto.
 dotfiles_menu_parse_add_name() {
     local rest="$1"
@@ -46,8 +58,8 @@ dotfiles_menu_try_add() {
             echo "Erro: nome vazio após add."
             return 0
         fi
-        read -r -p "Adicionar \"${name}\" a $(dotfiles_dotfile_names_path)? (s/n): " ans || true
-        if [[ ! "${ans:-n}" =~ ^[sS]$ ]]; then
+        read -r -p "Adicionar \"${name}\" a $(dotfiles_dotfile_names_path)? (sim/não): " ans || true
+        if ! dotfiles_menu_is_yes "$ans"; then
             return 0
         fi
         if ! dotfiles_dotfile_names_add_entry "$name"; then
@@ -74,8 +86,8 @@ dotfiles_menu_try_rm() {
             return 0
         fi
         to_rm="${_rm_entries[$((rm_num - 1))]}"
-        read -r -p "Remover \"${to_rm}\" de $(dotfiles_dotfile_names_path)? (s/n): " ans || true
-        if [[ ! "${ans:-n}" =~ ^[sS]$ ]]; then
+        read -r -p "Remover \"${to_rm}\" de $(dotfiles_dotfile_names_path)? (sim/não): " ans || true
+        if ! dotfiles_menu_is_yes "$ans"; then
             return 0
         fi
         if ! dotfiles_dotfile_names_remove_entry "$to_rm"; then
@@ -105,8 +117,8 @@ dotfiles_menu_act_on_entry() {
         importable)
             dest="$(dotfiles_dest_for_file "$file")"
             data_src="$(dotfiles_data_dir)/${file}"
-            read -r -p "Não há cópia em data/, mas existe ${dest}. Mover para o repositório e criar o link? (s/n): " ans || true
-            if [[ ! "${ans:-n}" =~ ^[sS]$ ]]; then
+            read -r -p "Não há cópia em data/, mas existe ${dest}. Mover para o repositório e criar o link? (sim/não): " ans || true
+            if ! dotfiles_menu_is_yes "$ans"; then
                 return 0
             fi
             mkdir -p "$(dirname "$data_src")"
@@ -124,13 +136,20 @@ dotfiles_menu_act_on_entry() {
         # Symlink já aponta para este repositório.
         installed)
             echo "Já está instalado corretamente: $file"
+            read -r -p "Deseja remover o link simbólico em $(dotfiles_dest_for_file "$file")? (sim/não): " ans || true
+            if ! dotfiles_menu_is_yes "$ans"; then
+                return 0
+            fi
+            echo ""
+            dotfiles_unlink_one "$file"
+            echo "Feito."
             return 0
             ;;
         # Caminho de destino existe mas não é symlink (impede ln -s): backup em .bkp e link.
         blocking_file)
             dest="$(dotfiles_dest_for_file "$file")"
-            read -r -p "Há um ficheiro/pasta real em ${dest} (não é link). Mover para $(dotfiles_backup_dir)/ e criar o link? (s/n): " ans || true
-            if [[ ! "${ans:-n}" =~ ^[sS]$ ]]; then
+            read -r -p "Há um ficheiro/pasta real em ${dest} (não é link). Mover para $(dotfiles_backup_dir)/ e criar o link? (sim/não): " ans || true
+            if ! dotfiles_menu_is_yes "$ans"; then
                 return 0
             fi
             if ! dotfiles_move_blocking_dest_to_bkp "$file"; then
@@ -143,8 +162,8 @@ dotfiles_menu_act_on_entry() {
             ;;
         # Symlink existe mas aponta para outro sítio: substituir ou abortar.
         wrong_target)
-            read -r -p "Substituir o link por um que aponta para este repositório? (s/n): " ovr || true
-            [[ "${ovr:-n}" =~ ^[sS]$ ]] || return 0
+            read -r -p "Substituir o link por um que aponta para este repositório? (sim/não): " ovr || true
+            dotfiles_menu_is_yes "$ovr" || return 0
             return 1
             ;;
         # Falta criar o link; o caller trata com dotfiles_link_one.

@@ -83,12 +83,27 @@ dotfiles_term_colors_init() {
         C_LINK_STATUS_LINKED="$(dotfiles_menu_ansi_fg_hex '#22c55e')"    # symlink ok
         C_LINK_STATUS_UNLINKED="$(dotfiles_menu_ansi_fg_hex '#eab308')" # sem link ou não aplicável
         C_LINK_STATUS_WRONG="$(dotfiles_menu_ansi_fg_hex '#a855f7')"     # aponta para sítio errado
+        C_GIT_SYNC_WARN="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"         # aviso git vs remoto
     else
         R= B=
         C_MARK_INST= C_MARK_NONE= C_MARK_IMP= C_MARK_MISS= C_MARK_WRONG= C_MARK_BLOCK=
         C_SOURCE_INST= C_SOURCE_NONE= C_SOURCE_IMP= C_SOURCE_MISS= C_SOURCE_WRONG= C_SOURCE_BLOCK=
         C_LINK_STATUS_LINKED= C_LINK_STATUS_UNLINKED= C_LINK_STATUS_WRONG=
+        C_GIT_SYNC_WARN=
     fi
+}
+
+# Avisos de git (alterações locais / ahead / behind do remoto).
+dotfiles_menu_print_git_sync_warnings() {
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" ]] && continue
+        if [[ -n "${C_GIT_SYNC_WARN:-}" ]]; then
+            echo "${C_GIT_SYNC_WARN}🔴 ${line}${R}"
+        else
+            echo "🔴 ${line}"
+        fi
+    done < <(dotfiles_repo_git_sync_warnings)
 }
 
 # --- Cor ANSI por coluna (estado = saída de dotfiles_status_for_file) ---
@@ -185,7 +200,19 @@ dotfiles_menu_render() {
     printf -v gap '%*s' "$MENU_UI_COL_GAP" ''
 
     echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    echo ""
+    dotfiles_menu_ui_sep_line
     echo "${B}Dotfiles — estado em ${HOME}${R}"
+    dotfiles_menu_print_git_sync_warnings
     dotfiles_menu_ui_sep_line
     # shellcheck disable=SC2059
     printf " %${MENU_UI_WIDTH_NUM}s${gap}%-${MENU_UI_WIDTH_MARK}s${gap}%-${MENU_UI_WIDTH_FILE}s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \

@@ -205,6 +205,32 @@ dotfiles_link_one() {
     ln -sf "$src" "$dest"
 }
 
+# Remove o symlink em ~ apenas se apontar para data/<file> (mesmo critério de "installed").
+dotfiles_unlink_one() {
+    local file=$1
+    local data_dir src dest canonical_src target
+    data_dir="$(dotfiles_data_dir)"
+    src="${data_dir}/${file}"
+    dest="$(dotfiles_dest_for_file "$file")"
+
+    if [[ ! -e "$src" ]]; then
+        echo "Erro: arquivo não existe em data/: $file" >&2
+        return 1
+    fi
+    if [[ ! -L "$dest" ]]; then
+        echo "Erro: ${dest} não é um link simbólico." >&2
+        return 1
+    fi
+    canonical_src="$(realpath "$src")"
+    target="$(realpath "$dest" 2>/dev/null || true)"
+    if [[ -z "$target" || "$target" != "$canonical_src" ]]; then
+        echo "Erro: o link não aponta para este repositório (${src})." >&2
+        return 1
+    fi
+    echo "Removendo link simbólico: $dest"
+    rm -- "$dest"
+}
+
 # Cria symlinks em $HOME para cada nome em config/dotfile-names.list (relativos a data/).
 dotfiles_link_from_dotfile_names() {
     local file
@@ -216,4 +242,45 @@ dotfiles_link_from_dotfile_names() {
         fi
         dotfiles_link_one "$file"
     done < <(dotfiles_dotfile_names_entries)
+}
+
+# Estado do repositório dotfiles em relação ao remoto (ex.: GitHub).
+# Imprime uma linha por aviso em pt-BR (stdout); nada se não for repo git ou estiver alinhado e limpo.
+# Usa apenas informação local (sem git fetch).
+dotfiles_repo_git_sync_warnings() {
+    local repo_root ahead behind ref
+    repo_root="$(dotfiles_repo_root)"
+    if ! git -C "$repo_root" rev-parse --is-inside-work-tree &>/dev/null; then
+        return 0
+    fi
+    if [[ -n "$(git -C "$repo_root" status --porcelain 2>/dev/null)" ]]; then
+        echo "ATENÇÃO: Alterações locais não commitadas (working tree diferente do último commit)."
+    fi
+    ref=""
+    if git -C "$repo_root" rev-parse --abbrev-ref '@{u}' &>/dev/null; then
+        ref='@{u}'
+    else
+        local cur
+        cur="$(git -C "$repo_root" branch --show-current 2>/dev/null || true)"
+        if [[ -n "$cur" ]] && git -C "$repo_root" rev-parse --verify "origin/${cur}" &>/dev/null; then
+            ref="origin/${cur}"
+        elif git -C "$repo_root" rev-parse --verify origin/main &>/dev/null; then
+            ref="origin/main"
+        elif git -C "$repo_root" rev-parse --verify origin/master &>/dev/null; then
+            ref="origin/master"
+        fi
+    fi
+    if [[ -z "$ref" ]]; then
+        return 0
+    fi
+    read -r ahead behind < <(git -C "$repo_root" rev-list --left-right --count "HEAD...${ref}" 2>/dev/null || echo "0 0")
+    ahead=${ahead:-0}
+    behind=${behind:-0}
+    if ((ahead > 0 && behind > 0)); then
+        echo "Branch divergiu do remoto: ${ahead} commit(s) à frente, ${behind} atrás (resolver com pull/merge e push)."
+    elif ((ahead > 0)); then
+        echo "Há ${ahead} commit(s) local(is) não enviado(s) ao GitHub (git push)."
+    elif ((behind > 0)); then
+        echo "Há ${behind} commit(s) no GitHub que ainda não estão aqui (git pull)."
+    fi
 }
