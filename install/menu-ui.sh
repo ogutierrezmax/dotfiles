@@ -199,7 +199,7 @@ dotfiles_menu_render() {
     dotfiles_menu_ui_load_config
     printf -v gap '%*s' "$MENU_UI_COL_GAP" ''
 
-    echo ""
+    printf '\n\n\n\n\n\n\n\n\n\n'
     dotfiles_menu_ui_sep_line
     echo "${B}Dotfiles — estado em ${HOME}${R}"
     dotfiles_menu_print_git_sync_warnings
