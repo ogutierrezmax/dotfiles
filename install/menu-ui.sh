@@ -83,8 +83,8 @@ dotfiles_status_source() {
 # Coluna Linked: ☑ = symlink ok, ☐ = sem link (ou bloqueado).
 dotfiles_status_linked_checkbox() {
     case "$1" in
-        installed) echo $'Linked' ;;
-        wrong_target) echo "wong target" ;;
+        installed) echo "Linked" ;;
+        wrong_target) echo "wrong target" ;;
         not_installed|importable|unavailable|blocking_file) echo $'☐' ;;
         *) echo "?" ;;
     esac
@@ -101,14 +101,17 @@ dotfiles_status_action() {
     esac
 }
 
-# Símbolo curto ([✓], [ ], …) à esquerda do nome.
+# Símbolo curto ([+], [ ], …) à esquerda do nome.
+# Só caracteres ASCII nos marcadores: printf %-Ns conta largura de Unicode de forma
+# diferente do terminal (ex.: [×] e [✓] viram 4 “unidades” no printf e 3 colunas na tela),
+# o que desloca as colunas à direita.
 dotfiles_status_mark() {
     case "$1" in
-        blocking_file) echo "[×]" ;;
+        blocking_file) echo "[#]" ;;
         importable) echo "[~]" ;;
-        unavailable) echo "[—]" ;;
+        unavailable) echo "[-]" ;;
         not_installed) echo "[ ]" ;;
-        installed) echo "[✓]" ;;
+        installed) echo "[+]" ;;
         wrong_target) echo "[!]" ;;
         *) echo "[?]" ;;
     esac
@@ -151,8 +154,8 @@ dotfiles_menu_render() {
 # Explica os símbolos; duas variantes conforme cores ativas ou não.
 dotfiles_menu_print_legend() {
     if [[ -n "$C_INST" ]]; then
-        echo "Legenda: ${C_INST}[✓]${R} ok  ${C_NONE}[ ]${R} falta  ${C_IMP}[~]${R} importar desde ~  ${C_MISS}[—]${R} sem fonte  ${C_WRONG}[!]${R} link errado  ${C_BLOCK}[×]${R} bloqueado"
+        echo "Legenda: ${C_INST}[+]${R} ok  ${C_NONE}[ ]${R} falta  ${C_IMP}[~]${R} importar desde ~  ${C_MISS}[-]${R} sem fonte  ${C_WRONG}[!]${R} link errado  ${C_BLOCK}[#]${R} bloqueado"
     else
-        echo "Legenda: [✓] ok  [ ] falta  [~] importar desde ~  [—] sem fonte  [!] link errado  [×] bloqueado"
+        echo "Legenda: [+] ok  [ ] falta  [~] importar desde ~  [-] sem fonte  [!] link errado  [#] bloqueado"
     fi
 }
