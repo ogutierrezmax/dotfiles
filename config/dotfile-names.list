@@ -1,0 +1,12 @@
+# Nomes dos dotfiles a instalar (um por linha, relativos a data/).
+# Cada nome vira um symlink em ~: sem ponto → ~/.nome; com ponto (ex.: .zsh) → ~/.zsh
+# Linhas vazias e linhas que começam com # são ignoradas.
+
+myfiletotests
+# Teste wrong_target: symlink em ~/.wronglink-test deve apontar para outro sítio (ex.: /etc/hostname).
+wronglink-test
+gitconfig
+
+.zsh_history
+.zshrc
+asdf

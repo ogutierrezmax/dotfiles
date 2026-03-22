@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# Pasta onde os dotfiles estão
-DOTFILES_DIR=~/dotfiles
-
-# Lista de arquivos para linkar (separados por espaço)
-files="gitconfig"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=install/lib.sh
+source "${SCRIPT_DIR}/install/lib.sh"
 
 echo "AVISO: Este script vai SOBRESCREVER os arquivos existentes em ~ (ex.: ~/.gitconfig)"
 echo "       se já existirem. Os arquivos atuais serão substituídos por links simbólicos."
@@ -16,9 +15,6 @@ if [[ ! "$resposta" =~ ^[sS]$ ]]; then
 fi
 echo ""
 
-for file in $files; do
-    echo "Criando link simbólico para $file em ~"
-    ln -sf $DOTFILES_DIR/$file ~/.$file
-done
+dotfiles_link_from_dotfile_names
 
 echo "Configuração concluída!"

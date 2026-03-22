@@ -1,0 +1,2 @@
+# Ficheiro de teste: em ~/.wronglink-test deve existir um symlink que NÃO aponte
+# para este ficheiro em data/, para o menu mostrar estado wrong_target ([!]).
