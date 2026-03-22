@@ -85,7 +85,7 @@ dotfiles_status_linked_checkbox() {
     case "$1" in
         installed) echo "Linked" ;;
         wrong_target) echo "wrong target" ;;
-        not_installed|importable|unavailable|blocking_file) echo "[ ]" ;;
+        not_installed|importable|unavailable|blocking_file) echo "Unlinked" ;;
         *) echo "?" ;;
     esac
 }
