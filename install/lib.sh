@@ -254,7 +254,9 @@ dotfiles_repo_git_sync_warnings() {
         return 0
     fi
     if [[ -n "$(git -C "$repo_root" status --porcelain 2>/dev/null)" ]]; then
+        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Alterações locais não commitadas (working tree diferente do último commit)."
+        dotfiles_menu_ui_sep_line
     fi
     ref=""
     if git -C "$repo_root" rev-parse --abbrev-ref '@{u}' &>/dev/null; then
@@ -277,10 +279,16 @@ dotfiles_repo_git_sync_warnings() {
     ahead=${ahead:-0}
     behind=${behind:-0}
     if ((ahead > 0 && behind > 0)); then
+        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Branch divergiu do remoto: ${ahead} commit(s) à frente, ${behind} atrás (resolver com pull/merge e push)."
+        dotfiles_menu_ui_sep_line
     elif ((ahead > 0)); then
+        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Há ${ahead} commit(s) local(is) não enviado(s) ao GitHub (git push)."
+        dotfiles_menu_ui_sep_line
     elif ((behind > 0)); then
+        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Há ${behind} commit(s) no GitHub que ainda não estão aqui (git pull)."
+        dotfiles_menu_ui_sep_line
     fi
 }
