@@ -80,23 +80,24 @@ dotfiles_status_source() {
     esac
 }
 
-# Coluna Linked: ☑ = symlink ok, ☐ = sem link (ou bloqueado).
+# Coluna Linked: só ASCII (como nos marcadores): Unicode tipo ☐ desloca o printf vs. o terminal.
 dotfiles_status_linked_checkbox() {
     case "$1" in
         installed) echo "Linked" ;;
         wrong_target) echo "wrong target" ;;
-        not_installed|importable|unavailable|blocking_file) echo $'☐' ;;
+        not_installed|importable|unavailable|blocking_file) echo "[ ]" ;;
         *) echo "?" ;;
     esac
 }
 
+# Traço "sem ação": só ASCII (-); o traço longo Unicode (—) faz o mesmo desalinhamento que nos marcadores.
 dotfiles_status_action() {
     case "$1" in
         importable) echo "move and link" ;;
         unavailable) echo "create file" ;;
         blocking_file) echo "local backup and replace" ;;
         wrong_target) echo "fix link" ;;
-        installed|not_installed) echo "—" ;;
+        installed|not_installed) echo "-" ;;
         *) echo "?" ;;
     esac
 }
