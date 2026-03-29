@@ -244,19 +244,16 @@ dotfiles_link_from_dotfile_names() {
     done < <(dotfiles_dotfile_names_entries)
 }
 
-# Estado do repositório dotfiles em relação ao remoto (ex.: GitHub).
-# Imprime uma linha por aviso em pt-BR (stdout); nada se não for repo git ou estiver alinhado e limpo.
-# Usa apenas informação local (sem git fetch).
-dotfiles_repo_git_sync_warnings() {
+# Uma linha de texto por aviso (pt-BR), sem separadores de menu. Sem saída se repo limpo/alinhado.
+# Usa apenas informação local (sem git fetch). Não depende de install/menu-ui.sh.
+dotfiles_repo_git_sync_warning_lines() {
     local repo_root ahead behind ref
     repo_root="$(dotfiles_repo_root)"
     if ! git -C "$repo_root" rev-parse --is-inside-work-tree &>/dev/null; then
         return 0
     fi
     if [[ -n "$(git -C "$repo_root" status --porcelain 2>/dev/null)" ]]; then
-        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Alterações locais não commitadas (working tree diferente do último commit)."
-        dotfiles_menu_ui_sep_line
     fi
     ref=""
     if git -C "$repo_root" rev-parse --abbrev-ref '@{u}' &>/dev/null; then
@@ -279,16 +276,22 @@ dotfiles_repo_git_sync_warnings() {
     ahead=${ahead:-0}
     behind=${behind:-0}
     if ((ahead > 0 && behind > 0)); then
-        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Branch divergiu do remoto: ${ahead} commit(s) à frente, ${behind} atrás (resolver com pull/merge e push)."
-        dotfiles_menu_ui_sep_line
     elif ((ahead > 0)); then
-        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Há ${ahead} commit(s) local(is) não enviado(s) ao GitHub (git push)."
-        dotfiles_menu_ui_sep_line
     elif ((behind > 0)); then
-        dotfiles_menu_ui_sep_line
         echo "ATENÇÃO: Há ${behind} commit(s) no GitHub que ainda não estão aqui (git pull)."
-        dotfiles_menu_ui_sep_line
     fi
+}
+
+# Estado do repositório dotfiles em relação ao remoto (ex.: GitHub).
+# Imprime avisos com o mesmo layout do menu (separadores). Requer dotfiles_menu_ui_sep_line (menu-ui.sh).
+dotfiles_repo_git_sync_warnings() {
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" ]] && continue
+        dotfiles_menu_ui_sep_line
+        echo "$line"
+        dotfiles_menu_ui_sep_line
+    done < <(dotfiles_repo_git_sync_warning_lines)
 }
