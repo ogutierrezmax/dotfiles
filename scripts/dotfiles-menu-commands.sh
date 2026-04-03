@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Comandos do menu interativo: add, rm e instalação por estado.
-# Espera install/lib.sh e install/menu-ui.sh já carregados; SCRIPT_DIR definido pelo caller.
+# Espera dotfiles-lib.sh e dotfiles-menu-ui.sh já carregados; SCRIPT_DIR definido pelo caller.
 #
 # Convenção de exit codes (padrão bash: 0 = sucesso):
 #   try_add / try_rm: 0 = o input foi reconhecido e tratado (o loop continua);

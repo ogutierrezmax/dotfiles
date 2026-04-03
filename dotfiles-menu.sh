@@ -2,9 +2,9 @@
 # Menu interativo: lista o estado de cada entrada de config/dotfile-names.list e instala por número.
 #
 # Fluxo do loop: desenhar lista → ler comando → (add | rm | número de linha).
-# Para um número, install/lib decide o estado; menu-commands trata o caso ou deixa
+# Para um número, dotfiles-lib decide o estado; menu-commands trata o caso ou deixa
 
-# criar/atualizar o symlink em dotfiles_link_one (install/lib.sh).
+# criar/atualizar o symlink em dotfiles_link_one (scripts/dotfiles-lib.sh).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,12 +12,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # O ShellCheck verifica scripts .sh e avisa sobre erros comuns, más práticas e problemas de portabilidade.
 
-# shellcheck source=install/lib.sh
-source "${SCRIPT_DIR}/install/lib.sh"
-# shellcheck source=install/menu-ui.sh
-source "${SCRIPT_DIR}/install/menu-ui.sh"
-# shellcheck source=install/menu-commands.sh
-source "${SCRIPT_DIR}/install/menu-commands.sh"
+# shellcheck source=scripts/dotfiles-lib.sh
+source "${SCRIPT_DIR}/scripts/dotfiles-lib.sh"
+# shellcheck source=scripts/dotfiles-menu-ui.sh
+source "${SCRIPT_DIR}/scripts/dotfiles-menu-ui.sh"
+# shellcheck source=scripts/dotfiles-menu-commands.sh
+source "${SCRIPT_DIR}/scripts/dotfiles-menu-commands.sh"
 
 main() {
     local -a entries=()

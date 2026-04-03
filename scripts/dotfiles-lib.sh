@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Funções compartilhadas pelos scripts de instalação.
-# Uso: source a partir da raiz do repositório (ex.: install.sh).
+# Uso: source a partir de scripts/ (ex.: install-dotfiles.sh, dotfiles-menu.sh na raiz).
 
 set -euo pipefail
 
@@ -245,7 +245,7 @@ dotfiles_link_from_dotfile_names() {
 }
 
 # Uma linha de texto por aviso (pt-BR), sem separadores de menu. Sem saída se repo limpo/alinhado.
-# Usa apenas informação local (sem git fetch). Não depende de install/menu-ui.sh.
+# Usa apenas informação local (sem git fetch). Não depende de dotfiles-menu-ui.sh.
 dotfiles_repo_git_sync_warning_lines() {
     local repo_root ahead behind ref
     repo_root="$(dotfiles_repo_root)"
@@ -285,7 +285,7 @@ dotfiles_repo_git_sync_warning_lines() {
 }
 
 # Estado do repositório dotfiles em relação ao remoto (ex.: GitHub).
-# Imprime avisos com o mesmo layout do menu (separadores). Requer dotfiles_menu_ui_sep_line (menu-ui.sh).
+# Imprime avisos com o mesmo layout do menu (separadores). Requer dotfiles_menu_ui_sep_line (dotfiles-menu-ui.sh).
 dotfiles_repo_git_sync_warnings() {
     local line
     while IFS= read -r line || [[ -n "$line" ]]; do

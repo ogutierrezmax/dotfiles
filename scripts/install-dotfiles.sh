@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=install/lib.sh
-source "${SCRIPT_DIR}/install/lib.sh"
+# shellcheck source=scripts/dotfiles-lib.sh
+source "${SCRIPT_DIR}/dotfiles-lib.sh"
 
 echo "AVISO: Este script vai SOBRESCREVER os arquivos existentes em ~ (ex.: ~/.gitconfig)"
 echo "       se já existirem. Os arquivos atuais serão substituídos por links simbólicos."

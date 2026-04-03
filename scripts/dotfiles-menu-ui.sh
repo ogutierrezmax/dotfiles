@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cores e rótulos do menu interativo (dotfiles-menu.sh).
-# Estados vêm de dotfiles_status_for_file (install/lib.sh).
+# Estados vêm de dotfiles_status_for_file (dotfiles-lib.sh).
 # Layout (espaços entre colunas, larguras, cabeçalhos): config/menu-ui.conf
 # shellcheck disable=SC2034  # R, B, C_MARK_*, C_SOURCE_*, C_LINK_STATUS_{LINKED,UNLINKED,WRONG} são globais para printf
 
