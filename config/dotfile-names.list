@@ -6,6 +6,5 @@
 # Teste wrong_target: symlink em ~/.wronglink-test deve apontar para outro sítio (ex.: /etc/hostname).
 
 gitconfig
-
 .zshrc
-
+.agents
