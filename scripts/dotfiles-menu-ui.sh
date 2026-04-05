@@ -191,13 +191,32 @@ dotfiles_status_mark() {
     esac
 }
 
+# Quebra texto em linhas até largura máxima (preferência por espaços: fold -s).
+# Largura é em unidades de fold (tipicamente bytes; nomes de ficheiro ASCII alinham bem ao terminal).
+dotfiles_menu_wrap_to_lines() {
+    local text=${1:-} width=$2
+    if [[ -z "$text" ]]; then
+        printf '%s\n' ''
+        return 0
+    fi
+    fold -s -w "$width" <<< "$text"
+}
+
+# Largura visual do bloco antes da coluna "ficheiro" (espaço + # + gap + marcador + gap).
+dotfiles_menu_ui_prefix_before_file() {
+    echo $((1 + MENU_UI_WIDTH_NUM + MENU_UI_COL_GAP + MENU_UI_WIDTH_MARK + MENU_UI_COL_GAP))
+}
+
 # Cabeçalho + uma linha por entrada (config/links.list) + legenda.
 # Argumento: nome do array bash (nameref), ex.: dotfiles_menu_render entries
 dotfiles_menu_render() {
     local -n _menu_entries=$1
-    local line st c_mark c_source c_link_status i=1 gap
+    local line st c_mark c_source c_link_status i=1 gap prefix_w
+    local -a _wrap_file _wrap_action
+    local _k _nf _na _n=0 fline aline
     dotfiles_menu_ui_load_config
     printf -v gap '%*s' "$MENU_UI_COL_GAP" ''
+    prefix_w="$(dotfiles_menu_ui_prefix_before_file)"
 
     printf '\n\n\n\n\n\n\n\n\n\n'
     dotfiles_menu_ui_sep_line
@@ -213,15 +232,33 @@ dotfiles_menu_render() {
         c_mark="$(dotfiles_menu_column_color_mark "$st")"
         c_source="$(dotfiles_menu_column_color_source "$st")"
         c_link_status="$(dotfiles_menu_column_color_link_status "$st")"
-        # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro sem cor.
-        # shellcheck disable=SC2059
-        printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%-${MENU_UI_WIDTH_FILE}s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
-            "$B" "$i" "$R" \
-            "$c_mark" "$(dotfiles_status_mark "$st")" "$R" \
-            "$line" \
-            "$c_source" "$(dotfiles_status_source "$st")" \
-            "$c_link_status" "$(dotfiles_status_link_status_text "$st")" "$R" \
-            "$(dotfiles_status_action "$st")" "$R"
+        mapfile -t _wrap_file < <(dotfiles_menu_wrap_to_lines "$line" "$MENU_UI_WIDTH_FILE")
+        mapfile -t _wrap_action < <(dotfiles_menu_wrap_to_lines "$(dotfiles_status_action "$st")" "$MENU_UI_WIDTH_ACTION")
+        _nf=${#_wrap_file[@]}
+        _na=${#_wrap_action[@]}
+        ((_nf < 1)) && _nf=1
+        ((_na < 1)) && _na=1
+        ((_nf > _na)) && _n=$_nf || _n=$_na
+        for ((_k = 0; _k < _n; _k++)); do
+            fline="${_wrap_file[_k]:-}"
+            aline="${_wrap_action[_k]:-}"
+            if ((_k == 0)); then
+                # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro sem cor.
+                # shellcheck disable=SC2059
+                printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%-${MENU_UI_WIDTH_FILE}s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
+                    "$B" "$i" "$R" \
+                    "$c_mark" "$(dotfiles_status_mark "$st")" "$R" \
+                    "$fline" \
+                    "$c_source" "$(dotfiles_status_source "$st")" \
+                    "$c_link_status" "$(dotfiles_status_link_status_text "$st")" "$R" \
+                    "$aline" "$R"
+            else
+                # Continuação: colunas # e marcador vazias; source e link status vazios; file e action com linhas extra.
+                # shellcheck disable=SC2059
+                printf "%*s%-${MENU_UI_WIDTH_FILE}s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \
+                    "$prefix_w" '' "$fline" '' '' "$aline"
+            fi
+        done
         i=$((i + 1))
     done
     dotfiles_menu_ui_sep_line
