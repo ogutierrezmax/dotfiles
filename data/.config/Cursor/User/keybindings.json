@@ -1,0 +1,21 @@
+// Coloque as suas associações de teclas neste arquivo para substituir os padrões
+[
+  {
+    "key": "ctrl+i",
+    "command": "composerMode.agent",
+  },
+  {
+    "key": "ctrl+i",
+    "command": "workbench.action.focusBrowserLocationBar",
+    "when": "cursor.browserTabEnabled && !auxiliaryBarFocus && !browserEditorTransient && !panelFocus && !sideBarFocus && activeEditor == 'workbench.editor.browserEditor'",
+  },
+  {
+    "key": "ctrl+l",
+    "command": "-workbench.action.focusBrowserLocationBar",
+    "when": "cursor.browserTabEnabled && !auxiliaryBarFocus && !browserEditorTransient && !panelFocus && !sideBarFocus && activeEditor == 'workbench.editor.browserEditor'",
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.terminal.clear",
+  },
+]
