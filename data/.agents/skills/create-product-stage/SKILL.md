@@ -9,15 +9,18 @@ description: >-
 
 # Workflow: Criar Nova Etapa de Produto
 
-Este workflow define o processo estrutural para criar ecossistemas de artefatos de produto **desde o início**, eliminando a necessidade de refinamentos posteriores. O processo foi formalizado a partir de experiências reais de criação de artefatos de produto e consiste em **7 etapas sequenciais**: entender → pesquisar → organizar → criar → normalizar → mapear dependências → validar.
+Este workflow define o processo estrutural para criar ecossistemas de artefatos de produto **desde o início**, eliminando a necessidade de refinamentos posteriores. O processo foi formalizado a partir de experiências reais de criação de artefatos de produto e consiste em **8 etapas sequenciais**: bootstrap do [índice](docs/product/index.md) → entender → pesquisar → organizar → criar → normalizar → mapear dependências → validar.
 
 > **Princípio Central:** Pesquisar e estruturar ANTES de criar elimina a necessidade de refinar depois. Artefatos devem nascer densos e maduros — nunca como meros "templates vazios".
-
-Documentação de referência: [Taxonomia do Processo de Criação](file:///home/alfo/_Dev/visual-code-mapping/taxonomia-processo-criacao.md).
 
 ---
 
 ## Etapas do Processo
+
+### 0. 🚀 Bootstrap obrigatório do índice (`docs/product/index.md`)
+
+- **Execução obrigatória:** rodar o script `bash /home/alfo/_Dev/.agents/skills/create-product-stage/bootstrap-product-index.sh` que garante a existência do `docs/product/index.md`
+- Leia o arquivo `docs/product/index.md` completamente para que possamos saber onde estão todos os arquivos que impactão a etapa atual
 
 ### 1. 🎯 Elicitação de Contexto
 
@@ -25,12 +28,11 @@ Documentação de referência: [Taxonomia do Processo de Criação](file:///home
 - Antes de sugerir formatos ou estruturas para essa etapa de produto, compreenda ativamente o domínio:
   - Qual o objetivo final e o problema núcleo que esta etapa visa resolver?
   - Qual o escopo, ecossistema e o momento atual do projeto?
-  - Qual o nível de experiência do usuário com o assunto e a complexidade esperada (ex: MVP rápido vs. Enterprise Scale)?
 
 - **OBRIGATÓRIO** Não inicie a geração de arquivos ainda. Primeiro faça perguntas exploratórias para estabelecer a base mental.
 - **Protocolo obrigatório para perguntas:** antes de elaborar qualquer pergunta da Etapa 1, carregar e aplicar o protocolo em `auto-share/AI-tools/protocols/ProCAD - Protocol for Contextualized Assisted Decisions.md`.
 - **Falha de resolução do protocolo (bloqueante):**
-  - Se o arquivo acima não existir ou não puder ser lido, solicitar ao usuário o caminho correto do arquivo ProCAD.
+  - Se o arquivo do ProCAD não existir ou não puder ser lido, solicitar ao usuário o caminho correto do arquivo ProCAD e esperar sua resposta.
   - Após solicitar o caminho, **interromper o fluxo** e **aguardar a resposta do usuário** antes de continuar qualquer etapa (incluindo pesquisa, estruturação ou geração de arquivos).
   - Só retomar quando o arquivo ProCAD for localizado e lido com sucesso.
 - Use as seções informativas contidas no formato da pergunta (prós, contras, etc.) para prover o conhecimento necessário para entender a pergunta e fazer uma boa escolha.
