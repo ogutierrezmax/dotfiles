@@ -6,10 +6,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/supabase/agent-skills.git",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
-      "skillFolderHash": "95fe6d29daaf88aa9bc3b505ca4defe19ceabf92",
+      "skillFolderHash": "9e4dd36978eedd04efc649b4d431ab5ce4bb3896",
       "pluginName": "postgres-best-practices",
       "installedAt": "2026-03-02T09:25:31.168Z",
-      "updatedAt": "2026-03-02T09:25:31.168Z"
+      "updatedAt": "2026-04-09T22:30:40.327Z"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -74,6 +74,16 @@
       "skillFolderHash": "ee608061b9209907f5f296670483884c5eb20827",
       "installedAt": "2026-04-01T22:26:11.432Z",
       "updatedAt": "2026-04-01T22:26:11.432Z"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/supabase/agent-skills.git",
+      "skillPath": "skills/supabase/SKILL.md",
+      "skillFolderHash": "512c575a9b68d271682f9a39a01e4e9ea1156fa1",
+      "pluginName": "supabase",
+      "installedAt": "2026-04-09T22:30:40.826Z",
+      "updatedAt": "2026-04-09T22:30:40.826Z"
     }
   },
   "dismissed": {

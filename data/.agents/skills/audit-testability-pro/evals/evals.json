@@ -1,0 +1,23 @@
+{
+  "skill_name": "audit-testability-pro",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Analise a testabilidade unitária de `packages/database/src/utils/retry.ts`. Quero saber se está 100% pronto para receber testes unitários e, se não estiver, um plano de refatoração com complexidade.",
+      "expected_output": "Relatório de auditoria com verdict, scorecard, findings, roadmap e critérios de pronto.",
+      "files": ["packages/database/src/utils/retry.ts"]
+    },
+    {
+      "id": 2,
+      "prompt": "Revise `apps/dashboard/src/services/match-service.ts` e antecipe tudo que pode atrapalhar testes unitários. Classifique cada refatoração em Low/Medium/High e prioridade P0/P1/P2.",
+      "expected_output": "Diagnóstico com evidências objetivas de bloqueios de testabilidade e plano de ação priorizado.",
+      "files": ["apps/dashboard/src/services/match-service.ts"]
+    },
+    {
+      "id": 3,
+      "prompt": "Quero uma auditoria completa de `packages/chinese-leagues-fetcher/src/fetcher.ts` com foco em efeitos colaterais, não-determinismo e acoplamento. Só marque READY_FOR_TESTING se estiver realmente isolável.",
+      "expected_output": "Análise conservadora com justificativa técnica, incluindo conclusão READY_FOR_TESTING ou NEEDS_REFACTOR.",
+      "files": ["packages/chinese-leagues-fetcher/src/fetcher.ts"]
+    }
+  ]
+}

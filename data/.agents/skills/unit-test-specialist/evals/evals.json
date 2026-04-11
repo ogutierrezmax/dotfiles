@@ -1,0 +1,23 @@
+{
+  "skill_name": "unit-test-specialist",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Crie testes unitarios para o modulo de retry HTTP em TypeScript cobrindo sucesso na segunda tentativa, erro definitivo apos limite e comportamento com timeout.",
+      "expected_output": "Gera testes deterministicos com fake timers, cobre happy/error/edge e evita mocks desnecessarios.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Os testes do parser de payload estao flaky. Reescreva os testes unitarios para remover dependencia de tempo real e estado compartilhado.",
+      "expected_output": "Atualiza suite com cleanup rigoroso, isolamento por caso e assercoes sobre comportamento observavel.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Preciso de testes unitarios para uma funcao que normaliza dados de usuario, incluindo entradas vazias, null e campos com espacos extras.",
+      "expected_output": "Entrega matriz minima com casos nominais, borda e erro, com nomes de teste claros e sem acoplamento interno.",
+      "files": []
+    }
+  ]
+}
