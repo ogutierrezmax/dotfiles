@@ -188,4 +188,5 @@
   "playwright.runGlobalSetupOnEachRun": false,
   "hediet.vscode-drawio.resizeImages": null,
   "color-highlight.markerType": "dot-after",
+  "terminal.integrated.enableVisualBell": true,
 }
