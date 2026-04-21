@@ -248,21 +248,24 @@ dotfiles_menu_render() {
         for ((_k = 0; _k < _n; _k++)); do
             fline="${_wrap_file[_k]:-}"
             aline="${_wrap_action[_k]:-}"
+            c_file=""
+            [[ "$st" == "installed_modified" ]] && c_file="$C_LINK_STATUS_MODIFIED"
+
             if ((_k == 0)); then
-                # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro sem cor.
+                # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro (opcionalmente com cor).
                 # shellcheck disable=SC2059
-                printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%-${MENU_UI_WIDTH_FILE}s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
+                printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%s%-${MENU_UI_WIDTH_FILE}s%s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
                     "$B" "$i" "$R" \
                     "$c_mark" "$(dotfiles_status_mark "$st")" "$R" \
-                    "$fline" \
+                    "$c_file" "$fline" "$R" \
                     "$c_source" "$(dotfiles_status_source "$st")" \
                     "$c_link_status" "$(dotfiles_status_link_status_text "$st")" "$R" \
                     "$aline" "$R"
             else
                 # Continuação: colunas # e marcador vazias; source e link status vazios; file e action com linhas extra.
                 # shellcheck disable=SC2059
-                printf "%*s%-${MENU_UI_WIDTH_FILE}s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \
-                    "$prefix_w" '' "$fline" '' '' "$aline"
+                printf "%*s%s%-${MENU_UI_WIDTH_FILE}s%s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \
+                    "$prefix_w" '' "$c_file" "$fline" "$R" '' '' "$aline"
             fi
         done
         i=$((i + 1))
