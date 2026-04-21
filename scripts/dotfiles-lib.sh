@@ -188,6 +188,27 @@ dotfiles_status_for_file() {
     echo "blocking_file"
 }
 
+# Verifica se um ficheiro (relativo a data/) tem alterações não commitadas no repositório.
+# Retorna 0 se houver alterações; 1 se estiver limpo ou não for um repo git.
+dotfiles_file_has_changes() {
+    local file=$1
+    local repo_root data_dir rel_path
+    repo_root="$(dotfiles_repo_root)"
+    data_dir="$(dotfiles_data_dir)"
+    
+    # Caminho relativo ao root do repo para o git status
+    rel_path="data/${file}"
+
+    if ! git -C "$repo_root" rev-parse --is-inside-work-tree &>/dev/null; then
+        return 1
+    fi
+
+    if [[ -n "$(git -C "$repo_root" status --porcelain "$rel_path" 2>/dev/null)" ]]; then
+        return 0
+    fi
+    return 1
+}
+
 # Cria um único symlink; falha se a fonte não existir em data/.
 dotfiles_link_one() {
     local file=$1

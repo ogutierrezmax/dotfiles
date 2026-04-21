@@ -83,12 +83,13 @@ dotfiles_term_colors_init() {
         C_LINK_STATUS_LINKED="$(dotfiles_menu_ansi_fg_hex '#22c55e')"    # symlink ok
         C_LINK_STATUS_UNLINKED="$(dotfiles_menu_ansi_fg_hex '#eab308')" # sem link ou não aplicável
         C_LINK_STATUS_WRONG="$(dotfiles_menu_ansi_fg_hex '#a855f7')"     # aponta para sítio errado
+        C_LINK_STATUS_MODIFIED="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"  # symlink ok, mas ficheiro modificado
         C_GIT_SYNC_WARN="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"         # aviso git vs remoto
     else
         R= B=
         C_MARK_INST= C_MARK_NONE= C_MARK_IMP= C_MARK_MISS= C_MARK_WRONG= C_MARK_BLOCK=
         C_SOURCE_INST= C_SOURCE_NONE= C_SOURCE_IMP= C_SOURCE_MISS= C_SOURCE_WRONG= C_SOURCE_BLOCK=
-        C_LINK_STATUS_LINKED= C_LINK_STATUS_UNLINKED= C_LINK_STATUS_WRONG=
+        C_LINK_STATUS_LINKED= C_LINK_STATUS_UNLINKED= C_LINK_STATUS_WRONG= C_LINK_STATUS_MODIFIED=
         C_GIT_SYNC_WARN=
     fi
 }
@@ -110,7 +111,7 @@ dotfiles_menu_print_git_sync_warnings() {
 
 dotfiles_menu_column_color_mark() {
     case "$1" in
-        installed) echo "$C_MARK_INST" ;;
+        installed|installed_modified) echo "$C_MARK_INST" ;;
         not_installed) echo "$C_MARK_NONE" ;;
         importable) echo "$C_MARK_IMP" ;;
         unavailable) echo "$C_MARK_MISS" ;;
@@ -122,7 +123,7 @@ dotfiles_menu_column_color_mark() {
 
 dotfiles_menu_column_color_source() {
     case "$1" in
-        installed) echo "$C_SOURCE_INST" ;;
+        installed|installed_modified) echo "$C_SOURCE_INST" ;;
         not_installed) echo "$C_SOURCE_NONE" ;;
         importable) echo "$C_SOURCE_IMP" ;;
         unavailable) echo "$C_SOURCE_MISS" ;;
@@ -136,6 +137,7 @@ dotfiles_menu_column_color_source() {
 dotfiles_menu_column_color_link_status() {
     case "$1" in
         installed) echo "$C_LINK_STATUS_LINKED" ;;
+        installed_modified) echo "$C_LINK_STATUS_MODIFIED" ;;
         wrong_target) echo "$C_LINK_STATUS_WRONG" ;;
         not_installed|importable|unavailable|blocking_file) echo "$C_LINK_STATUS_UNLINKED" ;;
         *) echo "" ;;
@@ -145,7 +147,7 @@ dotfiles_menu_column_color_link_status() {
 # Colunas à direita: origem, link status, ação sugerida.
 dotfiles_status_source() {
     case "$1" in
-        installed|not_installed|wrong_target) echo "data" ;;
+        installed|installed_modified|not_installed|wrong_target) echo "data" ;;
         importable) echo "~" ;;
         unavailable) echo "none" ;;
         blocking_file) echo "~ & data" ;;
@@ -157,6 +159,7 @@ dotfiles_status_source() {
 dotfiles_status_link_status_text() {
     case "$1" in
         installed) echo "Linked" ;;
+        installed_modified) echo "Linked (!)" ;;
         wrong_target) echo "wrong target" ;;
         not_installed|importable|unavailable|blocking_file) echo "Unlinked" ;;
         *) echo "?" ;;
@@ -170,7 +173,7 @@ dotfiles_status_action() {
         unavailable) echo "create file" ;;
         blocking_file) echo "local backup and replace" ;;
         wrong_target) echo "fix link" ;;
-        installed|not_installed) echo "-" ;;
+        installed|installed_modified|not_installed) echo "-" ;;
         *) echo "?" ;;
     esac
 }
@@ -185,7 +188,7 @@ dotfiles_status_mark() {
         importable) echo "[~]" ;;
         unavailable) echo "[-]" ;;
         not_installed) echo "[ ]" ;;
-        installed) echo "[+]" ;;
+        installed|installed_modified) echo "[+]" ;;
         wrong_target) echo "[!]" ;;
         *) echo "[?]" ;;
     esac
@@ -229,6 +232,9 @@ dotfiles_menu_render() {
     dotfiles_menu_ui_sep_line
     for line in "${_menu_entries[@]}"; do
         st="$(dotfiles_status_for_file "$line")"
+        if [[ "$st" == "installed" ]] && dotfiles_file_has_changes "$line"; then
+            st="installed_modified"
+        fi
         c_mark="$(dotfiles_menu_column_color_mark "$st")"
         c_source="$(dotfiles_menu_column_color_source "$st")"
         c_link_status="$(dotfiles_menu_column_color_link_status "$st")"
@@ -272,8 +278,10 @@ dotfiles_menu_render() {
 dotfiles_menu_print_legend() {
     if [[ -n "$C_MARK_INST" ]]; then
         echo "Legenda: ${C_MARK_INST}[+]${R} ok  ${C_MARK_NONE}[ ]${R} falta  ${C_MARK_IMP}[~]${R} importar desde ~  ${C_MARK_MISS}[-]${R} sem fonte  ${C_MARK_WRONG}[!]${R} link errado  ${C_MARK_BLOCK}[#]${R} bloqueado"
+        echo "         ${C_LINK_STATUS_MODIFIED}(!)${R} ficheiro com alterações não commitadas"
     else
         echo "Legenda: [+] ok  [ ] falta  [~] importar desde ~  [-] sem fonte  [!] link errado  [#] bloqueado"
+        echo "         (!) ficheiro com alterações não commitadas"
     fi
 }
 
