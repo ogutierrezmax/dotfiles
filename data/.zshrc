@@ -129,7 +129,9 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 # My aliases:
 
 # Aliases moved from .bashrc
-alias ls='ls --color=auto'
+alias ls='eza --icons'
+alias l='eza -l --icons'
+alias ll='eza -lah --icons'
 alias sudo='sudo '
 alias apt='apt '
 alias i='install'
