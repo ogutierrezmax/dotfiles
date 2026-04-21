@@ -85,12 +85,13 @@ dotfiles_term_colors_init() {
         C_LINK_STATUS_WRONG="$(dotfiles_menu_ansi_fg_hex '#a855f7')"     # aponta para sítio errado
         C_LINK_STATUS_MODIFIED="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"  # symlink ok, mas ficheiro modificado
         C_GIT_SYNC_WARN="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"         # aviso git vs remoto
+        C_FILE_PATH="$(dotfiles_menu_ansi_fg_hex '#6b7280')"             # caminho acinzentado
     else
         R= B=
         C_MARK_INST= C_MARK_NONE= C_MARK_IMP= C_MARK_MISS= C_MARK_WRONG= C_MARK_BLOCK=
         C_SOURCE_INST= C_SOURCE_NONE= C_SOURCE_IMP= C_SOURCE_MISS= C_SOURCE_WRONG= C_SOURCE_BLOCK=
         C_LINK_STATUS_LINKED= C_LINK_STATUS_UNLINKED= C_LINK_STATUS_WRONG= C_LINK_STATUS_MODIFIED=
-        C_GIT_SYNC_WARN=
+        C_GIT_SYNC_WARN= C_FILE_PATH=
     fi
 }
 
@@ -210,6 +211,44 @@ dotfiles_menu_ui_prefix_before_file() {
     echo $((1 + MENU_UI_WIDTH_NUM + MENU_UI_COL_GAP + MENU_UI_WIDTH_MARK + MENU_UI_COL_GAP))
 }
 
+# Formata o caminho do ficheiro: path em cinza, nome em destaque (base_color ou default).
+# offset é a posição inicial desta fatia (folded) na string original.
+dotfiles_menu_ui_format_file_path() {
+    local original=$1
+    local folded=$2
+    local base_color=$3
+    local offset=$4
+    local r=${R:-}
+
+    local prefix="${original%/*}"
+    if [[ "$prefix" == "$original" ]]; then
+        echo "${base_color}${folded}${r}"
+        return
+    fi
+
+    local last_slash_pos=${#prefix} # Index da barra
+    local folded_len=${#folded}
+    local end_pos=$((offset + folded_len - 1))
+
+    # Se todo o folded está antes ou na barra
+    if ((end_pos <= last_slash_pos)); then
+        echo "${C_FILE_PATH}${folded}${r}"
+        return
+    fi
+
+    # Se todo o folded está depois da barra
+    if ((offset > last_slash_pos)); then
+        echo "${base_color}${folded}${r}"
+        return
+    fi
+
+    # O folded contém a transição
+    local split_at=$((last_slash_pos - offset + 1))
+    local part_path="${folded:0:split_at}"
+    local part_file="${folded:split_at}"
+    echo "${C_FILE_PATH}${part_path}${r}${base_color}${part_file}${r}"
+}
+
 # Cabeçalho + uma linha por entrada (config/links.list) + legenda.
 # Argumento: nome do array bash (nameref), ex.: dotfiles_menu_render entries
 dotfiles_menu_render() {
@@ -245,27 +284,36 @@ dotfiles_menu_render() {
         ((_nf < 1)) && _nf=1
         ((_na < 1)) && _na=1
         ((_nf > _na)) && _n=$_nf || _n=$_na
+
+        local offset=0
         for ((_k = 0; _k < _n; _k++)); do
             fline="${_wrap_file[_k]:-}"
             aline="${_wrap_action[_k]:-}"
             c_file=""
             [[ "$st" == "installed_modified" ]] && c_file="$C_LINK_STATUS_MODIFIED"
 
+            # Formata o ficheiro com path cinza e calcula padding manual (ANSI quebra printf %-Ns)
+            formatted_fline="$(dotfiles_menu_ui_format_file_path "$line" "$fline" "$c_file" "$offset")"
+            pad_len=$((MENU_UI_WIDTH_FILE - ${#fline}))
+            ((pad_len < 0)) && pad_len=0
+            printf -v fline_padded "%s%*s" "$formatted_fline" "$pad_len" ""
+            offset=$((offset + ${#fline}))
+
             if ((_k == 0)); then
-                # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro (opcionalmente com cor).
+                # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro formatado acima.
                 # shellcheck disable=SC2059
-                printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%s%-${MENU_UI_WIDTH_FILE}s%s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
+                printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
                     "$B" "$i" "$R" \
                     "$c_mark" "$(dotfiles_status_mark "$st")" "$R" \
-                    "$c_file" "$fline" "$R" \
+                    "$fline_padded" \
                     "$c_source" "$(dotfiles_status_source "$st")" \
                     "$c_link_status" "$(dotfiles_status_link_status_text "$st")" "$R" \
                     "$aline" "$R"
             else
                 # Continuação: colunas # e marcador vazias; source e link status vazios; file e action com linhas extra.
                 # shellcheck disable=SC2059
-                printf "%*s%s%-${MENU_UI_WIDTH_FILE}s%s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \
-                    "$prefix_w" '' "$c_file" "$fline" "$R" '' '' "$aline"
+                printf "%*s%s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \
+                    "$prefix_w" '' "$fline_padded" '' '' "$aline"
             fi
         done
         i=$((i + 1))
