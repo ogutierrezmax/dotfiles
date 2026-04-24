@@ -78,7 +78,10 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+plugins=(tmux git zsh-autosuggestions zsh-syntax-highlighting)
+
+ZSH_TMUX_AUTOSTART=true
+ZSH_TMUX_AUTOCONNECT=true
 
 source $ZSH/oh-my-zsh.sh
 
@@ -136,3 +139,7 @@ alias sudo='sudo '
 alias apt='apt '
 alias i='install'
 alias atgr='antigravity'
+
+
+# opencode
+export PATH=/home/alfo/.opencode/bin:$PATH
