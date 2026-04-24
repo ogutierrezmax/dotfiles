@@ -1,3 +1,8 @@
 .bkp/
 .cache
 auto-share
+
+# Zsh — arquivos que NÃO devem ser versionados
+.zsh_history
+.zcompdump*
+.zshrc.local
