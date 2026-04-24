@@ -129,8 +129,18 @@ eval "$(zoxide init zsh)"
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 source ~/powerlevel10k/powerlevel10k.zsh-theme
 
-# My aliases:
+# ------ Configurações de Histórico do zsh------
+HISTFILE=~/.zsh_history  # Arquivo onde o histórico é salvo
+HISTSIZE=10000           # Comandos na memória da sessão
+SAVEHIST=10000           # Comandos preservados no disco
 
+setopt HIST_IGNORE_DUPS      # Ignora duplicatas consecutivas
+setopt HIST_IGNORE_SPACE     # Comandos com espaço inicial não são salvos
+setopt SHARE_HISTORY         # Compartilha histórico entre terminais
+setopt HIST_VERIFY           # Revisa comando antes de executar com !!
+setopt HIST_EXPIRE_DUPS_FIRST # Deleta duplicatas primeiro ao atingir o limite
+
+# My aliases:
 # Aliases moved from .bashrc
 alias ls='eza --icons'
 alias l='eza -l --icons'
