@@ -12,3 +12,6 @@ gitconfig
 # Cursor
 .config/Cursor/User/keybindings.json
 .config/Cursor/User/settings.json
+
+# regras de janelas do KDE plasma (transparencia)
+.config/kwinrulesrc
