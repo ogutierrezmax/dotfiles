@@ -4,10 +4,40 @@
 # Desenvolvido para KDE Plasma 6
 
 
+# --- AUTO-CONFIGURAÇÃO E DAEMON ---
+
+# Se não foi passado o argumento --daemon, ele se auto-executa em background
+if [[ "$1" != "--daemon" ]]; then
+    # Cria o arquivo de autostart se não existir
+    AUTOSTART_DIR="$HOME/.config/autostart"
+    AUTOSTART_FILE="$AUTOSTART_DIR/plasma-panel-lang-color.desktop"
+    
+    if [ ! -f "$AUTOSTART_FILE" ]; then
+        mkdir -p "$AUTOSTART_DIR"
+        cat > "$AUTOSTART_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Plasma Panel Language Color
+Comment=Muda cor do painel baseado no idioma
+Exec=$(realpath "$0") --daemon
+Icon=preferences-desktop-keyboard
+Terminal=false
+X-KDE-autostart-after=panel
+EOF
+        chmod +x "$AUTOSTART_FILE"
+        echo "Configurado para iniciar com o sistema em: $AUTOSTART_FILE"
+    fi
+
+    # Executa a si mesmo em background e sai
+    echo "Iniciando em segundo plano..."
+    setsid "$0" --daemon "$@" > /dev/null 2>&1 &
+    exit 0
+fi
+
 # --- GERENCIAMENTO DE INSTÂNCIAS ---
 
-# Busca PIDs (Process IDs) de outras instancias deste script
-OTHER_PIDS=$(pgrep -f "$(basename "$0")" | grep -v "^$$$")
+# Busca PIDs de outras instancias deste script (ignorando o processo atual)
+OTHER_PIDS=$(pgrep -f "$(basename "$0") .*--daemon" | grep -v "^$$$")
 # Se houver outra instância rodando, mata-a
 if [ -n "$OTHER_PIDS" ]; then
     kill $OTHER_PIDS
