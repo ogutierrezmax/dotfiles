@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Comandos do menu interativo: add, rm e instalação por estado.
-# Espera dotfiles-lib.sh e dotfiles-menu-ui.sh já carregados; SCRIPT_DIR definido pelo caller.
-#
-# Convenção de exit codes (padrão bash: 0 = sucesso):
-#   try_add / try_rm: 0 = o input foi reconhecido e tratado (o loop continua);
-#                     1 = não era esse comando → o caller tenta o passo seguinte.
-#   act_on_entry:     0 = situação resolvida ou só mensagem (continuar loop);
-#                     1 = falta executar dotfiles_link_one no caller.
+# SECURITY NOTE: Ensure these files are owned by your user and not world-writable.
+# Be cautious when adding new modules suggested by LLMs; always review the content.
+
+# Verifica se os comandos necessários estão instalados
+dotfiles_menu_check_deps() {
+    local dep
+    for dep in "$@"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            echo "Erro: Comando '$dep' não encontrado. Por favor, instale-o." >&2
+            return 1
+        fi
+    done
+}
 
 # Remove espaços no início e fim (útil antes de interpretar "add ...").
 dotfiles_menu_trim() {
@@ -131,27 +137,39 @@ dotfiles_menu_commit_file() {
             echo "Nenhuma chave inserida. Cancelando."
             return 0
         fi
-        mkdir -p "$(dirname "$key_file")"
-        echo "$api_key" > "$key_file"
-        chmod 600 "$key_file"
+        mkdir -p "$(dirname "$key_file")" || { echo "Erro ao criar diretório da API key." >&2; return 1; }
+        echo "GOOGLE_AI_KEY=$api_key" > "$key_file"
+        echo "GEMINI_MODEL=gemini-3-flash-live" >> "$key_file"
+        chmod 600 "$key_file" || { echo "Erro ao definir permissões na API key." >&2; return 1; }
         echo "API key salva em config/.google_ai_studio_api_key"
     fi
     
-    api_key=$(<"$key_file")
+    local gemini_model=""
+    local line key val
+    while IFS='=' read -r key val || [[ -n "$key" ]]; do
+        # Remove possíveis espaços extras e CR
+        key=$(echo "$key" | tr -d '[:space:]')
+        val=$(echo "$val" | tr -d '\r')
+        case "$key" in
+            GOOGLE_AI_KEY) api_key="$val" ;;
+            GEMINI_MODEL)  gemini_model="$val" ;;
+        esac
+    done < "$key_file"
+
+    gemini_model="${gemini_model:-gemini-3-flash-live}"
     
-    if [[ -z "$api_key" ]]; then
-        echo "Erro: A chave de API no arquivo está vazia."
-        return 0
+    if ! dotfiles_menu_check_deps jq curl; then
+        return 1
     fi
-    
+
     echo "Gerando mensagem de commit para $file..."
     
     # Obter o diff do arquivo específico
     local rel_path="data/${file}"
-    diff_output="$(git -C "$repo_root" diff HEAD -- "$rel_path")"
+    diff_output="$(git -C "$repo_root" diff HEAD -- "$rel_path" 2>/dev/null)"
     
     if [[ -z "$diff_output" ]]; then
-        echo "Nenhuma alteração detectada para $file pelo git."
+        echo "Nenhuma alteração detectada para $file pelo git ou arquivo não rastreado."
         return 0
     fi
     
@@ -162,13 +180,18 @@ dotfiles_menu_commit_file() {
           "text": ("Você é um assistente que escreve mensagens de commit baseadas em diffs de git. Escreva APENAS a mensagem de commit usando o padrão Conventional Commits. Seja conciso. Aqui está o diff:\n\n" + $diff)
         }]
       }]
-    }')
+    }') || { echo "Erro ao preparar JSON para a API." >&2; return 1; }
     
-    response=$(curl -s -X POST -H "Content-Type: application/json" \
+    response=$(curl -s -f -X POST -H "Content-Type: application/json" \
         -d "$json_payload" \
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${api_key}")
+        "https://generativelanguage.googleapis.com/v1beta/models/${gemini_model}:generateContent?key=${api_key}")
+    
+    if [[ $? -ne 0 ]]; then
+        echo "Erro: Falha na requisição à API do Gemini (verifique sua chave e conexão)." >&2
+        return 1
+    fi
         
-    commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty')
+    commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null)
     
     if [[ -z "$commit_msg" ]]; then
         echo "Erro ao gerar a mensagem de commit. Resposta da API:"
@@ -221,8 +244,8 @@ dotfiles_menu_act_on_entry() {
             if ! dotfiles_menu_is_yes "$ans"; then
                 return 0
             fi
-            mkdir -p "$(dirname "$data_src")"
-            mv -- "$dest" "$data_src"
+            mkdir -p "$(dirname "$data_src")" || { echo "Erro ao criar diretório em data/." >&2; return 0; }
+            mv -- "$dest" "$data_src" || { echo "Erro ao mover arquivo para o repositório." >&2; return 0; }
             echo ""
             dotfiles_link_one "$file"
             echo "Feito."
