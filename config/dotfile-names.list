@@ -8,6 +8,7 @@
 gitconfig
 .zshrc
 .agents
+.zsh
 
 # Cursor
 .config/Cursor/User/keybindings.json

@@ -9,6 +9,7 @@ Configurações pessoais versionadas com symlinks para `~`.
 | `data/` | Arquivos de configuração (fonte dos links em `~`) |
 | `config/` | Listas (`dotfile-names.list`, `packages.list`) |
 | `scripts/` | Biblioteca e auxiliares (`dotfiles-lib.sh`, instalação em lote, UI do menu) |
+| `scripts/agents.md` | Diretrizes técnicas e de manutenção (espelhado em `docs/arquitetura-scripts.md`) |
 | `docs/` | Notas e documentação |
 | `scripts/install-dotfiles.sh` | Instala tudo: confirmação e criação dos symlinks |
 | `dotfiles-menu.sh` | Menu: mostra o estado de cada entrada e instala por número |

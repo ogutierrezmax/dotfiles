@@ -6,3 +6,4 @@ auto-share
 .zsh_history
 .zcompdump*
 .zshrc.local
+.zsh_local
