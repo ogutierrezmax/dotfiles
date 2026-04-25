@@ -7,3 +7,6 @@ auto-share
 .zcompdump*
 .zshrc.local
 .zsh_local
+
+# API keys and secrets
+config/.google_ai_studio_api_key

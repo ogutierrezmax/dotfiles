@@ -110,6 +110,92 @@ dotfiles_menu_try_rm() {
     return 1
 }
 
+dotfiles_menu_commit_file() {
+    local file=$1
+    local key_file data_dir repo_root api_key diff_output response commit_msg ans
+    
+    key_file="$(dotfiles_repo_root)/config/.google_ai_studio_api_key"
+    data_dir="$(dotfiles_data_dir)"
+    repo_root="$(dotfiles_repo_root)"
+    
+    if [[ ! -f "$key_file" ]]; then
+        echo "A API key do Google AI Studio não foi encontrada."
+        read -r -p "Deseja adicionar uma agora para gerar mensagens de commit? (sim/não): " ans || true
+        if ! dotfiles_menu_is_yes "$ans"; then
+            return 0
+        fi
+        echo -n "Cole sua API key do Google AI Studio (não será exibida): "
+        read -rs api_key
+        echo ""
+        if [[ -z "$api_key" ]]; then
+            echo "Nenhuma chave inserida. Cancelando."
+            return 0
+        fi
+        mkdir -p "$(dirname "$key_file")"
+        echo "$api_key" > "$key_file"
+        chmod 600 "$key_file"
+        echo "API key salva em config/.google_ai_studio_api_key"
+    fi
+    
+    api_key=$(<"$key_file")
+    
+    if [[ -z "$api_key" ]]; then
+        echo "Erro: A chave de API no arquivo está vazia."
+        return 0
+    fi
+    
+    echo "Gerando mensagem de commit para $file..."
+    
+    # Obter o diff do arquivo específico
+    local rel_path="data/${file}"
+    diff_output="$(git -C "$repo_root" diff HEAD -- "$rel_path")"
+    
+    if [[ -z "$diff_output" ]]; then
+        echo "Nenhuma alteração detectada para $file pelo git."
+        return 0
+    fi
+    
+    local json_payload
+    json_payload=$(jq -n --arg diff "$diff_output" '{
+      "contents": [{
+        "parts": [{
+          "text": ("Você é um assistente que escreve mensagens de commit baseadas em diffs de git. Escreva APENAS a mensagem de commit usando o padrão Conventional Commits. Seja conciso. Aqui está o diff:\n\n" + $diff)
+        }]
+      }]
+    }')
+    
+    response=$(curl -s -X POST -H "Content-Type: application/json" \
+        -d "$json_payload" \
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${api_key}")
+        
+    commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty')
+    
+    if [[ -z "$commit_msg" ]]; then
+        echo "Erro ao gerar a mensagem de commit. Resposta da API:"
+        echo "$response"
+        return 0
+    fi
+    
+    # Limpa possíveis blocos de código markdown da resposta
+    commit_msg=$(echo "$commit_msg" | sed 's/^```[a-zA-Z]*$//g' | sed 's/^```$//g' | awk 'NF')
+    
+    echo ""
+    echo "======================================"
+    echo -e "${B:-}Mensagem sugerida:${R:-}"
+    echo "$commit_msg"
+    echo "======================================"
+    echo ""
+    
+    read -r -p "Confirmar e realizar o commit deste arquivo? (sim/não): " ans || true
+    if ! dotfiles_menu_is_yes "$ans"; then
+        echo "Commit cancelado."
+        return 0
+    fi
+    
+    git -C "$repo_root" commit -m "$commit_msg" -- "$rel_path"
+    echo "Commit realizado com sucesso!"
+}
+
 # Reage ao estado devolvido por dotfiles_status_for_file (importar, bloquear, link errado, etc.).
 # importable: pode mover ~ → data/ e já criar o link aqui (return 0).
 # wrong_target: pergunta; só return 1 se o utilizador quiser substituir (o caller chama dotfiles_link_one).
@@ -118,7 +204,15 @@ dotfiles_menu_act_on_entry() {
     local st dest data_src ans ovr
 
     st="$(dotfiles_status_for_file "$file")"
+    if [[ "$st" == "installed" ]] && dotfiles_file_has_changes "$file"; then
+        st="installed_modified"
+    fi
+
     case "$st" in
+        installed_modified)
+            dotfiles_menu_commit_file "$file"
+            return 0
+            ;;
         # Arquivo existe em ~ mas não em data/: opção de mover para o repo e linkar.
         importable)
             dest="$(dotfiles_dest_for_file "$file")"

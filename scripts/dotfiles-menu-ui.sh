@@ -175,7 +175,8 @@ dotfiles_status_action() {
         blocking_file) echo "local backup and replace" ;;
         wrong_target) echo "fix link" ;;
         not_installed) echo "link" ;;
-        installed|installed_modified) echo "-" ;;
+        installed_modified) echo "commit" ;;
+        installed) echo "-" ;;
         *) echo "?" ;;
     esac
 }
