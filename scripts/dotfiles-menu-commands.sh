@@ -166,7 +166,7 @@ dotfiles_menu_commit_file() {
     
     response=$(curl -s -X POST -H "Content-Type: application/json" \
         -d "$json_payload" \
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${api_key}")
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${api_key}")
         
     commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty')
     
