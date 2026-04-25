@@ -3,6 +3,16 @@
 # Script para mudar o preset do Panel Colorizer baseado no idioma do teclado
 # Desenvolvido para KDE Plasma 6
 
+
+# --- GERENCIAMENTO DE INSTÂNCIAS ---
+
+# Busca PIDs (Process IDs) de outras instancias deste script
+OTHER_PIDS=$(pgrep -f "$(basename "$0")" | grep -v "^$$$")
+# Se houver outra instância rodando, mata-a
+if [ -n "$OTHER_PIDS" ]; then
+    kill $OTHER_PIDS
+fi
+
 # --- CONFIGURAÇÃO ---
 # Caminhos para os presets (ajuste conforme seu gosto)
 # Você pode encontrar presets em:
@@ -12,9 +22,9 @@
 PRESETS_BASE="$HOME/.local/share/plasma/plasmoids/luisbocanegra.panel.colorizer/contents/ui/presets"
 
 # Preset para Inglês (Layout 0)
-PRESET_EN="$PRESETS_BASE/Pulse"
+PRESET_EN="$PRESETS_BASE/Neon Lights"
 # Preset para Português (Layout 1)
-PRESET_PT="$PRESETS_BASE/Bliss"
+PRESET_PT="$PRESETS_BASE/Blur Widgets"
 
 # --- FUNÇÕES ---
 
