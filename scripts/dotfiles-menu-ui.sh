@@ -21,7 +21,7 @@ dotfiles_menu_ui_load_config() {
     : "${MENU_UI_WIDTH_ACTION:=30}"
     : "${MENU_UI_HDR_NUM:=#}"
     MENU_UI_HDR_MARK="${MENU_UI_HDR_MARK:-$_hdr_mark_def}"
-    : "${MENU_UI_HDR_FILE:=ficheiro}"
+    : "${MENU_UI_HDR_FILE:=arquivo}"
     : "${MENU_UI_HDR_SOURCE:=source}"
     : "${MENU_UI_HDR_LINK_STATUS:=link status}"
     : "${MENU_UI_HDR_ACTION:=Action}"
@@ -83,7 +83,7 @@ dotfiles_term_colors_init() {
         C_LINK_STATUS_LINKED="$(dotfiles_menu_ansi_fg_hex '#22c55e')"    # symlink ok
         C_LINK_STATUS_UNLINKED="$(dotfiles_menu_ansi_fg_hex '#eab308')" # sem link ou não aplicável
         C_LINK_STATUS_WRONG="$(dotfiles_menu_ansi_fg_hex '#a855f7')"     # aponta para sítio errado
-        C_LINK_STATUS_MODIFIED="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"  # symlink ok, mas ficheiro modificado
+        C_LINK_STATUS_MODIFIED="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"  # symlink ok, mas arquivo modificado
         C_GIT_SYNC_WARN="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"         # aviso git vs remoto
         C_FILE_PATH="$(dotfiles_menu_ansi_fg_hex '#6b7280')"             # caminho acinzentado
     else
@@ -174,7 +174,8 @@ dotfiles_status_action() {
         unavailable) echo "create file" ;;
         blocking_file) echo "local backup and replace" ;;
         wrong_target) echo "fix link" ;;
-        installed|installed_modified|not_installed) echo "-" ;;
+        not_installed) echo "link" ;;
+        installed|installed_modified) echo "-" ;;
         *) echo "?" ;;
     esac
 }
@@ -196,7 +197,7 @@ dotfiles_status_mark() {
 }
 
 # Quebra texto em linhas até largura máxima (preferência por espaços: fold -s).
-# Largura é em unidades de fold (tipicamente bytes; nomes de ficheiro ASCII alinham bem ao terminal).
+# Largura é em unidades de fold (tipicamente bytes; nomes de arquivo ASCII alinham bem ao terminal).
 dotfiles_menu_wrap_to_lines() {
     local text=${1:-} width=$2
     if [[ -z "$text" ]]; then
@@ -206,12 +207,12 @@ dotfiles_menu_wrap_to_lines() {
     fold -s -w "$width" <<< "$text"
 }
 
-# Largura visual do bloco antes da coluna "ficheiro" (espaço + # + gap + marcador + gap).
+# Largura visual do bloco antes da coluna "arquivo" (espaço + # + gap + marcador + gap).
 dotfiles_menu_ui_prefix_before_file() {
     echo $((1 + MENU_UI_WIDTH_NUM + MENU_UI_COL_GAP + MENU_UI_WIDTH_MARK + MENU_UI_COL_GAP))
 }
 
-# Formata o caminho do ficheiro: path em cinza, nome em destaque (base_color ou default).
+# Formata o caminho do arquivo: path em cinza, nome em destaque (base_color ou default).
 # offset é a posição inicial desta fatia (folded) na string original.
 dotfiles_menu_ui_format_file_path() {
     local original=$1
@@ -292,7 +293,7 @@ dotfiles_menu_render() {
             c_file=""
             [[ "$st" == "installed_modified" ]] && c_file="$C_LINK_STATUS_MODIFIED"
 
-            # Formata o ficheiro com path cinza e calcula padding manual (ANSI quebra printf %-Ns)
+            # Formata o arquivo com path cinza e calcula padding manual (ANSI quebra printf %-Ns)
             formatted_fline="$(dotfiles_menu_ui_format_file_path "$line" "$fline" "$c_file" "$offset")"
             pad_len=$((MENU_UI_WIDTH_FILE - ${#fline}))
             ((pad_len < 0)) && pad_len=0
@@ -300,7 +301,7 @@ dotfiles_menu_render() {
             offset=$((offset + ${#fline}))
 
             if ((_k == 0)); then
-                # ANSI fora dos %-Ns (marcador, source, link status); nome do ficheiro formatado acima.
+                # ANSI fora dos %-Ns (marcador, source, link status); nome do arquivo formatado acima.
                 # shellcheck disable=SC2059
                 printf " %s%${MENU_UI_WIDTH_NUM}d%s${gap}%s%-${MENU_UI_WIDTH_MARK}s%s${gap}%s${gap}%s%-${MENU_UI_WIDTH_SOURCE}s${gap}%s%-${MENU_UI_WIDTH_LINK_STATUS}s%s${gap}%-${MENU_UI_WIDTH_ACTION}s%s\n" \
                     "$B" "$i" "$R" \
@@ -329,10 +330,10 @@ dotfiles_menu_render() {
 dotfiles_menu_print_legend() {
     if [[ -n "$C_MARK_INST" ]]; then
         echo "Legenda: ${C_MARK_INST}[+]${R} ok  ${C_MARK_NONE}[ ]${R} falta  ${C_MARK_IMP}[~]${R} importar desde ~  ${C_MARK_MISS}[-]${R} sem fonte  ${C_MARK_WRONG}[!]${R} link errado  ${C_MARK_BLOCK}[#]${R} bloqueado"
-        echo "         ${C_LINK_STATUS_MODIFIED}(!)${R} ficheiro com alterações não commitadas"
+        echo "         ${C_LINK_STATUS_MODIFIED}(!)${R} arquivo com alterações não commitadas"
     else
         echo "Legenda: [+] ok  [ ] falta  [~] importar desde ~  [-] sem fonte  [!] link errado  [#] bloqueado"
-        echo "         (!) ficheiro com alterações não commitadas"
+        echo "         (!) arquivo com alterações não commitadas"
     fi
 }
 
@@ -346,9 +347,9 @@ dotfiles_menu_print_command_help() {
 
     echo "$_pad"
     echo "${B}Comandos${R}"
-    printf '  %-18s  %s\n' "- add <nome>"
-    printf '  %-18s  %s\n' "- rm <numero da linha>"
-    printf '  %-18s  %s\n' "- <N> + enter               ação da coluna action"
+    printf '  %-18s  %s\n' "- <Número da linha>         Ação da coluna action"
+    printf '  %-18s  %s\n' "- add <nome>                Adicionar um novo dotfile"
+    printf '  %-18s  %s\n' "- rm <Número da linha>      Remover um dotfile da lista"
     printf '  %-18s  %s\n' "- Enter (vazio)             Sai do menu."
     echo "$_pad"
 }

@@ -77,7 +77,7 @@ Este workflow define o processo estrutural para criar ecossistemas de artefatos 
   - **Qual a anatomia esperada** de cada artefato (quais tópicos essenciais ele *deve* ter para não ser superficial).
   - **Qual a nomenclatura universal** (evite jargões isolados).
 - Apresente ao usuário a lista de artefatos recomendados e peça aprovação.
-- A topologia de diretórios e nomes de ficheiros físicos ficam **apenas** na Etapa 3; nesta etapa fica o blueprint lógico (artefatos e propósitos).
+- A topologia de diretórios e nomes de arquivos físicos ficam **apenas** na Etapa 3; nesta etapa fica o blueprint lógico (artefatos e propósitos).
 - **Saída:** Blueprint aprovado de artefatos com nomes e propósitos padronizados.
 
 ### 3. 🏗️ Definição Estrutural

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Funções compartilhadas pelos scripts de instalação.
 # Uso: source a partir de scripts/ (ex.: install-dotfiles.sh, dotfiles-menu.sh na raiz).
+# OBS: No futuro, se esta biblioteca crescer significativamente, considere modularizá-la
+# em arquivos menores (ex: git-utils.sh, link-utils.sh) para facilitar a manutenção.
 
 set -euo pipefail
 
@@ -19,7 +21,7 @@ dotfiles_backup_dir() {
     echo "$(dotfiles_repo_root)/.bkp"
 }
 
-# Move o destino em ~ (ficheiro/pasta real, não symlink) para .bkp com slug
+# Move o destino em ~ (arquivo/pasta real, não symlink) para .bkp com slug
 # DD-MM-AAAA_HH:MM_<basename> (basename = nome em ~, ex.: .zshrc).
 # Retorna 0 se ok; 1 em erro.
 dotfiles_move_blocking_dest_to_bkp() {
@@ -152,7 +154,7 @@ dotfiles_dotfile_names_add_entry() {
 }
 
 # Estados: importable | unavailable | not_installed | installed | wrong_target | blocking_file
-# importable = sem cópia em data/, mas existe ficheiro/pasta real em ~ (pode mover para o repo).
+# importable = sem cópia em data/, mas existe arquivo/pasta real em ~ (pode mover para o repo).
 dotfiles_status_for_file() {
     local file=$1
     local src dest canonical_src
@@ -188,7 +190,7 @@ dotfiles_status_for_file() {
     echo "blocking_file"
 }
 
-# Verifica se um ficheiro (relativo a data/) tem alterações não commitadas no repositório.
+# Verifica se um arquivo (relativo a data/) tem alterações não commitadas no repositório.
 # Retorna 0 se houver alterações; 1 se estiver limpo ou não for um repo git.
 dotfiles_file_has_changes() {
     local file=$1

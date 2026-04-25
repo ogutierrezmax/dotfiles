@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SECURITY NOTE: Always audit shell scripts before execution, especially those 
+# generated or modified by LLMs. Ensure you understand what each command does.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/dotfiles-lib.sh
 source "${SCRIPT_DIR}/dotfiles-lib.sh"

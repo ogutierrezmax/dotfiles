@@ -15,9 +15,9 @@ Referência conceitual: [taxonomia-processo-criacao.md](../../../taxonomia-proce
 
 ## 1. Mapeamento do estado atual
 
-- Identificar qual etapa refinar e onde estão os ficheiros.
-- Ler **todos** os ficheiros relevantes (ferramentas de leitura/listagem do projeto).
-- Entender: monólito vs. vários ficheiros, localização, nomenclatura.
+- Identificar qual etapa refinar e onde estão os arquivos.
+- Ler **todos** os arquivos relevantes (ferramentas de leitura/listagem do projeto).
+- Entender: monólito vs. vários arquivos, localização, nomenclatura.
 - **Saída:** mapa do que existe.
 
 ## 2. Pesquisa de padrões de mercado
@@ -32,7 +32,7 @@ Referência conceitual: [taxonomia-processo-criacao.md](../../../taxonomia-proce
   - **Lacunas estruturais:** artefatos ou secções em falta.
   - **Superficialidade:** templates com campos vazios, descrições rasas.
   - **Consolidação / divisão:** oportunidades de unir ou separar documentos.
-  - **Arquitetura de informação:** pastas, hierarquia, ficheiros soltos.
+  - **Arquitetura de informação:** pastas, hierarquia, arquivos soltos.
   - **Maturidade:** terminologia desatualizada, necessidade de reordenação/renumeração.
 - **Saída:** diagnóstico estruturado.
 
@@ -57,7 +57,7 @@ Referência conceitual: [taxonomia-processo-criacao.md](../../../taxonomia-proce
 
 ## 6. Verificação final
 
-- Confirmar que ficheiros e pastas batem certo com o plano.
+- Confirmar que arquivos e pastas batem certo com o plano.
 - Garantir que não restam placeholders genéricos intencionais.
-- Validar índices (ex. `index.md`) contra o sistema de ficheiros.
+- Validar índices (ex. `index.md`) contra o sistema de arquivos.
 - **Saída:** relatório conciso das alterações ao utilizador.

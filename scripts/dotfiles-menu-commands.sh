@@ -119,7 +119,7 @@ dotfiles_menu_act_on_entry() {
 
     st="$(dotfiles_status_for_file "$file")"
     case "$st" in
-        # Ficheiro existe em ~ mas não em data/: opção de mover para o repo e linkar.
+        # Arquivo existe em ~ mas não em data/: opção de mover para o repo e linkar.
         importable)
             dest="$(dotfiles_dest_for_file "$file")"
             data_src="$(dotfiles_data_dir)/${file}"
@@ -154,7 +154,7 @@ dotfiles_menu_act_on_entry() {
         # Caminho de destino existe mas não é symlink (impede ln -s): backup em .bkp e link.
         blocking_file)
             dest="$(dotfiles_dest_for_file "$file")"
-            read -r -p "Há um ficheiro/pasta real em ${dest} (não é link). Mover para $(dotfiles_backup_dir)/ e criar o link? (sim/não): " ans || true
+            read -r -p "Há um arquivo/pasta real em ${dest} (não é link). Mover para $(dotfiles_backup_dir)/ e criar o link? (sim/não): " ans || true
             if ! dotfiles_menu_is_yes "$ans"; then
                 return 0
             fi
