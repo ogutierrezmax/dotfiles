@@ -63,8 +63,8 @@ Check available MCPs - if useful for research (searching docs, finding similar s
 
 Based on the user interview, fill in these components:
 
-- **name**: Skill identifier
-- **description**: When to trigger, what it does. This is the primary triggering mechanism - include both what the skill does AND specific contexts for when to use it. All "when to use" info goes here, not in the body. Note: currently Claude has a tendency to "undertrigger" skills -- to not use them when they'd be useful. To combat this, please make the skill descriptions a little bit "pushy". So for instance, instead of "How to build a simple fast dashboard to display internal Anthropic data.", you might write "How to build a simple fast dashboard to display internal Anthropic data. Make sure to use this skill whenever the user mentions dashboards, data visualization, internal metrics, or wants to display any kind of company data, even if they don't explicitly ask for a 'dashboard.'"
+- **name**: Skill identifier. Max 64 characters, only lowercase letters, numbers, and hyphens. Prefer gerund form (verb + -ing) for clarity: `processing-pdfs`, `analyzing-spreadsheets`, `managing-databases`. Noun phrases (`pdf-processing`) and action-oriented (`process-pdfs`) are also acceptable. Avoid vague names like `helper`, `utils`, `tools`.
+- **description**: When to trigger, what it does. Max 1024 characters. **Always write in third person** ("Processes Excel files...", not "I can help you..." or "You can use this to..."). This is the primary triggering mechanism - include both what the skill does AND specific contexts for when to use it. All "when to use" info goes here, not in the body. Note: currently Claude has a tendency to "undertrigger" skills -- to not use them when they'd be useful. To combat this, please make the skill descriptions a little bit "pushy". So for instance, instead of "How to build a simple fast dashboard to display internal Anthropic data.", you might write "How to build a simple fast dashboard to display internal Anthropic data. Make sure to use this skill whenever the user mentions dashboards, data visualization, internal metrics, or wants to display any kind of company data, even if they don't explicitly ask for a 'dashboard.'"
 - **compatibility**: Required tools, dependencies (optional, rarely needed)
 - **the rest of the skill :)**
 
@@ -96,6 +96,19 @@ These word counts are approximate and you can feel free to go longer if needed.
 - Keep SKILL.md under 500 lines; if you're approaching this limit, add an additional layer of hierarchy along with clear pointers about where the model using the skill should go next to follow up.
 - Reference files clearly from SKILL.md with guidance on when to read them
 - For large reference files (>300 lines), include a table of contents
+- **Keep references one level deep** — all reference files should link directly from SKILL.md. Avoid chaining (SKILL.md → advanced.md → details.md) because Claude may only partially read deeply nested files.
+
+**Conciseness check**: Before adding content, challenge each piece of information:
+- "Does the model really need this explanation, or does it already know this?"
+- "Does this paragraph justify its token cost?"
+- "Can I convey the same instruction in fewer words?"
+
+Claude is already very smart. Only add context it doesn't already have. Don't explain what PDFs are or how libraries work — go straight to the specific tool/pattern choice.
+
+**Degrees of freedom**: Match instruction rigidity to the task's fragility:
+- **High freedom** (text-based guidance): when multiple approaches are valid and context determines the best one. Example: code review criteria.
+- **Medium freedom** (pseudocode/templates with params): when a preferred pattern exists but variation is acceptable. Example: report generation with configurable sections.
+- **Low freedom** (exact scripts, no params): when operations are fragile, consistency is critical, or a specific sequence must be followed. Example: database migrations.
 
 **Domain organization**: When a skill supports multiple domains/frameworks, organize by variant:
 ```
