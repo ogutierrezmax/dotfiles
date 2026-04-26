@@ -16,3 +16,4 @@ gitconfig
 
 # regras de janelas do KDE plasma (transparencia)
 .config/kwinrulesrc
+.tmux.conf
