@@ -1,3 +1,8 @@
+---
+name: feature-classification
+description: Classifica a feature (work_type, change_type, etc.) para definir estratégia de testes e impacto em legado.
+---
+
 # Skill: feature-classification
 
 ## Purpose

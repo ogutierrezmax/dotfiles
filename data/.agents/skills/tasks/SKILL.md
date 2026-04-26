@@ -1,3 +1,8 @@
+---
+name: tasks
+description: Decompõe uma User Story em tarefas técnicas executáveis, ordenadas e específicas (INVEST).
+---
+
 # Skill: tasks
 
 ## Purpose

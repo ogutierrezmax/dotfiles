@@ -1,3 +1,8 @@
+---
+name: acceptance-criteria
+description: Define 3–5 critérios de aceite mensuráveis e testáveis (BDD/Checklist) para uma User Story.
+---
+
 # Skill: acceptance-criteria
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: bug-investigation-report
+description: Investiga a causa raiz de bugs com base em evidências e propõe múltiplas soluções avaliadas.
+---
+
 # Skill: bug-investigation-report
 
 ## Propósito

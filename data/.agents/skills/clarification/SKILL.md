@@ -1,3 +1,8 @@
+---
+name: clarification
+description: Executa um ciclo de clarificação para transformar ideias vagas em especificações prontas para desenvolvimento (delegado ao request-clarifier).
+---
+
 # Skill: clarification
 
 ## Purpose

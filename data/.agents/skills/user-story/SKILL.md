@@ -1,3 +1,8 @@
+---
+name: user-story
+description: Cria uma User Story (Como/Quero/Para) e um Objetivo de negócio a partir de um resumo clarificado (INVEST).
+---
+
 # Skill: user-story
 
 ## Purpose
