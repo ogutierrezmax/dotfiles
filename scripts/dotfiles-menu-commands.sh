@@ -434,6 +434,8 @@ PROMPT_HEREDOC
     echo ""
 
     # Executa o script no diretório do repo em subshell
+    # DANGER ZONE: eval executes arbitrary code. Although validated by dotfiles_menu_validate_llm_script,
+    # ensure you understand the generated script_content before execution.
     ( cd "$repo_root" && eval "$script_content" )
     local exit_code=$?
 

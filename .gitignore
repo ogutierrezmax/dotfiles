@@ -10,3 +10,8 @@ auto-share
 
 # API keys and secrets
 config/.google_ai_studio_api_key
+.env*
+.env_private
+*.pem
+*.key
+terraform.tfstate

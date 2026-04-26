@@ -82,6 +82,7 @@ install_shortcuts() {
 #!/usr/bin/env bash
 # Wrapper gerado automaticamente para $DISPLAY_NAME.
 # Se o repositório mudar de lugar, execute o instalador novamente.
+# DANGER ZONE: exec bash runs the target script with full privileges. Ensure TARGET_PATH points to a trusted file.
 exec bash $(printf '%q' "$TARGET_PATH") "\$@"
 EOF
     chmod +x "$WRAPPER_PATH"

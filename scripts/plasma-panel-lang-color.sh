@@ -2,6 +2,8 @@
 
 # Script para mudar o preset do Panel Colorizer baseado no idioma do teclado
 # Desenvolvido para KDE Plasma 6
+# SECURITY NOTE: This script installs an autostart daemon and executes commands in the background.
+# Ensure the preset paths and execution methods remain trusted.
 
 
 # --- AUTO-CONFIGURAÇÃO E DAEMON ---
