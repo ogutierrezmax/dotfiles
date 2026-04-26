@@ -139,9 +139,10 @@ dotfiles_menu_commit_file() {
         fi
         mkdir -p "$(dirname "$key_file")" || { echo "Erro ao criar diretório da API key." >&2; return 1; }
         echo "GOOGLE_AI_KEY=$api_key" > "$key_file"
-        echo "GEMINI_MODEL=gemini-3-flash-live" >> "$key_file"
+        echo "GEMINI_MODEL=gemini-2.0-flash" >> "$key_file"
         chmod 600 "$key_file" || { echo "Erro ao definir permissões na API key." >&2; return 1; }
         echo "API key salva em config/.google_ai_studio_api_key"
+        echo "Dica: Você pode configurar fallbacks editando este arquivo."
     fi
     
     local gemini_model=""
@@ -156,20 +157,43 @@ dotfiles_menu_commit_file() {
         esac
     done < "$key_file"
 
-    gemini_model="${gemini_model:-gemini-3-flash-live}"
-    
+    # Lista de modelos gratuitos ordenados por limite/eficiência (RPM: 15 para Flash, 2 para Pro)
+    local fallback_models=(
+        "${gemini_model:-gemini-3.1-flash-lite-preview}"
+        "gemini-3.1-flash-lite-preview"
+        "gemini-3-flash-preview"
+        "gemini-2.5-flash"
+        "gemma-3-27b-it"
+        "gemini-2.0-flash"
+        "gemini-flash-latest"
+    )
+
+    # Remove duplicatas da lista mantendo a ordem
+    local models=()
+    local m
+    for m in "${fallback_models[@]}"; do
+        [[ " ${models[*]} " =~ " ${m} " ]] || models+=("$m")
+    done
+
     if ! dotfiles_menu_check_deps jq curl; then
         return 1
     fi
 
-    echo "Gerando mensagem de commit para $file..."
+    echo -e "${B:-}✨ Gerando mensagem de commit para ${file}...${R:-}"
     
     # Obter o diff do arquivo específico
     local rel_path="data/${file}"
     diff_output="$(git -C "$repo_root" diff HEAD -- "$rel_path" 2>/dev/null)"
     
     if [[ -z "$diff_output" ]]; then
-        echo "Nenhuma alteração detectada para $file pelo git ou arquivo não rastreado."
+        echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada para $file pelo git ou arquivo não rastreado.${R:-}"
+        return 0
+    fi
+
+    # Check for diff size (e.g., > 100KB)
+    local diff_size=${#diff_output}
+    if (( diff_size > 100000 )); then
+        echo -e "${C_MARK_BLOCK:-}✖ Diff muito grande (${diff_size} bytes).${R:-}" >&2
         return 0
     fi
     
@@ -180,22 +204,39 @@ dotfiles_menu_commit_file() {
           "text": ("Você é um assistente que escreve mensagens de commit baseadas em diffs de git. Escreva APENAS a mensagem de commit usando o padrão Conventional Commits. Seja conciso. Aqui está o diff:\n\n" + $diff)
         }]
       }]
-    }') || { echo "Erro ao preparar JSON para a API." >&2; return 1; }
+    }') || { echo -e "${C_MARK_BLOCK:-}✖ Erro ao preparar JSON.${R:-}" >&2; return 1; }
     
-    response=$(curl -s -f -X POST -H "Content-Type: application/json" \
-        -d "$json_payload" \
-        "https://generativelanguage.googleapis.com/v1beta/models/${gemini_model}:generateContent?key=${api_key}")
-    
-    if [[ $? -ne 0 ]]; then
-        echo "Erro: Falha na requisição à API do Gemini (verifique sua chave e conexão)." >&2
-        return 1
-    fi
+    commit_msg=""
+    local current_model
+    for current_model in "${models[@]}"; do
+        [[ "$current_model" != "${models[0]}" ]] && echo -e "${C_LINK_STATUS_UNLINKED:-}  ↪ Tentando fallback: ${current_model}...${R:-}"
+
+        response=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "$json_payload" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${current_model}:generateContent?key=${api_key}")
         
-    commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null)
+        if [[ $? -ne 0 ]]; then
+            continue # Erro de rede, tenta o próximo
+        fi
+            
+        local api_error
+        api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+        
+        if [[ -n "$api_error" ]]; then
+            # Se for erro de quota (429), apenas continua para o próximo modelo silenciosamente
+            [[ "$api_error" == *"quota"* || "$api_error" == *"limit"* ]] && continue
+            
+            # Outros erros (chave inválida, etc) a gente avisa e para o loop de modelos
+            echo -e "${C_MARK_BLOCK:-}✖ Erro na API (${current_model}): $api_error${R:-}" >&2
+            break
+        fi
+
+        commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null)
+        [[ -n "$commit_msg" ]] && break
+    done
     
     if [[ -z "$commit_msg" ]]; then
-        echo "Erro ao gerar a mensagem de commit. Resposta da API:"
-        echo "$response"
+        echo -e "${C_MARK_BLOCK:-}✖ Não foi possível gerar a mensagem de commit (todos os modelos falharam).${R:-}" >&2
         return 0
     fi
     
@@ -203,10 +244,10 @@ dotfiles_menu_commit_file() {
     commit_msg=$(echo "$commit_msg" | sed 's/^```[a-zA-Z]*$//g' | sed 's/^```$//g' | awk 'NF')
     
     echo ""
-    echo "======================================"
-    echo -e "${B:-}Mensagem sugerida:${R:-}"
-    echo "$commit_msg"
-    echo "======================================"
+    echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
+    echo -e "${B:-}│ Sugestão de Commit (${current_model}):${R:-}"
+    echo -e "${B:-}│${R:-} $commit_msg"
+    echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
     echo ""
     
     read -r -p "Confirmar e realizar o commit deste arquivo? (sim/não): " ans || true
