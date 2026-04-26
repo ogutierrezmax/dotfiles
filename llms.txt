@@ -1,0 +1,26 @@
+# dotfiles
+
+Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linux.
+
+## Contexto Geral
+- **Objetivo**: Centralizar configurações de sistema e aplicativos (Zsh, Git, VSCode, etc) em um único repositório e usar symlinks para aplicá-los na Home do usuário.
+- **Mecanismo**: Usa scripts Bash para gerenciar a criação, remoção e auditoria de symlinks.
+
+## Estrutura de Arquivos Críticos
+- `data/`: Contém os arquivos originais. Qualquer alteração deve ser feita aqui.
+- `config/dotfile-names.list`: Arquivo texto simples contendo a lista de arquivos em `data/` que devem ser linkados.
+- `scripts/dotfiles-lib.sh`: Biblioteca central com funções de manipulação de symlinks (`create_link`, `remove_link`, `check_link_status`).
+- `dotfiles-menu.sh`: Script principal de interface (TUI) para o usuário.
+
+## Fluxos para Agentes de IA
+- **Para adicionar novo arquivo**:
+    1. Colocar o arquivo em `data/`.
+    2. Adicionar o nome do arquivo em `config/dotfile-names.list`.
+    3. (Opcional) Executar `scripts/install-dotfiles.sh` para linkar.
+- **Convenções de Código**:
+    - Scripts Bash seguem `ShellCheck`.
+    - Documentação técnica detalhada em `docs/` (ex: `docs/tmux.md`).
+
+## Guia de Desenvolvimento
+- Scripts principais estão em `scripts/`.
+- Use a `dotfiles-lib.sh` para qualquer operação de sistema para garantir consistência.
