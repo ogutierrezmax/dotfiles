@@ -218,6 +218,36 @@ dotfiles_menu_call_gemini_api() {
     return 1
 }
 
+# Valida o script bash gerado pela LLM usando uma Allowlist estrita.
+# Retorna 0 se o script for seguro, ou 1 se contiver comandos não autorizados.
+dotfiles_menu_validate_llm_script() {
+    local script_content="$1"
+    local line trimmed
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Remove espaços nas pontas
+        trimmed=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+        
+        # Permite linhas vazias e comentários (incluindo shebang)
+        if [[ -z "$trimmed" || "$trimmed" == "#"* ]]; then
+            continue
+        fi
+        
+        # Permite apenas os seguintes comandos:
+        if [[ "$trimmed" == "set "* ]] || \
+           [[ "$trimmed" == "git add "* ]] || \
+           [[ "$trimmed" == "git commit "* ]]; then
+            continue
+        fi
+        
+        # Qualquer outra coisa é rejeitada
+        echo "$trimmed"
+        return 1
+    done <<< "$script_content"
+    
+    return 0
+}
+
 # Reconhece o comando "commit" no menu principal.
 # Retorna 0 se reconheceu (tratado ou cancelado); 1 se não reconheceu.
 dotfiles_menu_try_smart_commit() {
@@ -352,10 +382,14 @@ PROMPT_HEREDOC
         script_content="$llm_response"
     fi
 
-    # Validação de segurança: rejeita scripts com comandos perigosos
-    if echo "$script_content" | grep -qiE '(--force|--hard|push|reset|rebase|--no-verify)'; then
-        echo -e "${C_MARK_BLOCK:-}✖ SEGURANÇA: O script contém comandos potencialmente perigosos. Abortando.${R:-}"
-        echo -e "${C_FILE_PATH:-}Conteúdo rejeitado:${R:-}"
+    # Validação de segurança baseada em Allowlist (Strict)
+    local invalid_cmd
+    invalid_cmd=$(dotfiles_menu_validate_llm_script "$script_content")
+    if [[ $? -ne 0 ]]; then
+        echo -e "${C_MARK_BLOCK:-}✖ SEGURANÇA: O script contém comandos não permitidos pela allowlist. Abortando.${R:-}"
+        echo -e "${C_FILE_PATH:-}Comando rejeitado: ${invalid_cmd}${R:-}"
+        echo ""
+        echo -e "${C_FILE_PATH:-}Script completo recebido:${R:-}"
         echo "$script_content"
         return 0
     fi
@@ -395,6 +429,19 @@ PROMPT_HEREDOC
     if [[ $exit_code -eq 0 ]]; then
         echo ""
         echo -e "${C_MARK_INST:-}✅ Smart commit concluído com sucesso!${R:-}"
+        
+        # Opção de push após commit
+        echo ""
+        read -r -p "Deseja fazer o 'git push' agora? (sim/não): " ans || true
+        if dotfiles_menu_is_yes "$ans"; then
+            echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
+            git -C "$repo_root" push
+            if [[ $? -eq 0 ]]; then
+                echo -e "${C_MARK_INST:-}✅ Push concluído!${R:-}"
+            else
+                echo -e "${C_MARK_BLOCK:-}✖ Erro no push. Verifique o seu terminal/git.${R:-}"
+            fi
+        fi
     else
         echo ""
         echo -e "${C_MARK_BLOCK:-}✖ Erro durante a execução (exit code: ${exit_code}).${R:-}"
@@ -471,6 +518,14 @@ ${diff_for_gemini}" 2>/dev/null)
         git -C "$repo_root" add -- "$rel_path"
         git -C "$repo_root" commit -m "$gemini_msg" -- "$rel_path"
         echo "Commit realizado com sucesso!"
+        
+        echo ""
+        read -r -p "Deseja fazer o 'git push' agora? (sim/não): " ans || true
+        if dotfiles_menu_is_yes "$ans"; then
+            echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
+            git -C "$repo_root" push
+        fi
+        
         return 0
     elif [[ -n "$commit_opt" && "$commit_opt" != "1" ]]; then
         echo "Commit cancelado."
@@ -615,6 +670,13 @@ ${diff_for_gemini}" 2>/dev/null)
     
     git -C "$repo_root" commit -m "$commit_msg" -- "$rel_path"
     echo "Commit realizado com sucesso!"
+    
+    echo ""
+    read -r -p "Deseja fazer o 'git push' agora? (sim/não): " ans || true
+    if dotfiles_menu_is_yes "$ans"; then
+        echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
+        git -C "$repo_root" push
+    fi
 }
 
 # Reage ao estado devolvido por dotfiles_status_for_file (importar, bloquear, link errado, etc.).
