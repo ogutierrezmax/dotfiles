@@ -56,6 +56,7 @@ dotfiles_menu_try_add() {
         echo ""
         echo "${B}Uso de add${R}"
         printf '  %s\n' "add nome-do-item"
+        printf '  %s\n' "add ~/.ssh/config"
         printf '  %s\n' "add 'nome com espaços'"
         echo ""
         return 0
@@ -64,8 +65,18 @@ dotfiles_menu_try_add() {
         rest="${BASH_REMATCH[1]}"
         rest="$(dotfiles_menu_trim "$rest")"
         name="$(dotfiles_menu_parse_add_name "$rest")"
+        
+        # Converte caminhos absolutos ou com ~ para nomes relativos à Home
+        if [[ "$name" == "$HOME"* ]]; then
+            name="${name#$HOME}"
+            name="${name#/}"
+        elif [[ "$name" == "~"* ]]; then
+            name="${name#~}"
+            name="${name#/}"
+        fi
+
         if [[ -z "${name// }" ]]; then
-            echo "Erro: nome vazio após add."
+            echo "Erro: nome vazio após processar add."
             return 0
         fi
         read -r -p "Adicionar \"${name}\" a $(dotfiles_dotfile_names_path)? (sim/não): " ans || true
