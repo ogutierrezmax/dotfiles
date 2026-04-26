@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Comandos do menu interativo: add, rm e instalação por estado.
+# Comandos do menu interativo: add, rm, commit e instalação por estado.
 # SECURITY NOTE: Ensure these files are owned by your user and not world-writable.
 # Be cautious when adding new modules suggested by LLMs; always review the content.
 
@@ -116,10 +116,367 @@ dotfiles_menu_try_rm() {
     return 1
 }
 
+# Carrega a API key do Google AI Studio e configura a lista de modelos de fallback.
+# Preenche as variáveis passadas por nameref: _api_key e _models (array).
+# Retorna 1 se a key não puder ser obtida.
+dotfiles_menu_load_api_key() {
+    local -n _api_key_ref=$1
+    local -n _models_ref=$2
+    local key_file ans gemini_model=""
+    key_file="$(dotfiles_repo_root)/config/.google_ai_studio_api_key"
+
+    if [[ ! -f "$key_file" ]]; then
+        echo "A API key do Google AI Studio não foi encontrada."
+        read -r -p "Deseja adicionar uma agora? (sim/não): " ans || true
+        if ! dotfiles_menu_is_yes "$ans"; then
+            return 1
+        fi
+        echo -n "Cole sua API key do Google AI Studio (não será exibida): "
+        read -rs _api_key_ref
+        echo ""
+        if [[ -z "$_api_key_ref" ]]; then
+            echo "Nenhuma chave inserida. Cancelando."
+            return 1
+        fi
+        mkdir -p "$(dirname "$key_file")" || { echo "Erro ao criar diretório da API key." >&2; return 1; }
+        echo "GOOGLE_AI_KEY=$_api_key_ref" > "$key_file"
+        echo "GEMINI_MODEL=gemini-2.0-flash" >> "$key_file"
+        chmod 600 "$key_file" || { echo "Erro ao definir permissões na API key." >&2; return 1; }
+        echo "API key salva em config/.google_ai_studio_api_key"
+    fi
+
+    local line key val
+    while IFS='=' read -r key val || [[ -n "$key" ]]; do
+        key=$(echo "$key" | tr -d '[:space:]')
+        val=$(echo "$val" | tr -d '\r')
+        case "$key" in
+            GOOGLE_AI_KEY) _api_key_ref="$val" ;;
+            GEMINI_MODEL)  gemini_model="$val" ;;
+        esac
+    done < "$key_file"
+
+    local fallback_models=(
+        "${gemini_model:-gemini-3.1-flash-lite-preview}"
+        "gemini-3.1-flash-lite-preview"
+        "gemini-3-flash-preview"
+        "gemini-2.5-flash"
+        "gemma-3-27b-it"
+        "gemini-2.0-flash"
+        "gemini-flash-latest"
+    )
+    local m
+    _models_ref=()
+    for m in "${fallback_models[@]}"; do
+        [[ " ${_models_ref[*]} " =~ " ${m} " ]] || _models_ref+=("$m")
+    done
+    return 0
+}
+
+# Envia um prompt para a API do Google AI Studio com fallback de modelos.
+# Lê o prompt de stdin, retorna a resposta textual via stdout.
+# Retorna 1 se todos os modelos falharem.
+dotfiles_menu_call_gemini_api() {
+    local api_key=$1
+    shift
+    local -a models=("$@")
+    local prompt
+    prompt=$(cat)
+
+    local json_payload response current_model api_error result
+    json_payload=$(jq -n --arg prompt "$prompt" '{
+      "contents": [{
+        "parts": [{
+          "text": $prompt
+        }]
+      }]
+    }') || { echo "Erro ao preparar JSON." >&2; return 1; }
+
+    for current_model in "${models[@]}"; do
+        [[ "$current_model" != "${models[0]}" ]] && echo -e "${C_LINK_STATUS_UNLINKED:-}  ↪ Tentando fallback: ${current_model}...${R:-}" >&2
+
+        response=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "$json_payload" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${current_model}:generateContent?key=${api_key}")
+
+        if [[ $? -ne 0 ]]; then
+            continue
+        fi
+
+        api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+        if [[ -n "$api_error" ]]; then
+            [[ "${api_error,,}" == *"quota"* || "${api_error,,}" == *"limit"* || "${api_error,,}" == *"high demand"* || "${api_error,,}" == *"overloaded"* || "${api_error,,}" == *"temporarily"* ]] && continue
+            echo -e "${C_MARK_BLOCK:-}✖ Erro na API (${current_model}): $api_error${R:-}" >&2
+            break
+        fi
+
+        result=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null)
+        if [[ -n "$result" ]]; then
+            echo "$result"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Reconhece o comando "commit" no menu principal.
+# Retorna 0 se reconheceu (tratado ou cancelado); 1 se não reconheceu.
+dotfiles_menu_try_smart_commit() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "commit" ]]; then
+        dotfiles_menu_smart_commit
+        return 0
+    fi
+    return 1
+}
+
+# Smart Commit: coleta o diff completo do repo, envia para a LLM,
+# e recebe de volta um script bash com múltiplos commits agrupados inteligentemente.
+dotfiles_menu_smart_commit() {
+    local repo_root api_key ans
+    local -a models
+    repo_root="$(dotfiles_repo_root)"
+
+    if ! dotfiles_menu_check_deps jq curl; then
+        return 0
+    fi
+
+    # Verifica se há alterações
+    local status_output
+    status_output=$(git -C "$repo_root" status --porcelain 2>/dev/null)
+    if [[ -z "$status_output" ]]; then
+        echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada no repositório.${R:-}"
+        return 0
+    fi
+
+    # Carrega API key
+    if ! dotfiles_menu_load_api_key api_key models; then
+        return 0
+    fi
+
+    echo -e "${B:-}✨ Analisando alterações do repositório para smart commit...${R:-}"
+    echo ""
+
+    # Coleta diff de tracked files + lista de untracked
+    local diff_output untracked_files full_context
+    diff_output=$(git -C "$repo_root" diff HEAD 2>/dev/null || true)
+    untracked_files=$(git -C "$repo_root" ls-files --others --exclude-standard 2>/dev/null || true)
+
+    # Para arquivos novos (untracked), mostra o conteúdo para a LLM ter contexto
+    local untracked_content=""
+    if [[ -n "$untracked_files" ]]; then
+        local f fsize
+        while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            fsize=$(wc -c < "$repo_root/$f" 2>/dev/null || echo "0")
+            if (( fsize < 50000 )); then
+                untracked_content+=$'\n--- NEW FILE: '"$f"$' ---\n'
+                untracked_content+=$(cat "$repo_root/$f" 2>/dev/null || true)
+                untracked_content+=$'\n--- END FILE ---\n'
+            else
+                untracked_content+=$'\n--- NEW FILE: '"$f"$' (too large, '"${fsize}"$' bytes) ---\n'
+            fi
+        done <<< "$untracked_files"
+    fi
+
+    full_context="GIT STATUS:\n${status_output}"
+    [[ -n "$diff_output" ]] && full_context+="\n\nDIFF:\n${diff_output}"
+    [[ -n "$untracked_content" ]] && full_context+="\n\nNEW FILES:\n${untracked_content}"
+
+    # Check tamanho total
+    local context_size=${#full_context}
+    if (( context_size > 200000 )); then
+        echo -e "${C_MARK_BLOCK:-}✖ Contexto muito grande (${context_size} bytes). Faça commits menores.${R:-}"
+        return 0
+    fi
+
+    echo -e "${C_FILE_PATH:-}📊 Status: $(echo "$status_output" | wc -l) arquivo(s) alterado(s)${R:-}"
+    echo ""
+
+    # Prompt engenheirado para a LLM retornar um script bash
+    local prompt
+    read -r -d '' prompt << 'PROMPT_HEREDOC' || true
+Você é um especialista em Git com Conventional Commits. Analise as alterações abaixo e gere um script bash que faça commits inteligentes.
+
+REGRAS OBRIGATÓRIAS:
+1. Agrupe alterações logicamente relacionadas no mesmo commit (ex: mesmo feature, mesmo refactor).
+2. Use Conventional Commits: <type>(<scope>): <description>
+3. Cada commit deve representar UMA mudança lógica coesa.
+4. Use git add para cada arquivo ANTES do git commit.
+5. Para arquivos novos (untracked), use git add <arquivo> antes do commit.
+6. NUNCA use git add . ou git add -A — sempre adicione arquivos específicos.
+7. Mensagens de commit em inglês, imperativo, <72 chars.
+8. O script deve ser executável e seguro (sem force push, sem reset).
+9. Se um único commit é suficiente para todas as alterações, faça apenas um.
+10. NUNCA crie um commit isolado apenas para mudanças triviais (ex: adicionar uma linha em branco, trailing newline, formatação menor). Junte essas mudanças triviais no commit principal mais próximo ou agrupe-as de forma inteligente.
+
+FORMATO DE SAÍDA — responda APENAS com o bloco de código bash, sem explicações:
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Commit 1: <breve explicação>
+git add <arquivos>
+git commit -m "<type>(<scope>): <description>"
+
+# Commit 2: <breve explicação>
+git add <arquivos>
+git commit -m "<type>(<scope>): <description>"
+```
+
+ALTERAÇÕES:
+PROMPT_HEREDOC
+
+    prompt+=$'\n'
+    prompt+=$(echo -e "$full_context")
+
+    echo -e "${B:-}🤖 Enviando para a LLM...${R:-}"
+
+    local llm_response
+    llm_response=$(echo "$prompt" | dotfiles_menu_call_gemini_api "$api_key" "${models[@]}")
+
+    if [[ -z "$llm_response" ]]; then
+        echo -e "${C_MARK_BLOCK:-}✖ Não foi possível gerar o script de commits (todos os modelos falharam).${R:-}"
+        return 0
+    fi
+
+    # Extrai apenas o bloco bash do response (remove markdown fences)
+    local script_content
+    script_content=$(echo "$llm_response" | sed -n '/^```bash/,/^```$/p' | sed '1d;$d')
+
+    # Fallback: tenta qualquer bloco de código
+    if [[ -z "$script_content" ]]; then
+        script_content=$(echo "$llm_response" | sed -n '/^```/,/^```$/p' | sed '1d;$d')
+    fi
+    # Último fallback: usa a resposta inteira
+    if [[ -z "$script_content" ]]; then
+        script_content="$llm_response"
+    fi
+
+    # Validação de segurança: rejeita scripts com comandos perigosos
+    if echo "$script_content" | grep -qiE '(--force|--hard|push|reset|rebase|--no-verify)'; then
+        echo -e "${C_MARK_BLOCK:-}✖ SEGURANÇA: O script contém comandos potencialmente perigosos. Abortando.${R:-}"
+        echo -e "${C_FILE_PATH:-}Conteúdo rejeitado:${R:-}"
+        echo "$script_content"
+        return 0
+    fi
+
+    # Exibe o script para revisão
+    echo ""
+    echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
+    echo -e "${B:-}│ 📝 Script de Commits Inteligentes                              │${R:-}"
+    echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
+    echo ""
+    echo "$script_content" | cat -n
+    echo ""
+    echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
+    echo -e "${B:-}│ ⚠  Revise o script acima com atenção antes de confirmar.        │${R:-}"
+    echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
+    echo ""
+
+    local commit_count
+    commit_count=$(echo "$script_content" | grep -c '^git commit' || true)
+    echo -e "${C_MARK_INST:-}📦 ${commit_count} commit(s) serão criados.${R:-}"
+    echo ""
+
+    read -r -p "Executar este script de commits? (sim/não): " ans || true
+    if ! dotfiles_menu_is_yes "$ans"; then
+        echo "Smart commit cancelado."
+        return 0
+    fi
+
+    echo ""
+    echo -e "${B:-}🚀 Executando commits...${R:-}"
+    echo ""
+
+    # Executa o script no diretório do repo em subshell
+    ( cd "$repo_root" && eval "$script_content" )
+    local exit_code=$?
+
+    if [[ $exit_code -eq 0 ]]; then
+        echo ""
+        echo -e "${C_MARK_INST:-}✅ Smart commit concluído com sucesso!${R:-}"
+    else
+        echo ""
+        echo -e "${C_MARK_BLOCK:-}✖ Erro durante a execução (exit code: ${exit_code}).${R:-}"
+        echo -e "${C_FILE_PATH:-}Verifique o estado do repo com 'git status' e 'git log'.${R:-}"
+    fi
+}
+
 dotfiles_menu_commit_file() {
     local file=$1
     local key_file data_dir repo_root api_key diff_output response commit_msg ans
     
+    echo ""
+    echo "Opções de commit AI para ${file}:"
+    echo "  1) Usar API Nativa (Google AI Studio via Curl)"
+    echo "  2) Usar Gemini CLI (gera mensagem, bash commita)"
+    echo "  3) Cancelar"
+    read -r -p "Escolha uma opção [1-3] (padrão 1): " commit_opt || true
+    
+    if [[ "$commit_opt" == "2" ]]; then
+        # Tenta carregar o NVM caso o gemini não esteja no PATH atual
+        if ! command -v gemini >/dev/null 2>&1; then
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        fi
+
+        if ! command -v gemini >/dev/null 2>&1; then
+            echo -e "${C_MARK_BLOCK:-}✖ Erro: comando 'gemini' não encontrado no PATH nem via NVM.${R:-}"
+            return 0
+        fi
+
+        local repo_root
+        repo_root="$(dotfiles_repo_root)"
+        local rel_path="data/${file}"
+
+        # O modo headless (-p) do Gemini CLI BLOQUEIA a tool run_shell_command.
+        # Por isso, usamos o modo híbrido: Gemini gera a mensagem, bash commita.
+        echo -e "${B:-}✨ Gerando mensagem de commit via Gemini CLI para ${file}...${R:-}"
+
+        local diff_for_gemini
+        diff_for_gemini="$(git -C "$repo_root" diff HEAD -- "$rel_path" 2>/dev/null)"
+
+        if [[ -z "$diff_for_gemini" ]]; then
+            echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada para $file.${R:-}"
+            return 0
+        fi
+
+        local gemini_msg
+        gemini_msg=$(GEMINI_CLI_TRUST_WORKSPACE=true gemini -p \
+            "Analise este diff git e gere APENAS uma mensagem de commit usando o padrão Conventional Commits. Responda SOMENTE com a mensagem de commit, sem explicações, sem blocos de código, sem prefixos como 'Resposta:'. Apenas a mensagem pura.
+
+${diff_for_gemini}" 2>/dev/null)
+
+        if [[ -z "$gemini_msg" ]]; then
+            echo -e "${C_MARK_BLOCK:-}✖ Não foi possível gerar a mensagem de commit via Gemini CLI.${R:-}"
+            return 0
+        fi
+
+        # Limpa possíveis blocos de código markdown da resposta
+        gemini_msg=$(echo "$gemini_msg" | sed 's/^```[a-zA-Z]*$//g' | sed 's/^```$//g' | awk 'NF')
+
+        echo ""
+        echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
+        echo -e "${B:-}│ Sugestão de Commit (Gemini CLI):${R:-}"
+        echo -e "${B:-}│${R:-} $gemini_msg"
+        echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
+        echo ""
+
+        read -r -p "Confirmar e realizar o commit deste arquivo? (sim/não): " ans || true
+        if ! dotfiles_menu_is_yes "$ans"; then
+            echo "Commit cancelado."
+            return 0
+        fi
+
+        git -C "$repo_root" add -- "$rel_path"
+        git -C "$repo_root" commit -m "$gemini_msg" -- "$rel_path"
+        echo "Commit realizado com sucesso!"
+        return 0
+    elif [[ -n "$commit_opt" && "$commit_opt" != "1" ]]; then
+        echo "Commit cancelado."
+        return 0
+    fi
+
     key_file="$(dotfiles_repo_root)/config/.google_ai_studio_api_key"
     data_dir="$(dotfiles_data_dir)"
     repo_root="$(dotfiles_repo_root)"

@@ -349,6 +349,7 @@ dotfiles_menu_print_command_help() {
     echo "$_pad"
     echo "${B}Comandos${R}"
     printf '  %-18s  %s\n' "- <Número da linha>         Ação da coluna action"
+    printf '  %-18s  %s\n' "- commit                    Smart commit (AI agrupa alterações)"
     printf '  %-18s  %s\n' "- add <nome>                Adicionar um novo dotfile"
     printf '  %-18s  %s\n' "- rm <Número da linha>      Remover um dotfile da lista"
     printf '  %-18s  %s\n' "- Enter (vazio)             Sai do menu."

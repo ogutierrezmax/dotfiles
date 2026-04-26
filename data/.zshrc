@@ -26,3 +26,4 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 # Load local secrets and machine-specific overrides (not tracked by Git)
 # SECURITY NOTE: Place API keys, tokens, and sensitive env vars in ~/.zsh_local
 [ -f ~/.zsh_local ] && source ~/.zsh_local
+

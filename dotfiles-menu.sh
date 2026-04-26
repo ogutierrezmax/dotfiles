@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Menu interativo: lista o estado de cada entrada de config/dotfile-names.list e instala por número.
 #
-# Fluxo do loop: desenhar lista → ler comando → (add | rm | número de linha).
+# Fluxo do loop: desenhar lista → ler comando → (commit | add | rm | número de linha).
 # Para um número, dotfiles-lib decide o estado; menu-commands trata o caso ou deixa
 
 # criar/atualizar o symlink em dotfiles_link_one (scripts/dotfiles-lib.sh).
@@ -49,6 +49,10 @@ main() {
         trimmed="$(dotfiles_menu_trim "$raw_choice")"
 
         # try_add: return 0 = já tratámos (mensagem, confirmação ou escrita em config/dotfile-names.list).
+        if dotfiles_menu_try_smart_commit "$trimmed"; then
+            continue
+        fi
+
         if dotfiles_menu_try_add "$trimmed" entries; then
             continue
         fi
