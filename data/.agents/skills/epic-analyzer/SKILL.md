@@ -1,13 +1,13 @@
 ---
-name: epic-kanban-analyzer
-description: >
-  Analisa épicos de Kanban para determinar se estão prontos para avançar para a próxima fase
-  ou precisam de ajustes. Use esta skill sempre que o usuário mencionar "analisar épico",
-  "épico pronto", "revisar épico", "avaliar card", "ready for next phase", "análise de épico",
-  "verificar épico", ou colar o conteúdo de um épico/card Kanban pedindo uma avaliação.
-  Também deve ser ativada quando o usuário perguntar "esse épico está pronto?", "o que falta
-  no meu épico?", "pode revisar meu épico?" ou qualquer variação. Aplica-se a épicos em
-  qualquer ferramenta (Jira, Linear, Trello, Notion, planilha, texto livre).
+name: epic-analyzer
+description: Analisa épicos de Kanban para determinar se estão prontos para avançar
+  para a próxima fase ou precisam de ajustes. Use esta skill sempre que o usuário
+  mencionar "analisar épico", "épico pronto", "revisar épico", "avaliar card", "ready
+  for next phase", "análise de épico", "verificar épico", ou colar o conteúdo de um
+  épico/card Kanban pedindo uma avaliação. Também deve ser ativada quando o usuário
+  perguntar "esse épico está pronto?", "o que falta no meu épico?", "pode revisar
+  meu épico?" ou qualquer variação. Aplica-se a épicos em qualquer ferramenta (Jira,
+  Linear, Trello, Notion, planilha, texto livre).
 ---
 
 # Skill: Analisador de Épicos Kanban

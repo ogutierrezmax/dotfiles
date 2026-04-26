@@ -1,6 +1,10 @@
 ---
 name: epic-vs-story
-description: Classifies a clarified feature as epic (too large for one sprint, must be decomposed) or user story (single deliverable, ready for user-story skill). Use in K1 after clarification (Step 1) and before user-story (Step 3). Input is Clarified summary. Output is granularity (epic | user_story | ambiguous) and suggested_action for the k1 flow.
+description: Classifica uma funcionalidade clarificada como épico (muito grande para
+  uma sprint, deve ser decomposto) ou história de usuário (entregável único, pronto
+  para a skill user-story). Use no K1 após a clarificação (Passo 1) e antes da user-story
+  (Passo 3). A entrada é o resumo clarificado. A saída é a granularidade (epic | user_story
+  | ambiguous) e a suggested_action para o fluxo k1.
 ---
 
 # Skill: epic-vs-story

@@ -1,6 +1,6 @@
 ---
 name: pinokio
-description: Discover, launch, and use apps and tools for the current task.
+description: Descubra, inicie e use aplicativos e ferramentas para a tarefa atual.
 ---
 
 # Pinokio Runtime Skill (pterm-first)

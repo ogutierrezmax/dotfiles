@@ -1,6 +1,10 @@
 ---
 name: backlog-refinement
-description: Refines raw backlog ideas into development-ready items and optionally creates .plan todos. Extracts from the user (Who, Why, What, How) and applies Definition of Ready. Use when the user mentions .devtool, backlog, refining an idea, "deixar pronto para o todo", or creating a new backlog from chat.
+description: Refina ideias brutas do backlog em itens prontos para desenvolvimento
+  e, opcionalmente, cria todos em .plan. Extrai informações do usuário (Quem, Por
+  que, O que, Como) e aplica a Definição de Preparado. Use quando o usuário mencionar
+  .devtool, backlog, refinar uma ideia, "deixar pronto para o todo" ou criar um novo
+  backlog a partir do chat.
 ---
 
 # Backlog Refinement (dev senior)

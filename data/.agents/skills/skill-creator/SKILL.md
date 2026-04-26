@@ -1,6 +1,10 @@
 ---
 name: skill-creator
-description: Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
+description: Cria novas skills, modifica e melhora skills existentes e mede o desempenho
+  das mesmas. Use quando os usuários quiserem criar uma skill do zero, editar ou otimizar
+  uma skill existente, executar avaliações para testar uma skill, comparar o desempenho
+  com análise de variância ou otimizar a descrição de uma skill para melhor precisão
+  de disparo.
 ---
 
 # Skill Creator

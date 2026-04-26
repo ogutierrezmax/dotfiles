@@ -1,6 +1,12 @@
 ---
 name: eslint-fix-all
-description: "Orchestrate parallel ESLint fixing using subagents. Runs ESLint, builds a queue of all problems (errors AND warnings), dispatches one subagent per problem (up to 10 concurrent), refills slots as they complete, then re-runs ESLint and repeats until zero problems remain. Use when the user wants to fix all ESLint errors/warnings, clean up lint issues, resolve linting problems across the codebase, or asks to 'fix eslint', 'fix lint', 'corrigir eslint', 'limpar erros de lint', 'resolver warnings', or any variation of bulk lint fixing."
+description: Orquestra a correção paralela do ESLint usando subagentes. Executa o
+  ESLint, constrói uma fila de todos os problemas (erros E avisos), despacha um subagente
+  por problema (até 10 simultâneos), preenche os slots conforme terminam, então reexecuta
+  o ESLint e repete até que restem zero problemas. Use quando o usuário quiser corrigir
+  todos os erros/avisos do ESLint, limpar problemas de lint em toda a base de código
+  ou pedir para 'corrigir eslint', 'fix lint', 'limpar erros de lint', 'resolver warnings'
+  ou qualquer variação de correção em massa do lint.
 ---
 
 # ESLint Fix-All Orchestrator

@@ -1,15 +1,12 @@
 ---
 name: top-down-planner
-description: >
-  Use this skill whenever the user wants to plan, learn, or build something they don't yet know
-  how to do. Triggers on: "me ajude a planejar", "quero aprender X do zero", "não sei por onde
-  começar", "me dê um roteiro para", "como eu faria X", "help me plan", "I want to learn X",
-  "create a roadmap for", "break this down for me", "decompose this project". Also trigger
-  proactively when the user states a vague or ambitious goal without a clear execution path —
-  especially when learning programming, building software, studying a new field, or tackling any
-  complex multi-step challenge. This skill implements a structured Top-Down Decomposition method
-  with built-in safeguards against planning procrastination, missing prerequisites, and shallow
-  understanding.
+description: 'Use esta skill sempre que o usuário quiser planejar, aprender ou construir
+  algo que ainda não sabe como fazer. Dispara em: "me ajude a planejar", "quero aprender
+  X do zero", "não sei por onde começar", "me dê um roteiro para", "como eu faria
+  X". Também dispara proativamente quando o usuário declara um objetivo vago ou ambicioso
+  sem um caminho de execução claro. Esta skill implementa um método estruturado de
+  Decomposição Top-Down com salvaguardas integradas contra procrastinação de planejamento,
+  pré-requisitos ausentes e entendimento superficial.'
 ---
 
 # Top-Down Planner Skill

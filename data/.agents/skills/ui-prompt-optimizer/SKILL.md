@@ -1,9 +1,11 @@
 ---
-name: enhance-prompt
-description: Transforms vague UI ideas into polished, Stitch-optimized prompts. Enhances specificity, adds UI/UX keywords, injects design system context, and structures output for better generation results.
+name: ui-prompt-optimizer
+description: Transforma ideias vagas de interface em prompts polidos e otimizados
+  para o Stitch. Aumenta a especificidade, adiciona palavras-chave de UI/UX, injeta
+  o contexto do design system e estrutura a saída para melhores resultados de geração.
 allowed-tools:
-  - "Read"
-  - "Write"
+- Read
+- Write
 ---
 
 # Enhance Prompt for Stitch
