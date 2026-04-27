@@ -7,9 +7,19 @@ wmclass=chrome google-chrome
 wmclasscomplete=true
 wmclassmatch=1
 
+[2923d40d-ccc4-4b3d-a15f-08cf7c272762]
+Description=Configurações de janela para factorio
+clientmachine=localhost
+opacityactiverule=2
+title=Factorio 2.0.76
+titlematch=1
+types=1
+wmclass=factorio
+wmclassmatch=1
+
 [General]
-count=2
-rules=0fa6cf49-9cf1-4a2f-8504-26da28c528be,f37e09f4-497b-4c89-88c1-9a6828003826
+count=3
+rules=2923d40d-ccc4-4b3d-a15f-08cf7c272762,0fa6cf49-9cf1-4a2f-8504-26da28c528be,f37e09f4-497b-4c89-88c1-9a6828003826
 
 [f37e09f4-497b-4c89-88c1-9a6828003826]
 Description=janelas translucidas
