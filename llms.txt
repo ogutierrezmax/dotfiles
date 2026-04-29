@@ -19,6 +19,7 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
     3. (Opcional) Executar `scripts/install-dotfiles.sh` para linkar.
 - **Convenções de Código**:
     - Scripts Bash seguem `ShellCheck`.
+    - Commits devem ser **atômicos**: uma ferramenta ou mudança lógica por commit.
     - Documentação técnica detalhada em `docs/` (ex: `docs/tmux.md`).
 
 ## Guia de Desenvolvimento
