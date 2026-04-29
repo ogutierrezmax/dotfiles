@@ -17,9 +17,19 @@ types=1
 wmclass=factorio
 wmclassmatch=1
 
+[7dac17a8-d9e3-46fc-ba4b-dd2be2dd609c]
+Description=Configurações de janela para OxygenNotIncluded
+clientmachine=localhost
+opacityactiverule=2
+title=Oxygen Not Included
+titlematch=1
+types=1
+wmclass=OxygenNotIncluded
+wmclassmatch=1
+
 [General]
-count=3
-rules=2923d40d-ccc4-4b3d-a15f-08cf7c272762,0fa6cf49-9cf1-4a2f-8504-26da28c528be,f37e09f4-497b-4c89-88c1-9a6828003826
+count=4
+rules=7dac17a8-d9e3-46fc-ba4b-dd2be2dd609c,2923d40d-ccc4-4b3d-a15f-08cf7c272762,0fa6cf49-9cf1-4a2f-8504-26da28c528be,f37e09f4-497b-4c89-88c1-9a6828003826
 
 [f37e09f4-497b-4c89-88c1-9a6828003826]
 Description=janelas translucidas
