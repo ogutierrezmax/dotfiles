@@ -1,0 +1,32 @@
+---
+description: Enforce atomic commits and prevent grouping of unrelated changes
+globs: **/*
+alwaysApply: true
+---
+
+# Atomic Commits Protocol
+
+To ensure a clean and revertible history, all commits MUST be atomic. In this repository, "atomic" means one logical change per commit.
+
+## 🚫 Grouping Rules
+
+- **Never** group changes to different programs/tools in the same commit (e.g., don't mix `.tmux.conf` with `.zshrc`).
+- **Never** mix documentation changes with code/config changes unless they are strictly part of the same feature.
+- **Never** group unrelated documentation updates (e.g., don't mix "security guidelines" with "project structure" updates).
+- **Never** mix refactoring with new features or bug fixes.
+
+## ✅ Preferred Patterns
+
+- **Configuration**: Separate commits per tool.
+  - `feat(kwin): update window rules`
+  - `feat(tmux): improve status bar`
+- **Shell**: Separate plugins from core settings if they aren't part of the same logical task.
+  - `refactor(zsh): cleanup plugins`
+  - `fix(zsh): fix alias for grep`
+- **Documentation**: One topic per commit.
+  - `docs(security): add encryption guidelines`
+  - `docs(structure): update directory map`
+
+## 🛠 Execution
+
+When using the `git-commit` skill or manual `git` commands, analyze the changes carefully and stage only the files belonging to a single logical change before committing. If multiple logical changes exist, perform multiple `git add` and `git commit` cycles.
