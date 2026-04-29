@@ -8,8 +8,9 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(tmux git zsh-autosuggestions zsh-syntax-highlighting)
 
 # Plugin configurations
-ZSH_TMUX_AUTOSTART=true
+ZSH_TMUX_AUTOSTART=false
 ZSH_TMUX_AUTOCONNECT=true
+
 
 # Load Oh My Zsh
 source $ZSH/oh-my-zsh.sh
