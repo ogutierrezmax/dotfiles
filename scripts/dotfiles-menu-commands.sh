@@ -229,18 +229,22 @@ dotfiles_menu_call_gemini_api() {
     return 1
 }
 
-# Valida o script bash gerado pela LLM usando uma Allowlist estrita.
-# Retorna 0 se o script for seguro, ou 1 se contiver comandos não autorizados.
-dotfiles_menu_validate_llm_script() {
+# Filtra o script bash gerado pela LLM usando uma Allowlist estrita.
+# Comandos não autorizados são comentados.
+# Retorna o script filtrado via stdout.
+# O exit code será 1 se algum comando foi rejeitado, ou 0 se tudo estava limpo.
+dotfiles_menu_filter_llm_script() {
     local script_content="$1"
-    local line trimmed
+    local line trimmed clean_script=""
+    local has_invalid=0
     
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # Remove espaços nas pontas
+        # Remove espaços nas pontas para validação
         trimmed=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         
         # Permite linhas vazias e comentários (incluindo shebang)
         if [[ -z "$trimmed" || "$trimmed" == "#"* ]]; then
+            clean_script+="${line}"$'\n'
             continue
         fi
         
@@ -248,15 +252,17 @@ dotfiles_menu_validate_llm_script() {
         if [[ "$trimmed" == "set "* ]] || \
            [[ "$trimmed" == "git add "* ]] || \
            [[ "$trimmed" == "git commit "* ]]; then
+            clean_script+="${line}"$'\n'
             continue
         fi
         
-        # Qualquer outra coisa é rejeitada
-        echo "$trimmed"
-        return 1
+        # Qualquer outra coisa é comentada e marcada como inválida
+        clean_script+="# SEGURANÇA (REJEITADO): ${line}"$'\n'
+        has_invalid=1
     done <<< "$script_content"
     
-    return 0
+    echo -n "$clean_script"
+    return "$has_invalid"
 }
 
 # Reconhece o comando "commit" no menu principal.
@@ -339,16 +345,16 @@ dotfiles_menu_smart_commit() {
 Você é um especialista em Git com Conventional Commits. Analise as alterações abaixo e gere um script bash que faça commits inteligentes.
 
 REGRAS OBRIGATÓRIAS:
-1. Agrupe alterações logicamente relacionadas no mesmo commit (ex: mesmo feature, mesmo refactor).
-2. Use Conventional Commits: <type>(<scope>): <description>
-3. Cada commit deve representar UMA mudança lógica coesa.
-4. Use git add para cada arquivo ANTES do git commit.
-5. Para arquivos novos (untracked), use git add <arquivo> antes do commit.
-6. NUNCA use git add . ou git add -A — sempre adicione arquivos específicos.
-7. Mensagens de commit em inglês, imperativo, <72 chars.
-8. O script deve ser executável e seguro (sem force push, sem reset).
-9. Se um único commit é suficiente para todas as alterações, faça apenas um.
-10. NUNCA crie um commit isolado apenas para mudanças triviais (ex: adicionar uma linha em branco, trailing newline, formatação menor). Junte essas mudanças triviais no commit principal mais próximo ou agrupe-as de forma inteligente.
+1. ATOMICIDADE ESTRITA: Cada commit deve representar UMA única mudança lógica.
+2. NUNCA agrupe alterações de programas ou ferramentas diferentes (ex: NÃO misture .tmux.conf com .zshrc no mesmo commit). Cada ferramenta deve ter seu próprio commit.
+3. NUNCA misture alterações de documentação com alterações de código ou configuração.
+4. NUNCA misture refatoração com novas funcionalidades ou correções.
+5. Use Conventional Commits: <type>(<scope>): <description>
+6. Use git add para cada arquivo específico ANTES do git commit.
+7. NUNCA use git add . ou git add -A.
+8. Mensagens em inglês, imperativo, <72 chars.
+9. Se houver mudanças em múltiplos arquivos de uma mesma ferramenta (ex: vários arquivos .zsh/*), eles podem ir no mesmo commit se formarem uma mudança lógica única.
+10. NUNCA crie commits para mudanças triviais isoladas (espaços em branco, etc); ignore-as ou junte-as ao commit principal daquela ferramenta.
 
 FORMATO DE SAÍDA — responda APENAS com o bloco de código bash, sem explicações:
 ```bash
@@ -393,17 +399,17 @@ PROMPT_HEREDOC
         script_content="$llm_response"
     fi
 
-    # Validação de segurança baseada em Allowlist (Strict)
-    local invalid_cmd
-    invalid_cmd=$(dotfiles_menu_validate_llm_script "$script_content")
-    if [[ $? -ne 0 ]]; then
-        echo -e "${C_MARK_BLOCK:-}✖ SEGURANÇA: O script contém comandos não permitidos pela allowlist. Abortando.${R:-}"
-        echo -e "${C_FILE_PATH:-}Comando rejeitado: ${invalid_cmd}${R:-}"
+    # Filtragem de segurança baseada em Allowlist (Strict)
+    local filtered_script
+    filtered_script=$(dotfiles_menu_filter_llm_script "$script_content")
+    local filter_status=$?
+
+    if [[ $filter_status -ne 0 ]]; then
+        echo -e "${C_MARK_BLOCK:-}⚠ SEGURANÇA: O script original continha comandos não permitidos.${R:-}"
+        echo -e "${C_FILE_PATH:-}Os comandos suspeitos foram comentados para sua segurança.${R:-}"
         echo ""
-        echo -e "${C_FILE_PATH:-}Script completo recebido:${R:-}"
-        echo "$script_content"
-        return 0
     fi
+    script_content="$filtered_script"
 
     # Exibe o script para revisão
     echo ""
