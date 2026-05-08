@@ -37,7 +37,10 @@ When working on any Supabase task that touches auth, RLS, views, storage, or use
    - **If you use `app_metadata` or `auth.jwt()` for authorization, remember JWT claims are not always fresh until the user's token is refreshed.**
 
 - **API key and client exposure**
-   - **Never expose the `service_role` or secret key in public clients.** Prefer publishable keys for frontend code. Legacy `anon` keys are only for compatibility. In Next.js, any `NEXT_PUBLIC_` env var is sent to the browser.
+   - **Never expose the `service_role` or secret key in public clients.**
+   - **ALWAYS use "Publishable Keys" (`sb_publishable_...`) for frontend code.** Legacy `anon` keys are considered legacy/deprecated in terminology and should be replaced. 
+   - When initializing the client, the second parameter should be your Publishable Key.
+   - In Next.js, any `NEXT_PUBLIC_` env var is sent to the browser.
 
 - **RLS, views, and privileged database code**
    - **Views bypass RLS by default.** In Postgres 15 and above, use `CREATE VIEW ... WITH (security_invoker = true)`. In older versions of Postgres, protect your views by revoking access from the `anon` and `authenticated` roles, or by putting them in an unexposed schema.
