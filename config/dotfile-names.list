@@ -14,13 +14,11 @@ gitconfig
 .config/Cursor/User/keybindings.json
 .config/Cursor/User/settings.json
 
-# KDE Plasma (tema/estilo) — versões sanitizadas
-.config/kdeglobals
-.config/plasmarc
-.config/kwinrc
-.config/ksplashrc
-.config/kscreenlockerrc
-
-# regras de janelas do KDE plasma (transparencia)
-.config/kwinrulesrc
+# KDE Plasma configs
+kde-plasma/.config/kdeglobals
+kde-plasma/.config/kwinrc
+kde-plasma/.config/kwinrulesrc
+kde-plasma/.config/kglobalshortcutsrc
+kde-plasma/.config/plasmashellrc
+kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .tmux.conf
