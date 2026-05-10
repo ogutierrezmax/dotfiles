@@ -1,8 +1,0 @@
-[Daemon]
-Timeout=60
-
-[Greeter][Wallpaper][org.kde.image][General]
-# SECURITY NOTE: Não versionar paths absolutos de wallpaper (privacidade e portabilidade).
-# Deixe vazio para usar o padrão do sistema ou configure manualmente após instalar.
-Image=
-PreviewImage=
