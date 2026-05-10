@@ -1,0 +1,131 @@
+[ColorEffects:Disabled]
+ChangeSelectionColor=
+Color=56,56,56
+ColorAmount=0
+ColorEffect=0
+ContrastAmount=0.65
+ContrastEffect=1
+Enable=
+IntensityAmount=0.1
+IntensityEffect=2
+
+[ColorEffects:Inactive]
+ChangeSelectionColor=true
+Color=112,111,110
+ColorAmount=0.025000000000000001
+ColorEffect=2
+ContrastAmount=0.10000000000000001
+ContrastEffect=2
+Enable=false
+IntensityAmount=0
+IntensityEffect=0
+
+[Colors:Button]
+BackgroundAlternate=64,69,82
+BackgroundNormal=30,34,51
+DecorationFocus=197,14,210
+DecorationHover=197,14,210
+ForegroundActive=61,174,233
+ForegroundInactive=102,106,115
+ForegroundLink=41,128,185
+ForegroundNegative=237,37,78
+ForegroundNeutral=255,106,0
+ForegroundNormal=195,199,209
+ForegroundPositive=113,247,159
+ForegroundVisited=82,148,226
+
+[Colors:Selection]
+BackgroundAlternate=29,153,243
+BackgroundNormal=197,14,210
+DecorationFocus=197,14,210
+DecorationHover=197,14,210
+ForegroundActive=252,252,252
+ForegroundInactive=211,218,227
+ForegroundLink=253,188,75
+ForegroundNegative=237,37,78
+ForegroundNeutral=255,106,0
+ForegroundNormal=254,254,254
+ForegroundPositive=113,247,159
+ForegroundVisited=189,195,199
+
+[Colors:Tooltip]
+BackgroundAlternate=47,52,63
+BackgroundNormal=53,57,69
+DecorationFocus=197,14,210
+DecorationHover=197,14,210
+ForegroundActive=61,174,233
+ForegroundInactive=102,106,115
+ForegroundLink=41,128,185
+ForegroundNegative=237,37,78
+ForegroundNeutral=255,106,0
+ForegroundNormal=211,218,227
+ForegroundPositive=113,247,159
+ForegroundVisited=82,148,226
+
+[Colors:View]
+BackgroundAlternate=31,35,51
+BackgroundNormal=22,25,37
+DecorationFocus=197,14,210
+DecorationHover=197,14,210
+ForegroundActive=0,193,228
+ForegroundInactive=102,106,115
+ForegroundLink=82,148,226
+ForegroundNegative=237,37,78
+ForegroundNeutral=255,106,0
+ForegroundNormal=211,218,227
+ForegroundPositive=113,247,159
+ForegroundVisited=124,183,255
+
+[Colors:Window]
+BackgroundAlternate=47,52,63
+BackgroundNormal=24,27,40
+DecorationFocus=197,14,210
+DecorationHover=197,14,210
+ForegroundActive=61,174,233
+ForegroundInactive=102,106,115
+ForegroundLink=41,128,185
+ForegroundNegative=237,37,78
+ForegroundNeutral=255,106,0
+ForegroundNormal=211,218,227
+ForegroundPositive=113,247,159
+ForegroundVisited=179,13,191
+
+[DirSelect Dialog]
+DirSelectDialog Size=1920,1008
+History Items[$e]=file:$HOME/_Dev/alfo-chess-gogo,file:$HOME/_Dev/testando-warp,file:$HOME/_Dev/Drill-App,file:$HOME,file:$HOME/_Dev/visual-code-mapping,file:$HOME/_Dev/anti-atraso-v2,file:$HOME/_Dev/anti-atraso,file:$HOME/_Dev/anti-atraso-v2,file:$HOME/_Dev/subagent-backlog-to-ready-to-do,file:$HOME/Imagens/hok image temp/rota,file:$HOME/Imagens/hok image temp/rota,file:$HOME/Imagens/hok image temp/rota,file:$HOME/_Dev/dev-notify,file:$HOME/_Dev/dev-notify,file:$HOME/Vídeos,file:$HOME,file:$HOME,file:///media/alfo/BEFCA544FCA4F833/_DEV/_Operador/cadaumemsuapasta/drilltracker,file:///media/alfo/BEFCA544FCA4F833/_DEV/__games/_DEV_HOK/_kpl_data/hok-league-fetcher,file:///media/alfo/BEFCA544FCA4F833/_DEV/__games/_DEV_HOK/_kpl_data/kpl-match-data-fetcher
+Splitter State=\x00\x00\x00\xff\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x92\x00\x00\x02\xa8\x00\xff\xff\xff\xff\x01\x00\x00\x00\x01\x00
+
+[General]
+BrowserApplication=google-chrome.desktop
+ColorSchemeHash=a054744e5da530142f039caa182148b170643d2e
+
+[KDE]
+LookAndFeelPackage=Sweet
+
+[KFileDialog Settings]
+Allow Expansion=false
+Automatically select filename extension=true
+Breadcrumb Navigation=true
+Decoration position=0
+LocationCombo Completionmode=5
+PathCombo Completionmode=5
+Show Bookmarks=false
+Show Full Path=false
+Show Inline Previews=true
+Show Preview=false
+Show Speedbar=true
+Show hidden files=false
+Sort by=Date
+Sort directories first=true
+Sort hidden files last=false
+Sort reversed=true
+Speedbar Width=146
+View Style=Detail
+
+[WM]
+activeBackground=47,52,63
+activeBlend=47,52,63
+activeForeground=211,218,227
+inactiveBackground=47,52,63
+inactiveBlend=47,52,63
+inactiveForeground=102,106,115
