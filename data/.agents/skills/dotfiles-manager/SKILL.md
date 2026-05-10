@@ -19,6 +19,138 @@ Antes de qualquer ação, leia as seções relevantes abaixo e os arquivos de re
 
 ---
 
+## PASSO 0 — Pesquisa Web (OBRIGATÓRIO, executar antes de tudo)
+
+Antes de qualquer ação, execute as buscas abaixo para obter informações atualizadas
+e específicas ao contexto do usuário. Adapte as queries ao que foi mencionado.
+
+As buscas são divididas em **fixas** (sempre executar) e **condicionais** (executar
+quando o contexto se encaixar). Teto recomendado: **até 8 buscas** para casos
+complexos; nunca menos que 5.
+
+---
+
+### Buscas Fixas (sempre executar — mínimo de 5)
+
+**Busca F1 — Melhores práticas para o alvo específico**
+Pesquise práticas de versionamento para *exatamente* o que o usuário mencionou.
+```
+# Exemplos de query por contexto:
+"neovim dotfiles best practices versioning 2025"          # se Neovim
+"zsh oh-my-zsh dotfiles git symlinks best practices"      # se Zsh/OMZ
+"tmux config dotfiles versioning"                         # se tmux
+"gitconfig dotfiles versioning credential helper"         # se .gitconfig
+"dotfiles management best practices git symlinks 2025"    # setup geral
+```
+
+**Busca F2 — Segurança e secrets específicos das ferramentas mencionadas**
+```
+"<ferramenta> dotfiles secrets sensitive files gitignore"
+# Exemplos:
+"neovim lua plugin api keys secrets gitignore"
+"zshrc environment variables secrets leak git"
+"gitconfig credential token security versioning"
+"ssh config dotfiles security best practices"
+```
+
+**Busca F3 — Compatibilidade com o ambiente/OS do usuário**
+```
+# Adaptar ao OS mencionado:
+"dotfiles WSL2 symlinks windows interop 2025"             # WSL
+"dotfiles macos symlinks homebrew bootstrap"              # macOS
+"dotfiles linux ubuntu symlinks bootstrap idempotent"     # Linux
+"dotfiles cross-platform linux macos windows bootstrap"   # múltiplos OS
+```
+
+**Busca F4 — Estrutura de repositório e organização**
+Pesquise exemplos de repositórios dotfiles populares e bem estruturados para
+extrair padrões de organização relevantes ao stack do usuário.
+```
+"dotfiles repository structure organization <ferramenta> github"
+"dotfiles stow structure home directory layout 2025"
+"popular dotfiles repos neovim zsh tmux structure"        # adaptar ao stack
+```
+
+**Busca F5 — Ferramentas de gerenciamento (GNU Stow vs alternativas)**
+Pesquise a ferramenta mais adequada ao contexto do usuário.
+```
+"GNU stow dotfiles symlinks tutorial 2025"
+"dotfiles manager stow vs chezmoi vs yadm comparison 2025"
+"dotbot dotfiles cross-platform yaml symlinks"            # se cross-platform
+```
+
+---
+
+### Buscas Condicionais (executar quando o contexto se encaixar)
+
+**Busca C1 — Ferramenta de nicho ou pouco documentada**
+*Quando*: usuário menciona ferramenta incomum (Wezterm, Aerospace, Karabiner,
+Helix, Yabai, Sketchybar, Ghostty, etc.)
+```
+"<ferramenta> dotfiles config versioning best practices"
+"<ferramenta> config files location linux macos"
+```
+
+**Busca C2 — Stack com múltiplas ferramentas inter-dependentes**
+*Quando*: usuário menciona 3+ ferramentas que se integram (ex: Neovim + LSP +
+Mason, Zsh + Starship + fzf, tmux + tmuxinator).
+```
+"<stack> dotfiles integration versioning example"
+"<tool-a> <tool-b> shared config dotfiles"
+```
+
+**Busca C3 — Auditoria de repositório existente**
+*Quando*: repositório já existe e usuário quer auditar ou migrar.
+```
+"git history secrets audit remove credential dotfiles"
+"gitleaks trufflehog scan dotfiles repository"
+"git filter-repo remove sensitive file history"
+```
+
+**Busca C4 — Bootstrap em ambiente restrito**
+*Quando*: usuário menciona servidor remoto, container, CI/CD, máquina sem sudo
+ou ambiente corporativo.
+```
+"dotfiles bootstrap no sudo minimal dependencies"
+"dotfiles ci environment headless bootstrap script"
+"dotfiles server setup without package manager"
+```
+
+**Busca C5 — Criptografia de configs sensíveis necessária**
+*Quando*: usuário precisa versionar algo que contém dados sensíveis (ex: `.ssh/config`
+com hosts internos, configs com tokens que não podem ficar em arquivo local).
+```
+"dotfiles encrypt secrets git gpg age sops"
+"chezmoi encrypt sensitive dotfiles gpg"
+"git-crypt dotfiles sensitive files encryption"
+```
+
+**Busca C6 — Sincronização entre múltiplas máquinas**
+*Quando*: usuário menciona mais de uma máquina, perfis por host, ou branches por ambiente.
+```
+"dotfiles multiple machines host-specific config git branches"
+"dotfiles per-machine overrides symlinks profiles"
+"yadm dotfiles multiple hosts alternates"
+```
+
+---
+
+### O que fazer com os resultados
+
+Após executar as buscas:
+
+1. **Mapear arquivos relevantes** encontrados nos resultados que o usuário não mencionou
+   (ex: pesquisa revelou que Neovim com Mason guarda tokens em `~/.local/share/nvim/`)
+2. **Identificar riscos específicos** do stack (paths onde secrets costumam aparecer)
+3. **Extrair padrões de .gitignore** recomendados para as ferramentas listadas
+4. **Escolher ferramenta de gerenciamento** mais adequada ao contexto
+5. **Incorporar tudo** na estrutura de repositório, .gitignore e script de bootstrap
+
+Apresente ao usuário um breve resumo do que as pesquisas revelaram de relevante
+**antes** de propor qualquer estrutura ou código.
+
+---
+
 ## Fluxo de Decisão Principal
 
 ```

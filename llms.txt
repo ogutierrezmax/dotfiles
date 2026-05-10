@@ -8,6 +8,7 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
 
 ## Estrutura de Arquivos Críticos
 - `data/`: Contém os arquivos originais. Qualquer alteração deve ser feita aqui.
+- `data/kde-plasma/`: Configurações do KDE Plasma — empacotadas juntas e traduzidas de forma invisível para `~/.config/` pelo gerenciador.
 - `config/dotfile-names.list`: Arquivo texto simples contendo a lista de arquivos em `data/` que devem ser linkados.
 - `scripts/dotfiles-lib.sh`: Biblioteca central com funções de manipulação de symlinks (`create_link`, `remove_link`, `check_link_status`).
 - `dotfiles-menu.sh`: Script principal de interface (TUI) para o usuário.
