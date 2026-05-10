@@ -417,7 +417,35 @@ PROMPT_HEREDOC
     echo -e "${B:-}│ 📝 Script de Commits Inteligentes                              │${R:-}"
     echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
     echo ""
-    echo "$script_content" | cat -n
+    echo "$script_content" | awk \
+        -v c_block="${C_MARK_BLOCK:-}" \
+        -v c_comment="${C_FILE_PATH:-}" \
+        -v c_add="${C_MARK_IMP:-}" \
+        -v c_commit="${C_MARK_INST:-}" \
+        -v c_args="${C_MARK_NONE:-}" \
+        -v c_msg="${C_MARK_WRONG:-}" \
+        -v b="${B:-}" \
+        -v r="${R:-}" '{
+        if ($0 ~ /^# SEGURANÇA \(REJEITADO\):/) {
+            print c_block b $0 r
+        } else if ($0 ~ /^[[:space:]]*#/) {
+            print c_comment $0 r
+        } else if ($0 ~ /^[[:space:]]*git add/) {
+            line = $0
+            sub(/git add/, c_add b "&" r c_args, line)
+            print line r
+        } else if ($0 ~ /^[[:space:]]*git commit/) {
+            line = $0
+            if (line ~ /git commit -m/) {
+                sub(/git commit -m/, c_commit b "&" r c_msg, line)
+            } else {
+                sub(/git commit/, c_commit b "&" r c_msg, line)
+            }
+            print line r
+        } else {
+            print $0
+        }
+    }' | cat -n
     echo ""
     echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
     echo -e "${B:-}│ ⚠  Revise o script acima com atenção antes de confirmar.        │${R:-}"
