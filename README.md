@@ -66,6 +66,7 @@ A maneira recomendada de adicionar novos arquivos é através do menu interativo
 Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 
 - [🪟 Tmux (Terminal Multiplexer)](./docs/tmux.md): Configuração de persistência e plugins.
+- [🐉 KDE Plasma (Desktop Environment)](./docs/kde-plasma.md): Configurações visuais, comportamento de janelas e atalhos globais agrupados em pacote gerenciável.
 
 ## 🤖 AI Context
 Este repositório é **AI-Ready**. Agentes de IA podem encontrar um mapa completo do sistema em [llms.txt](./llms.txt).
