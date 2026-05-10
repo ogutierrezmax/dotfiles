@@ -57,12 +57,22 @@ dotfiles_dotfile_names_path() {
 }
 
 # Caminho de destino em ~ para um nome relativo em data/ (ex.: gitconfig → ~/.gitconfig).
+# Suporta agrupar em "pacotes" (ex: kde-plasma/.config/kwinrc → ~/.config/kwinrc).
 dotfiles_dest_for_file() {
     local file=$1
-    if [[ "$file" == .* ]]; then
-        echo "${HOME}/${file}"
+    local dest_file="$file"
+
+    if [[ "$file" == *"/"* ]]; then
+        local first_part="${file%%/*}"
+        if [[ "$first_part" != .* ]]; then
+            dest_file="${file#*/}"
+        fi
+    fi
+
+    if [[ "$dest_file" == .* ]]; then
+        echo "${HOME}/${dest_file}"
     else
-        echo "${HOME}/.${file}"
+        echo "${HOME}/.${dest_file}"
     fi
 }
 
