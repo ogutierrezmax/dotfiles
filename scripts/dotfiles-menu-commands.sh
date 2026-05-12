@@ -205,8 +205,9 @@ dotfiles_menu_call_gemini_api() {
     for current_model in "${models[@]}"; do
         [[ "$current_model" != "${models[0]}" ]] && echo -e "${C_LINK_STATUS_UNLINKED:-}  ↪ Tentando fallback: ${current_model}...${R:-}" >&2
 
-        response=$(curl -s -X POST -H "Content-Type: application/json" \
-            -d "$json_payload" \
+        # Evita erro de limite de tamanho de argumento (ARG_MAX) passando o JSON via stdin
+        response=$(echo "$json_payload" | curl -s -X POST -H "Content-Type: application/json" \
+            -d @- \
             "https://generativelanguage.googleapis.com/v1beta/models/${current_model}:generateContent?key=${api_key}")
 
         if [[ $? -ne 0 ]]; then
@@ -215,9 +216,15 @@ dotfiles_menu_call_gemini_api() {
 
         api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
         if [[ -n "$api_error" ]]; then
-            [[ "${api_error,,}" == *"quota"* || "${api_error,,}" == *"limit"* || "${api_error,,}" == *"high demand"* || "${api_error,,}" == *"overloaded"* || "${api_error,,}" == *"temporarily"* ]] && continue
-            echo -e "${C_MARK_BLOCK:-}✖ Erro na API (${current_model}): $api_error${R:-}" >&2
-            break
+            # Se a chave for expressamente inválida, paramos. Caso contrário (quota, modelo inexistente, etc), tentamos o próximo fallback.
+            if [[ "${api_error,,}" == *"api key"* || "${api_error,,}" == *"api_key"* ]]; then
+                echo -e "${C_MARK_BLOCK:-}✖ Erro de Autenticação na API: $api_error${R:-}" >&2
+                break
+            fi
+            # Loga o erro em debug/stderr e continua tentando os fallbacks
+            [[ "${api_error,,}" == *"quota"* || "${api_error,,}" == *"limit"* || "${api_error,,}" == *"high demand"* || "${api_error,,}" == *"overloaded"* || "${api_error,,}" == *"temporarily"* ]] || \
+                echo -e "${C_MARK_BLOCK:-}⚠ Aviso na API (${current_model}): $api_error (tentando fallback)...${R:-}" >&2
+            continue
         fi
 
         result=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null)
@@ -291,7 +298,7 @@ dotfiles_menu_smart_commit() {
     local status_output
     status_output=$(git -C "$repo_root" status --porcelain 2>/dev/null)
     if [[ -z "$status_output" ]]; then
-        echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada no repositório.${R:-}"
+        echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada no repositório. O Smart Commit atua apenas quando existem arquivos modificados ou não rastreados (untracked).${R:-}"
         return 0
     fi
 
@@ -670,8 +677,9 @@ ${diff_for_gemini}" 2>/dev/null)
     for current_model in "${models[@]}"; do
         [[ "$current_model" != "${models[0]}" ]] && echo -e "${C_LINK_STATUS_UNLINKED:-}  ↪ Tentando fallback: ${current_model}...${R:-}"
 
-        response=$(curl -s -X POST -H "Content-Type: application/json" \
-            -d "$json_payload" \
+        # Evita erro de limite de tamanho de argumento (ARG_MAX) passando o JSON via stdin
+        response=$(echo "$json_payload" | curl -s -X POST -H "Content-Type: application/json" \
+            -d @- \
             "https://generativelanguage.googleapis.com/v1beta/models/${current_model}:generateContent?key=${api_key}")
         
         if [[ $? -ne 0 ]]; then
@@ -682,12 +690,15 @@ ${diff_for_gemini}" 2>/dev/null)
         api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
         
         if [[ -n "$api_error" ]]; then
-            # Se for erro de quota (429), apenas continua para o próximo modelo silenciosamente
-            [[ "$api_error" == *"quota"* || "$api_error" == *"limit"* ]] && continue
-            
-            # Outros erros (chave inválida, etc) a gente avisa e para o loop de modelos
-            echo -e "${C_MARK_BLOCK:-}✖ Erro na API (${current_model}): $api_error${R:-}" >&2
-            break
+            # Se a chave for expressamente inválida, paramos. Caso contrário (quota, modelo inexistente, etc), tentamos o próximo fallback.
+            if [[ "${api_error,,}" == *"api key"* || "${api_error,,}" == *"api_key"* ]]; then
+                echo -e "${C_MARK_BLOCK:-}✖ Erro de Autenticação na API: $api_error${R:-}" >&2
+                break
+            fi
+            # Loga o aviso se não for cota pura e tenta os próximos fallbacks
+            [[ "${api_error,,}" == *"quota"* || "${api_error,,}" == *"limit"* || "${api_error,,}" == *"high demand"* || "${api_error,,}" == *"overloaded"* || "${api_error,,}" == *"temporarily"* ]] || \
+                echo -e "${C_MARK_BLOCK:-}⚠ Aviso na API (${current_model}): $api_error (tentando fallback)...${R:-}" >&2
+            continue
         fi
 
         commit_msg=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null)
