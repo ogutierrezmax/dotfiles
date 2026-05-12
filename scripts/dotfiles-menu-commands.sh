@@ -503,6 +503,32 @@ PROMPT_HEREDOC
     fi
 }
 
+# Reconhece o comando "push" no menu principal.
+# Retorna 0 se reconheceu (tratado ou cancelado); 1 se não reconheceu.
+dotfiles_menu_try_push() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "push" ]]; then
+        dotfiles_menu_push
+        return 0
+    fi
+    return 1
+}
+
+# Realiza o git push do repositório
+dotfiles_menu_push() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
+    git -C "$repo_root" push
+    if [[ $? -eq 0 ]]; then
+        echo -e "${C_MARK_INST:-}✅ Push concluído com sucesso!${R:-}"
+    else
+        echo -e "${C_MARK_BLOCK:-}✖ Erro no push. Verifique se o repositório remoto está configurado e acessível.${R:-}"
+    fi
+    echo ""
+}
+
 dotfiles_menu_commit_file() {
     local file=$1
     local key_file data_dir repo_root api_key diff_output response commit_msg ans
