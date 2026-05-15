@@ -1,0 +1,16 @@
+# SECURITY NOTE: DO NOT place API keys, passwords, or tokens in this file.
+# This file is tracked by Git and is visible in plaintext on the system.
+[Desktop Entry]
+Type=Application
+# DANGER ZONE: This executes a custom shell script from the dotfiles repository.
+Exec=/home/alfo/_Dev/dotfiles/scripts/plasma-panel-lang-color.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[pt_BR]=Cor da Barra por Idioma
+Name=Panel Color by Language
+Comment[pt_BR]=Muda a cor da barra de tarefas ao alternar o idioma do teclado
+Comment=Changes taskbar color when switching keyboard language
+Icon=preferences-desktop-keyboard
+Categories=Settings;
+X-KDE-Autostart-after=panel

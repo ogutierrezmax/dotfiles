@@ -22,3 +22,12 @@ type: concept
    - Atalhos (`kglobalshortcutsrc`)
    - Disposição visual de interface (`plasmashellrc`, `plasma-org.kde.plasma.desktop-appletsrc`)
 2. **Segregação**: Agrupe esses arquivos em um pacote dedicado (ex: `kde-plasma/`) para evitar poluição visual e facilitar o rollback de todo o ambiente sem afetar outros programas.
+
+## 3. Inicialização Automática e Segurança (Autostart)
+**Contexto**: Arquivos de autostart (`.desktop`) são vetores de execução de código que frequentemente contêm caminhos absolutos ou argumentos de comando sensíveis. Por serem texto puro, são inseguros para armazenar credenciais.
+**Solução Abstraída**: Versionar arquivos `.desktop` individualmente em `data/.config/autostart/` e aplicar guardrails de documentação inline.
+**Princípios**:
+1. **Guardrails Proativos**: Inserir comentários `SECURITY NOTE` no topo de arquivos que podem ser alvo de injeção de segredos por LLMs.
+2. **Abstração de Caminhos**: Preferir comandos que usem o `$PATH` ou variáveis de ambiente em vez de caminhos absolutos para o `Exec=`, garantindo portabilidade entre máquinas com nomes de usuário diferentes.
+3. **Bloqueio de Commits Inseguros**: Implementar hooks de pré-commit (`pre-commit`) que escaneiam o diff em busca de padrões de segredos (API keys, tokens) antes de permitir a persistência no repositório.
+

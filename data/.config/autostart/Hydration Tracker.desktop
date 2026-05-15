@@ -1,0 +1,11 @@
+# SECURITY NOTE: DO NOT place API keys, passwords, or tokens in this file.
+# This file is tracked by Git and is visible in plaintext on the system.
+[Desktop Entry]
+Categories=
+Comment=A hydration tracker desktop widget
+Exec=hydration-tracker
+Icon=hydration-tracker
+Name=Hydration Tracker
+StartupWMClass=hydration-tracker
+Terminal=false
+Type=Application

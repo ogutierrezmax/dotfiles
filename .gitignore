@@ -15,3 +15,6 @@ config/.google_ai_studio_api_key
 *.pem
 *.key
 terraform.tfstate
+# Autostart
+data/.config/autostart/*.bak*
+data/.config/autostart/*~

@@ -66,6 +66,7 @@ A maneira recomendada de adicionar novos arquivos é através do menu interativo
 Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 
 - [🪟 Tmux (Terminal Multiplexer)](./docs/tmux.md): Configuração de persistência e plugins.
+- [🚀 Autostart (Inicialização Automática)](./docs/autostart.md): Gerenciamento de programas que iniciam com o sistema.
 - [🐉 KDE Plasma (Desktop Environment)](./docs/kde-plasma.md): Configurações visuais, comportamento de janelas e atalhos globais agrupados em pacote gerenciável.
 
 ## 🤖 AI Context

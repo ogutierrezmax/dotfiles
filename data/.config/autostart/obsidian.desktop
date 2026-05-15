@@ -1,0 +1,12 @@
+# SECURITY NOTE: DO NOT place API keys, passwords, or tokens in this file.
+# This file is tracked by Git and is visible in plaintext on the system.
+[Desktop Entry]
+Categories=Office;
+Comment=Obsidian
+Exec=/opt/Obsidian/obsidian %U
+Icon=obsidian
+MimeType=x-scheme-handler/obsidian;
+Name=Obsidian
+StartupWMClass=obsidian
+Terminal=false
+Type=Application
