@@ -20,8 +20,7 @@ kde-plasma/.config/kwinrc
 kde-plasma/.config/kwinrulesrc
 kde-plasma/.config/kglobalshortcutsrc
 kde-plasma/.config/plasmashellrc
-# plasma-org.kde.plasma.desktop-appletsrc é gerenciado pelo sistema de presets de tema.
-# Não é mais um symlink. Use: data/kde-plasma/themes/switch-theme.sh <nome-do-tema>
+kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .tmux.conf
 
 # Autostart

@@ -120,5 +120,26 @@ O script base (`scripts/dotfiles-lib.sh`) suporta pastas "agrupadoras" (pacotes)
 Arquivos declarados como `kde-plasma/.config/arquivo` em `config/dotfile-names.list` perdem o prefixo
 e são linkados para `~/.config/arquivo`, sem que a pasta `kde-plasma` apareça no caminho final.
 
+## 🔧 Manutenção e Dicas
+
+### Lidando com Arquivos Voláteis (`skip-worktree`)
+
+Além do sistema de presets acima, você pode usar o `skip-worktree` do Git para ignorar mudanças automáticas no arquivo principal de widgets, evitando que trocas de tema poluam o seu `git status` mesmo quando não estiver usando os scripts de tema.
+
+- **Para ignorar mudanças locais**:
+  ```bash
+  git update-index --skip-worktree data/kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
+  ```
+
+- **Para voltar a rastrear (para atualizar a base no repo)**:
+  ```bash
+  git update-index --no-skip-worktree data/kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
+  ```
+
+- **Verificar arquivos ignorados**:
+  ```bash
+  git ls-files -v | grep ^S
+  ```
+
 ---
-*Atualizado durante a implementação do sistema de presets de tema.*
+*Atualizado durante a implementação do sistema de presets e dicas de skip-worktree.*
