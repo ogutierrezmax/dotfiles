@@ -22,14 +22,20 @@ PopupHideDelay=500
 [Tiling]
 padding=4
 
+[Tiling][424cdb1c-04fb-507b-bab8-b218f2a4f305]
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Tiling][92e842d7-5928-5c43-884a-4912e7cc82ed]
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
 [Tiling][d858a134-906f-5e70-aaae-36129f2ea4e2]
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.32656250000000103},{"width":0.42343749999999897},{"width":0.25}]}
 
+[Tiling][dde3d261-ae17-5060-a813-9535683b8b5c]
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Xwayland]
-Scale=1
+Scale=1.275
 
 [org.kde.kdecoration2]
 ButtonsOnLeft=MNSF
