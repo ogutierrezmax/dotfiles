@@ -843,3 +843,30 @@ dotfiles_menu_act_on_entry() {
             ;;
     esac
 }
+
+# Reconhece o comando "ag" ou "antigravity" no menu principal.
+# Retorna 0 se reconheceu (tratado); 1 se não reconheceu.
+dotfiles_menu_try_antigravity() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "ag" || "${trimmed,,}" == "antigravity" ]]; then
+        dotfiles_menu_antigravity
+        return 0
+    fi
+    return 1
+}
+
+# Abre o repositório no Antigravity.
+dotfiles_menu_antigravity() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🚀 Abrindo o repositório com Antigravity...${R:-}"
+    if command -v antigravity >/dev/null 2>&1; then
+        # Executa em background para não travar o menu
+        antigravity "$repo_root" >/dev/null 2>&1 &
+        echo -e "${C_MARK_INST:-}✅ Antigravity iniciado.${R:-}"
+    else
+        echo -e "${C_MARK_BLOCK:-}✖ Comando 'antigravity' não encontrado.${R:-}"
+    fi
+    echo ""
+}

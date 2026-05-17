@@ -57,6 +57,10 @@ main() {
             continue
         fi
 
+        if dotfiles_menu_try_antigravity "$trimmed"; then
+            continue
+        fi
+
         if dotfiles_menu_try_add "$trimmed" entries; then
             continue
         fi
