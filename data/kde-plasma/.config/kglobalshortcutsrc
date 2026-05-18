@@ -294,6 +294,7 @@ activate task manager entry 6=Meta+6,Meta+6,Ativar entrada 6 do gerenciador de t
 activate task manager entry 7=Meta+7,Meta+7,Ativar entrada 7 do gerenciador de tarefas
 activate task manager entry 8=Meta+8,Meta+8,Ativar entrada 8 do gerenciador de tarefas
 activate task manager entry 9=Meta+9,Meta+9,Ativar entrada 9 do gerenciador de tarefas
+activate widget 35=none,none,Ativar o widget Gerenciador de tarefas com ícones e texto
 activate widget 36=Ctrl+Space,none,Ativar o widget Layout do teclado
 clear-history=none,,Limpar histórico da área de transferência
 clipboard_action=Meta+Ctrl+X,Meta+Ctrl+X,Menu de contexto de ação automática
