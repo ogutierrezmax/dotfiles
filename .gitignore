@@ -15,6 +15,9 @@ config/.google_ai_studio_api_key
 *.pem
 *.key
 terraform.tfstate
+# Commit session logs (one per run)
+logs/
+
 # Autostart
 data/.config/autostart/*.bak*
 data/.config/autostart/*~
