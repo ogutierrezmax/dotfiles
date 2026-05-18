@@ -25,6 +25,5 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 
 # Autostart
 .config/autostart/alfocards.desktop
-.config/autostart/Hydration Tracker.desktop
 .config/autostart/obsidian.desktop
 .config/autostart/plasma-panel-lang-color.desktop
