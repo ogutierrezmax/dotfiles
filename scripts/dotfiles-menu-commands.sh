@@ -3,6 +3,21 @@
 # SECURITY NOTE: Ensure these files are owned by your user and not world-writable.
 # Be cautious when adding new modules suggested by LLMs; always review the content.
 
+# Logging — um arquivo por sessão de commit
+# Path: logs/commit-session-YYYY-MM-DD-HHMMSS.log
+dotfiles_menu_log_init() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    mkdir -p "$repo_root/logs"
+    export DOTFILES_COMMIT_LOG="$repo_root/logs/commit-session-$(date '+%Y-%m-%d-%H%M%S').log"
+}
+
+dotfiles_menu_log() {
+    if [[ -n "${DOTFILES_COMMIT_LOG:-}" ]]; then
+        echo "[$(date '+%H:%M:%S')] $*" >> "$DOTFILES_COMMIT_LOG"
+    fi
+}
+
 # Verifica se os comandos necessários estão instalados
 dotfiles_menu_check_deps() {
     local dep
@@ -236,40 +251,303 @@ dotfiles_menu_call_gemini_api() {
     return 1
 }
 
-# Filtra o script bash gerado pela LLM usando uma Allowlist estrita.
-# Comandos não autorizados são comentados.
-# Retorna o script filtrado via stdout.
-# O exit code será 1 se algum comando foi rejeitado, ou 0 se tudo estava limpo.
-dotfiles_menu_filter_llm_script() {
-    local script_content="$1"
-    local line trimmed clean_script=""
-    local has_invalid=0
-    
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Remove espaços nas pontas para validação
-        trimmed=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-        
-        # Permite linhas vazias e comentários (incluindo shebang)
-        if [[ -z "$trimmed" || "$trimmed" == "#"* ]]; then
-            clean_script+="${line}"$'\n'
+# Coleta git status + diff + conteúdo de untracked para contexto da LLM.
+# Retorna o contexto completo via stdout.
+dotfiles_menu_collect_diff() {
+    local repo_root="$1"
+    local status_output diff_output untracked_files untracked_content="" full_context
+
+    status_output=$(git -C "$repo_root" status --porcelain 2>/dev/null)
+    diff_output=$(git -C "$repo_root" diff HEAD 2>/dev/null || true)
+    untracked_files=$(git -C "$repo_root" ls-files --others --exclude-standard 2>/dev/null || true)
+
+    dotfiles_menu_log "[COLLECT] status_files=$(echo "$status_output" | wc -l)"
+    dotfiles_menu_log "[COLLECT] status_raw: $(echo "$status_output" | tr '\n' ' | ')"
+
+    local diff_size=${#diff_output}
+    dotfiles_menu_log "[COLLECT] diff_size=${diff_size} bytes"
+
+    local untracked_count=0
+    local untracked_list=""
+    if [[ -n "$untracked_files" ]]; then
+        local f fsize
+        while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            (( untracked_count++ ))
+            fsize=$(wc -c < "$repo_root/$f" 2>/dev/null || echo "0")
+            untracked_list+="${f}(${fsize}b) "
+            if (( fsize < 50000 )); then
+                untracked_content+=$'\n--- NEW FILE: '"$f"$' ---\n'
+                untracked_content+=$(cat "$repo_root/$f" 2>/dev/null || true)
+                untracked_content+=$'\n--- END FILE ---\n'
+            else
+                untracked_content+=$'\n--- NEW FILE: '"$f"$' (too large, '"${fsize}"$' bytes) ---\n'
+            fi
+        done <<< "$untracked_files"
+    fi
+
+    dotfiles_menu_log "[COLLECT] untracked_count=${untracked_count}, files=[${untracked_list}]"
+
+    full_context="GIT STATUS:\n${status_output}"
+    [[ -n "$diff_output" ]] && full_context+="\n\nDIFF:\n${diff_output}"
+    [[ -n "$untracked_content" ]] && full_context+="\n\nNEW FILES:\n${untracked_content}"
+
+    local context_size=${#full_context}
+    dotfiles_menu_log "[COLLECT] total_context_size=${context_size} bytes"
+
+    echo -e "$full_context"
+}
+
+# Envia o diff para a LLM com o prompt adaptado da skill dotfiles-secure-commit.
+# Auditoria + agrupamentos + mensagens em 1 chamada.
+# Retorna JSON via stdout: { "audit": { "status": "pass|fail|warn", "findings": [...] }, "groups": [...] }
+dotfiles_menu_call_llm_audit() {
+    local api_key="$1"
+    shift
+    local full_context="${@: -1}"
+    local -a models=("${@:1:$#-1}")
+    local context_size=${#full_context}
+
+    if (( context_size > 200000 )); then
+        dotfiles_menu_log "[LLM-REQUEST] context_size=${context_size} exceeds 200000 limit, aborting"
+        echo -e "${C_MARK_BLOCK:-}✖ Contexto muito grande (${context_size} bytes). Faça commits menores.${R:-}" >&2
+        return 1
+    fi
+
+    local prompt
+    read -r -d '' prompt << 'PROMPT_EOF' || true
+Você é um auditor de segurança e especialista em Conventional Commits para repositórios de dotfiles.
+
+SUA FUNÇÃO: Analisar as alterações abaixo e retornar APENAS um objeto JSON.
+NÃO execute comandos. NÃO gere scripts bash. NÃO sugira comandos git.
+Retorne APENAS JSON válido, sem markdown fences, sem texto adicional.
+
+REGRA CRÍTICA: Use APENAS os caminhos exatos que aparecem no GIT STATUS e DIFF.
+NUNCA invente, deduza ou alucine nomes de arquivo.
+Se um arquivo aparece como "M scripts/dotfiles-menu-commands.sh", o path é exatamente "scripts/dotfiles-menu-commands.sh".
+Se um arquivo aparece como "?? .devtool/features/backlog/file.md", o path é exatamente ".devtool/features/backlog/file.md".
+NUNCA use nomes de modelos Gemini como nomes de arquivo.
+
+TAREFA 1 — AUDITORIA DE SEGURANÇA
+Analise cada alteração por estas categorias:
+- 🔴 BLOQUEAR (status="fail"): segredos/credenciais (api_key, token, secret, password, -----BEGIN, GITHUB_TOKEN, AWS_SECRET, PRIVATE_KEY), chaves privadas (.pem, .key)
+- 🟡 ALERTAR (status="warn"): paths absolutos hardcoded (/home/username/, /Users/), permissões excessivas (chmod 777, chmod 666)
+- 🟢 INFO (status="pass"): arquivos de backup staged (*.bak*, *.bkp, *~)
+
+Se encontrar qualquer 🔴, status="fail" e liste em findings.
+Se encontrar apenas 🟡, status="warn" e liste em findings.
+Se nada suspeito, status="pass" e findings=[].
+
+TAREFA 2 — AGRUPAMENTOS E MENSAGENS (só se auditoria NÃO for fail)
+Se status != "fail", agrupe arquivos por programa/ferramenta.
+Cada grupo = um commit atômico. Use Conventional Commits.
+Tipos válidos: feat, fix, docs, chore, security, refactor.
+Escopo: nome do programa (ex: vscode, zsh, git, tmux).
+Mensagens em inglês, imperativo, <72 chars.
+
+FORMATO JSON EXATO:
+{
+  "audit": {
+    "status": "pass|fail|warn",
+    "findings": [
+      {"level": "🔴|🟡|🟢", "file": "caminho/do/arquivo", "line": 12, "reason": "descrição"}
+    ]
+  },
+  "groups": [
+    {
+      "type": "chore",
+      "scope": "vscode",
+      "description": "add file exclusions",
+      "files": [".vscode/settings.json", ".vscode/extensions.json"]
+    }
+  ]
+}
+
+Regras de agrupamento:
+- NUNCA misture programas diferentes no mesmo grupo
+- NUNCA misture documentação com código/configuração
+- NUNCA misture refatoração com novas funcionalidades
+- Arquivos de um mesmo programa podem ir juntos se formarem uma mudança lógica
+- Ignore mudanças triviais isoladas (espaços em branco)
+
+ALTERAÇÕES:
+PROMPT_EOF
+
+    prompt+=$'\n'
+    prompt+="$full_context"
+
+    local prompt_size=${#prompt}
+    local primary_model="${models[0]}"
+    dotfiles_menu_log "[LLM-REQUEST] prompt_size=${prompt_size}, model=${primary_model}, fallbacks=${#models[@]}"
+
+    local llm_response
+    llm_response=$(echo "$prompt" | dotfiles_menu_call_gemini_api "$api_key" "${models[@]}")
+
+    if [[ -z "$llm_response" ]]; then
+        dotfiles_menu_log "[LLM-RESPONSE] empty — all models failed"
+        echo -e "${C_MARK_BLOCK:-}✖ Não foi possível analisar as alterações (todos os modelos falharam).${R:-}" >&2
+        return 1
+    fi
+
+    local raw_size=${#llm_response}
+    local first_chars
+    first_chars=$(echo "$llm_response" | head -c 500 | tr '\n' ' ')
+    dotfiles_menu_log "[LLM-RESPONSE] raw_size=${raw_size}, first_chars=${first_chars}"
+
+    # Limpa markdown fences se presentes
+    local json_clean
+    local had_fences=false
+    if echo "$llm_response" | grep -q '```'; then
+        had_fences=true
+    fi
+    json_clean=$(echo "$llm_response" | sed 's/^```json$//g; s/^```$//g' | awk 'NF')
+
+    # Valida que é JSON válido
+    dotfiles_menu_log "[LLM-PARSE] markdown_fences_removed=${had_fences}, validating JSON..."
+    if ! echo "$json_clean" | jq empty 2>/dev/null; then
+        dotfiles_menu_log "[LLM-PARSE] INVALID JSON"
+        echo -e "${C_MARK_BLOCK:-}✖ Resposta da LLM não é JSON válido. Tente novamente.${R:-}" >&2
+        echo -e "${C_FILE_PATH:-}Resposta recebida: $(echo "$llm_response" | head -5)${R:-}" >&2
+        return 1
+    fi
+    dotfiles_menu_log "[LLM-PARSE] valid=true"
+
+    echo "$json_clean"
+}
+
+# Executa os commits agrupados pelo bash (sem eval, sem LLM gerando código).
+# Cada commit inclui a assinatura obrigatória Verified-By.
+dotfiles_menu_execute_commits() {
+    local repo_root="$1"
+    local json_groups="$2"
+    local group_count
+    group_count=$(echo "$json_groups" | jq '. | length')
+
+    dotfiles_menu_log "[GROUPS] count=${group_count}"
+    dotfiles_menu_log "[GROUPS] full_json=$(echo "$json_groups" | jq -c .)"
+
+    if (( group_count == 0 )); then
+        dotfiles_menu_log "[GROUPS] empty — no groups suggested"
+        echo -e "${C_MARK_NONE:-}⚠ Nenhum grupo de commit sugerido.${R:-}"
+        return 0
+    fi
+
+    echo -e "${C_MARK_INST:-}📦 ${group_count} commit(s) propostos:${R:-}"
+    echo ""
+
+    local i type scope desc files_list msg
+    for (( i=0; i<group_count; i++ )); do
+        type=$(echo "$json_groups" | jq -r ".[$i].type")
+        scope=$(echo "$json_groups" | jq -r ".[$i].scope")
+        desc=$(echo "$json_groups" | jq -r ".[$i].description")
+        files_list=$(echo "$json_groups" | jq -r ".[$i].files | join(\", \")")
+        msg="${type}(${scope}): ${desc}"
+
+        dotfiles_menu_log "[GROUP-${i}] type=${type}, scope=${scope}, desc=${desc}"
+        dotfiles_menu_log "[GROUP-FILES-${i}] $(echo "$json_groups" | jq -c ".[$i].files")"
+
+        echo -e "  ${B:-}[$((i+1))]${R:-} ${C_MARK_INST:-}${msg}${R:-}"
+        echo -e "     ${C_FILE_PATH:-}Arquivos: ${files_list}${R:-}"
+        echo ""
+    done
+
+    echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
+    echo -e "${B:-}│ ⚠  Revise os commits acima com atenção antes de confirmar.       │${R:-}"
+    echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
+    echo ""
+
+    local ans
+    read -r -p "Realizar estes commits? (sim/não): " ans || true
+    if ! dotfiles_menu_is_yes "$ans"; then
+        dotfiles_menu_log "[EXEC] user cancelled"
+        echo "Commit cancelado."
+        return 0
+    fi
+
+    dotfiles_menu_log "[EXEC] user confirmed, starting execution"
+
+    echo ""
+    echo -e "${B:-}🚀 Executando commits...${R:-}"
+    echo ""
+
+    local success=0 failed=0
+    for (( i=0; i<group_count; i++ )); do
+        type=$(echo "$json_groups" | jq -r ".[$i].type")
+        scope=$(echo "$json_groups" | jq -r ".[$i].scope")
+        desc=$(echo "$json_groups" | jq -r ".[$i].description")
+        msg="${type}(${scope}): ${desc}"
+
+        local -a files_arr
+        mapfile -t files_arr < <(echo "$json_groups" | jq -r ".[$i].files[]")
+
+        # Filtra arquivos que realmente existem no repo
+        local -a valid_files=()
+        local f
+        for f in "${files_arr[@]}"; do
+            if [[ -e "$repo_root/$f" ]]; then
+                valid_files+=("$f")
+            else
+                dotfiles_menu_log "[EXEC-INVALID] ${f} — file does not exist, skipping"
+                echo -e "${C_MARK_NONE:-}  ⚠ Arquivo não encontrado (pulando): ${f}${R:-}"
+            fi
+        done
+
+        if (( ${#valid_files[@]} == 0 )); then
+            dotfiles_menu_log "[EXEC-COMMIT] ${msg} — no valid files, skipping"
+            echo -e "${C_MARK_BLOCK:-}✖ Nenhum arquivo válido para o commit: ${msg}${R:-}"
+            (( failed++ ))
             continue
         fi
-        
-        # Permite apenas os seguintes comandos:
-        if [[ "$trimmed" == "set "* ]] || \
-           [[ "$trimmed" == "git add "* ]] || \
-           [[ "$trimmed" == "git commit "* ]]; then
-            clean_script+="${line}"$'\n'
-            continue
+
+        dotfiles_menu_log "[EXEC-ADD] ${valid_files[*]}"
+        echo -e "${B:-}  [${i}]${R:-} ${C_MARK_INST:-}git add${R:-} ${valid_files[*]}"
+        git -C "$repo_root" add -- "${valid_files[@]}"
+
+        local commit_msg="${msg}
+
+Verified-By: dotfiles-secure-commit"
+
+        dotfiles_menu_log "[EXEC-COMMIT] ${msg}"
+        echo -e "${B:-}  [${i}]${R:-} ${C_MARK_COMMIT:-}git commit -m \"${msg}\"${R:-}"
+        if git -C "$repo_root" commit -m "$commit_msg" -- "${valid_files[@]}"; then
+            dotfiles_menu_log "[EXEC-RESULT] success"
+            echo -e "  ${C_MARK_INST:-}✅ Commit criado.${R:-}"
+            (( success++ ))
+        else
+            dotfiles_menu_log "[EXEC-RESULT] failed (exit $?)"
+            echo -e "  ${C_MARK_BLOCK:-}✖ Erro no commit.${R:-}"
+            (( failed++ ))
         fi
-        
-        # Qualquer outra coisa é comentada e marcada como inválida
-        clean_script+="# SEGURANÇA (REJEITADO): ${line}"$'\n'
-        has_invalid=1
-    done <<< "$script_content"
-    
-    echo -n "$clean_script"
-    return "$has_invalid"
+        echo ""
+    done
+
+    echo ""
+    if (( success > 0 )); then
+        echo -e "${C_MARK_INST:-}✅ ${success} commit(s) criado(s) com sucesso!${R:-}"
+    fi
+    if (( failed > 0 )); then
+        echo -e "${C_MARK_BLOCK:-}✖ ${failed} commit(s) falharam.${R:-}"
+    fi
+
+    dotfiles_menu_log "[SESSION] completed: ${success} success, ${failed} failed"
+
+    # Opção de push após commits
+    if (( success > 0 )); then
+        echo ""
+        read -r -p "Deseja fazer o 'git push' agora? (sim/não): " ans || true
+        if dotfiles_menu_is_yes "$ans"; then
+            dotfiles_menu_log "[PUSH] user requested push"
+            echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
+            git -C "$repo_root" push
+            if [[ $? -eq 0 ]]; then
+                dotfiles_menu_log "[PUSH] success"
+                echo -e "${C_MARK_INST:-}✅ Push concluído!${R:-}"
+            else
+                dotfiles_menu_log "[PUSH] failed"
+                echo -e "${C_MARK_BLOCK:-}✖ Erro no push. Verifique o seu terminal/git.${R:-}"
+            fi
+        fi
+    fi
 }
 
 # Reconhece o comando "commit" no menu principal.
@@ -283,224 +561,143 @@ dotfiles_menu_try_smart_commit() {
     return 1
 }
 
-# Smart Commit: coleta o diff completo do repo, envia para a LLM,
-# e recebe de volta um script bash com múltiplos commits agrupados inteligentemente.
+# Smart Commit adaptado da skill dotfiles-secure-commit.
+# Fluxo: 1) coleta diff (bash) → 2) auditoria + grupos (1 chamada LLM) → 3) executa commits (bash)
 dotfiles_menu_smart_commit() {
-    local repo_root api_key ans
+    local repo_root api_key
     local -a models
     repo_root="$(dotfiles_repo_root)"
 
+    # Inicializa logging
+    dotfiles_menu_log_init
+    dotfiles_menu_log "[SESSION] smart_commit started"
+    dotfiles_menu_log "[SESSION] log_file=${DOTFILES_COMMIT_LOG}"
+
     if ! dotfiles_menu_check_deps jq curl; then
+        dotfiles_menu_log "[ERROR] missing dependencies (jq or curl)"
         return 0
     fi
 
-    # Verifica se há alterações
+    # Etapa 1 — Analisar estado
     local status_output
     status_output=$(git -C "$repo_root" status --porcelain 2>/dev/null)
     if [[ -z "$status_output" ]]; then
-        echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada no repositório. O Smart Commit atua apenas quando existem arquivos modificados ou não rastreados (untracked).${R:-}"
+        dotfiles_menu_log "[STATUS] no changes detected"
+        echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada no repositório.${R:-}"
         return 0
     fi
+
+    dotfiles_menu_log "[STATUS] $(echo "$status_output" | wc -l) files: $(echo "$status_output" | tr '\n' ' | ')"
 
     # Carrega API key
     if ! dotfiles_menu_load_api_key api_key models; then
+        dotfiles_menu_log "[ERROR] failed to load API key"
         return 0
     fi
+    dotfiles_menu_log "[SESSION] api_key loaded, model=${models[0]}"
 
-    echo -e "${B:-}✨ Analisando alterações do repositório para smart commit...${R:-}"
+    echo -e "${B:-}✨ Analisando alterações (skill dotfiles-secure-commit)...${R:-}"
     echo ""
 
-    # Coleta diff de tracked files + lista de untracked
-    local diff_output untracked_files full_context
-    diff_output=$(git -C "$repo_root" diff HEAD 2>/dev/null || true)
-    untracked_files=$(git -C "$repo_root" ls-files --others --exclude-standard 2>/dev/null || true)
-
-    # Para arquivos novos (untracked), mostra o conteúdo para a LLM ter contexto
-    local untracked_content=""
-    if [[ -n "$untracked_files" ]]; then
-        local f fsize
-        while IFS= read -r f; do
-            [[ -z "$f" ]] && continue
-            fsize=$(wc -c < "$repo_root/$f" 2>/dev/null || echo "0")
-            if (( fsize < 50000 )); then
-                untracked_content+=$'\n--- NEW FILE: '"$f"$' ---\n'
-                untracked_content+=$(cat "$repo_root/$f" 2>/dev/null || true)
-                untracked_content+=$'\n--- END FILE ---\n'
-            else
-                untracked_content+=$'\n--- NEW FILE: '"$f"$' (too large, '"${fsize}"$' bytes) ---\n'
-            fi
-        done <<< "$untracked_files"
-    fi
-
-    full_context="GIT STATUS:\n${status_output}"
-    [[ -n "$diff_output" ]] && full_context+="\n\nDIFF:\n${diff_output}"
-    [[ -n "$untracked_content" ]] && full_context+="\n\nNEW FILES:\n${untracked_content}"
-
-    # Check tamanho total
-    local context_size=${#full_context}
-    if (( context_size > 200000 )); then
-        echo -e "${C_MARK_BLOCK:-}✖ Contexto muito grande (${context_size} bytes). Faça commits menores.${R:-}"
-        return 0
-    fi
+    # Coleta contexto
+    local full_context
+    full_context="$(dotfiles_menu_collect_diff "$repo_root")"
 
     echo -e "${C_FILE_PATH:-}📊 Status: $(echo "$status_output" | wc -l) arquivo(s) alterado(s)${R:-}"
+    echo -e "${B:-}🤖 Enviando para auditoria + agrupamento...${R:-}"
     echo ""
 
-    # Prompt engenheirado para a LLM retornar um script bash
-    local prompt
-    read -r -d '' prompt << 'PROMPT_HEREDOC' || true
-Você é um especialista em Git com Conventional Commits. Analise as alterações abaixo e gere um script bash que faça commits inteligentes.
+    # Etapa 2 — Auditoria + Agrupamentos (1 chamada LLM)
+    local audit_json
+    audit_json=$(dotfiles_menu_call_llm_audit "$api_key" "${models[@]}" "$full_context") || {
+        dotfiles_menu_log "[ERROR] LLM audit call failed"
+        return 0
+    }
 
-REGRAS OBRIGATÓRIAS:
-1. ATOMICIDADE ESTRITA: Cada commit deve representar UMA única mudança lógica.
-2. NUNCA agrupe alterações de programas ou ferramentas diferentes (ex: NÃO misture .tmux.conf com .zshrc no mesmo commit). Cada ferramenta deve ter seu próprio commit.
-3. NUNCA misture alterações de documentação com alterações de código ou configuração.
-4. NUNCA misture refatoração com novas funcionalidades ou correções.
-5. Use Conventional Commits: <type>(<scope>): <description>
-6. Use git add para cada arquivo específico ANTES do git commit.
-7. NUNCA use git add . ou git add -A.
-8. Mensagens em inglês, imperativo, <72 chars.
-9. Se houver mudanças em múltiplos arquivos de uma mesma ferramenta (ex: vários arquivos .zsh/*), eles podem ir no mesmo commit se formarem uma mudança lógica única.
-10. NUNCA crie commits para mudanças triviais isoladas (espaços em branco, etc); ignore-as ou junte-as ao commit principal daquela ferramenta.
+    # Parse da auditoria
+    local audit_status audit_findings_count
+    audit_status=$(echo "$audit_json" | jq -r '.audit.status')
+    audit_findings_count=$(echo "$audit_json" | jq '.audit.findings | length')
 
-FORMATO DE SAÍDA — responda APENAS com o bloco de código bash, sem explicações:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+    dotfiles_menu_log "[AUDIT] status=${audit_status}, findings_count=${audit_findings_count}"
 
-# Commit 1: <breve explicação>
-git add <arquivos>
-git commit -m "<type>(<scope>): <description>"
+    # Etapa 3 — Tratar resultado da auditoria
+    if [[ "$audit_status" == "fail" ]]; then
+        dotfiles_menu_log "[AUDIT-BLOCK] commit blocked due to security findings"
+        echo -e "${B:-}╔══════════════════════════════════════════════════════════════╗${R:-}"
+        echo -e "${B:-}║  🔴  BLOQUEIO DE SEGURANÇA — Segredo Detectado               ║${R:-}"
+        echo -e "${B:-}╚══════════════════════════════════════════════════════════════╝${R:-}"
+        echo ""
 
-# Commit 2: <breve explicação>
-git add <arquivos>
-git commit -m "<type>(<scope>): <description>"
-```
+        local j finding_level finding_file finding_reason
+        for (( j=0; j<audit_findings_count; j++ )); do
+            finding_level=$(echo "$audit_json" | jq -r ".audit.findings[$j].level")
+            finding_file=$(echo "$audit_json" | jq -r ".audit.findings[$j].file")
+            finding_reason=$(echo "$audit_json" | jq -r ".audit.findings[$j].reason")
+            dotfiles_menu_log "[AUDIT-BLOCK] ${finding_level} ${finding_file}: ${finding_reason}"
+            echo -e "  ${finding_level} ${C_MARK_BLOCK:-}${finding_file}${R:-}"
+            echo -e "     ${C_FILE_PATH:-}${finding_reason}${R:-}"
+            echo ""
+        done
 
-ALTERAÇÕES:
-PROMPT_HEREDOC
-
-    prompt+=$'\n'
-    prompt+=$(echo -e "$full_context")
-
-    echo -e "${B:-}🤖 Enviando para a LLM...${R:-}"
-
-    local llm_response
-    llm_response=$(echo "$prompt" | dotfiles_menu_call_gemini_api "$api_key" "${models[@]}")
-
-    if [[ -z "$llm_response" ]]; then
-        echo -e "${C_MARK_BLOCK:-}✖ Não foi possível gerar o script de commits (todos os modelos falharam).${R:-}"
+        echo "O commit foi bloqueado por conter informações sensíveis."
+        echo ""
+        echo "Como resolver:"
+        echo "1. Remova os segredos do arquivo indicado"
+        echo "2. Mova segredos para um arquivo local (ex: ~/.secrets) e faça source"
+        echo "3. Use variáveis de ambiente"
+        dotfiles_menu_log "[SESSION] ended: blocked by audit"
         return 0
     fi
 
-    # Extrai apenas o bloco bash do response (remove markdown fences)
-    local script_content
-    script_content=$(echo "$llm_response" | sed -n '/^```bash/,/^```$/p' | sed '1d;$d')
-
-    # Fallback: tenta qualquer bloco de código
-    if [[ -z "$script_content" ]]; then
-        script_content=$(echo "$llm_response" | sed -n '/^```/,/^```$/p' | sed '1d;$d')
-    fi
-    # Último fallback: usa a resposta inteira
-    if [[ -z "$script_content" ]]; then
-        script_content="$llm_response"
-    fi
-
-    # Filtragem de segurança baseada em Allowlist (Strict)
-    local filtered_script
-    filtered_script=$(dotfiles_menu_filter_llm_script "$script_content")
-    local filter_status=$?
-
-    if [[ $filter_status -ne 0 ]]; then
-        echo -e "${C_MARK_BLOCK:-}⚠ SEGURANÇA: O script original continha comandos não permitidos.${R:-}"
-        echo -e "${C_FILE_PATH:-}Os comandos suspeitos foram comentados para sua segurança.${R:-}"
+    if [[ "$audit_status" == "warn" ]]; then
+        dotfiles_menu_log "[AUDIT-WARN] warning level findings, asking user confirmation"
+        echo -e "${B:-}╔══════════════════════════════════════════════════════════════╗${R:-}"
+        echo -e "${B:-}║  🟡  ATENÇÃO — Possíveis problemas detectados                ║${R:-}"
+        echo -e "${B:-}╚══════════════════════════════════════════════════════════════╝${R:-}"
         echo ""
-    fi
-    script_content="$filtered_script"
 
-    # Exibe o script para revisão
-    echo ""
-    echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
-    echo -e "${B:-}│ 📝 Script de Commits Inteligentes                              │${R:-}"
-    echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
-    echo ""
-    echo "$script_content" | awk \
-        -v c_block="${C_MARK_BLOCK:-}" \
-        -v c_comment="${C_FILE_PATH:-}" \
-        -v c_add="${C_MARK_IMP:-}" \
-        -v c_commit="${C_MARK_INST:-}" \
-        -v c_args="${C_MARK_NONE:-}" \
-        -v c_msg="${C_MARK_WRONG:-}" \
-        -v b="${B:-}" \
-        -v r="${R:-}" '{
-        if ($0 ~ /^# SEGURANÇA \(REJEITADO\):/) {
-            print c_block b $0 r
-        } else if ($0 ~ /^[[:space:]]*#/) {
-            print c_comment $0 r
-        } else if ($0 ~ /^[[:space:]]*git add/) {
-            line = $0
-            sub(/git add/, c_add b "&" r c_args, line)
-            print line r
-        } else if ($0 ~ /^[[:space:]]*git commit/) {
-            line = $0
-            if (line ~ /git commit -m/) {
-                sub(/git commit -m/, c_commit b "&" r c_msg, line)
-            } else {
-                sub(/git commit/, c_commit b "&" r c_msg, line)
-            }
-            print line r
-        } else {
-            print $0
-        }
-    }' | cat -n
-    echo ""
-    echo -e "${B:-}╭─────────────────────────────────────────────────────────────────╮${R:-}"
-    echo -e "${B:-}│ ⚠  Revise o script acima com atenção antes de confirmar.        │${R:-}"
-    echo -e "${B:-}╰─────────────────────────────────────────────────────────────────╯${R:-}"
-    echo ""
+        local j finding_level finding_file finding_reason
+        for (( j=0; j<audit_findings_count; j++ )); do
+            finding_level=$(echo "$audit_json" | jq -r ".audit.findings[$j].level")
+            finding_file=$(echo "$audit_json" | jq -r ".audit.findings[$j].file")
+            finding_reason=$(echo "$audit_json" | jq -r ".audit.findings[$j].reason")
+            dotfiles_menu_log "[AUDIT-WARN] ${finding_level} ${finding_file}: ${finding_reason}"
+            echo -e "  ${finding_level} ${C_FILE_PATH:-}${finding_file}${R:-}"
+            echo -e "     ${C_FILE_PATH:-}${finding_reason}${R:-}"
+            echo ""
+        done
 
-    local commit_count
-    commit_count=$(echo "$script_content" | grep -c '^git commit' || true)
-    echo -e "${C_MARK_INST:-}📦 ${commit_count} commit(s) serão criados.${R:-}"
-    echo ""
-
-    read -r -p "Executar este script de commits? (sim/não): " ans || true
-    if ! dotfiles_menu_is_yes "$ans"; then
-        echo "Smart commit cancelado."
-        return 0
-    fi
-
-    echo ""
-    echo -e "${B:-}🚀 Executando commits...${R:-}"
-    echo ""
-
-    # Executa o script no diretório do repo em subshell
-    # DANGER ZONE: eval executes arbitrary code. Although validated by dotfiles_menu_validate_llm_script,
-    # ensure you understand the generated script_content before execution.
-    ( cd "$repo_root" && eval "$script_content" )
-    local exit_code=$?
-
-    if [[ $exit_code -eq 0 ]]; then
-        echo ""
-        echo -e "${C_MARK_INST:-}✅ Smart commit concluído com sucesso!${R:-}"
-        
-        # Opção de push após commit
-        echo ""
-        read -r -p "Deseja fazer o 'git push' agora? (sim/não): " ans || true
-        if dotfiles_menu_is_yes "$ans"; then
-            echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
-            git -C "$repo_root" push
-            if [[ $? -eq 0 ]]; then
-                echo -e "${C_MARK_INST:-}✅ Push concluído!${R:-}"
-            else
-                echo -e "${C_MARK_BLOCK:-}✖ Erro no push. Verifique o seu terminal/git.${R:-}"
-            fi
+        local ans
+        read -r -p "Deseja continuar mesmo assim? (sim/não): " ans || true
+        if ! dotfiles_menu_is_yes "$ans"; then
+            dotfiles_menu_log "[SESSION] ended: user cancelled after audit warning"
+            echo "Commit cancelado."
+            return 0
         fi
-    else
         echo ""
-        echo -e "${C_MARK_BLOCK:-}✖ Erro durante a execução (exit code: ${exit_code}).${R:-}"
-        echo -e "${C_FILE_PATH:-}Verifique o estado do repo com 'git status' e 'git log'.${R:-}"
     fi
+
+    # Extrai grupos (pode estar vazio se audit=fail)
+    local groups_json
+    groups_json=$(echo "$audit_json" | jq '.groups // []')
+
+    local group_count
+    group_count=$(echo "$groups_json" | jq '. | length')
+
+    dotfiles_menu_log "[GROUPS] extracted_count=${group_count}"
+
+    if (( group_count == 0 )); then
+        dotfiles_menu_log "[GROUPS] empty — no groups suggested by LLM"
+        echo -e "${C_MARK_NONE:-}⚠ Nenhum grupo de commit sugerido pela análise.${R:-}"
+        echo -e "${C_FILE_PATH:-}Log da sessão: ${DOTFILES_COMMIT_LOG}${R:-}"
+        return 0
+    fi
+
+    # Etapa 4 — Executar commits
+    dotfiles_menu_execute_commits "$repo_root" "$groups_json"
+
+    dotfiles_menu_log "[SESSION] log saved to: ${DOTFILES_COMMIT_LOG}"
 }
 
 # Reconhece o comando "push" no menu principal.
@@ -532,6 +729,9 @@ dotfiles_menu_push() {
 dotfiles_menu_commit_file() {
     local file=$1
     local key_file data_dir repo_root api_key diff_output response commit_msg ans
+
+    dotfiles_menu_log_init
+    dotfiles_menu_log "[COMMIT-FILE] started for ${file}"
     
     echo ""
     echo "Opções de commit AI para ${file}:"
@@ -549,6 +749,7 @@ dotfiles_menu_commit_file() {
 
         if ! command -v gemini >/dev/null 2>&1; then
             echo -e "${C_MARK_BLOCK:-}✖ Erro: comando 'gemini' não encontrado no PATH nem via NVM.${R:-}"
+            dotfiles_menu_log "[COMMIT-FILE] gemini CLI not found"
             return 0
         fi
 
@@ -565,8 +766,11 @@ dotfiles_menu_commit_file() {
 
         if [[ -z "$diff_for_gemini" ]]; then
             echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada para $file.${R:-}"
+            dotfiles_menu_log "[COMMIT-FILE] no diff for ${rel_path}"
             return 0
         fi
+
+        dotfiles_menu_log "[COMMIT-FILE] diff_size=${#diff_for_gemini} for ${rel_path}"
 
         local gemini_msg
         gemini_msg=$(GEMINI_CLI_TRUST_WORKSPACE=true gemini -p \
@@ -576,8 +780,11 @@ ${diff_for_gemini}" 2>/dev/null)
 
         if [[ -z "$gemini_msg" ]]; then
             echo -e "${C_MARK_BLOCK:-}✖ Não foi possível gerar a mensagem de commit via Gemini CLI.${R:-}"
+            dotfiles_menu_log "[COMMIT-FILE] gemini CLI returned empty"
             return 0
         fi
+
+        dotfiles_menu_log "[COMMIT-FILE] gemini_msg=${gemini_msg}"
 
         # Limpa possíveis blocos de código markdown da resposta
         gemini_msg=$(echo "$gemini_msg" | sed 's/^```[a-zA-Z]*$//g' | sed 's/^```$//g' | awk 'NF')
@@ -591,12 +798,16 @@ ${diff_for_gemini}" 2>/dev/null)
 
         read -r -p "Confirmar e realizar o commit deste arquivo? (sim/não): " ans || true
         if ! dotfiles_menu_is_yes "$ans"; then
+            dotfiles_menu_log "[COMMIT-FILE] user cancelled"
             echo "Commit cancelado."
             return 0
         fi
 
         git -C "$repo_root" add -- "$rel_path"
-        git -C "$repo_root" commit -m "$gemini_msg" -- "$rel_path"
+        git -C "$repo_root" commit -m "$gemini_msg
+
+Verified-By: dotfiles-secure-commit" -- "$rel_path"
+        dotfiles_menu_log "[COMMIT-FILE] committed: ${gemini_msg}"
         echo "Commit realizado com sucesso!"
         
         echo ""
@@ -606,8 +817,10 @@ ${diff_for_gemini}" 2>/dev/null)
             git -C "$repo_root" push
         fi
         
+        dotfiles_menu_log "[SESSION] log saved to: ${DOTFILES_COMMIT_LOG}"
         return 0
     elif [[ -n "$commit_opt" && "$commit_opt" != "1" ]]; then
+        dotfiles_menu_log "[COMMIT-FILE] user cancelled (option ${commit_opt})"
         echo "Commit cancelado."
         return 0
     fi
@@ -668,6 +881,7 @@ ${diff_for_gemini}" 2>/dev/null)
     done
 
     if ! dotfiles_menu_check_deps jq curl; then
+        dotfiles_menu_log "[COMMIT-FILE-API] missing dependencies"
         return 1
     fi
 
@@ -679,6 +893,7 @@ ${diff_for_gemini}" 2>/dev/null)
     
     if [[ -z "$diff_output" ]]; then
         echo -e "${C_MARK_NONE:-}⚠ Nenhuma alteração detectada para $file pelo git ou arquivo não rastreado.${R:-}"
+        dotfiles_menu_log "[COMMIT-FILE-API] no diff for ${rel_path}"
         return 0
     fi
 
@@ -686,8 +901,11 @@ ${diff_for_gemini}" 2>/dev/null)
     local diff_size=${#diff_output}
     if (( diff_size > 100000 )); then
         echo -e "${C_MARK_BLOCK:-}✖ Diff muito grande (${diff_size} bytes).${R:-}" >&2
+        dotfiles_menu_log "[COMMIT-FILE-API] diff too large: ${diff_size} bytes"
         return 0
     fi
+
+    dotfiles_menu_log "[COMMIT-FILE-API] diff_size=${diff_size} for ${rel_path}"
     
     local json_payload
     json_payload=$(jq -n --arg diff "$diff_output" '{
@@ -696,7 +914,7 @@ ${diff_for_gemini}" 2>/dev/null)
           "text": ("Você é um assistente que escreve mensagens de commit baseadas em diffs de git. Escreva APENAS a mensagem de commit usando o padrão Conventional Commits. Seja conciso. Aqui está o diff:\n\n" + $diff)
         }]
       }]
-    }') || { echo -e "${C_MARK_BLOCK:-}✖ Erro ao preparar JSON.${R:-}" >&2; return 1; }
+    }') || { echo -e "${C_MARK_BLOCK:-}✖ Erro ao preparar JSON.${R:-}" >&2; dotfiles_menu_log "[COMMIT-FILE-API] jq payload failed"; return 1; }
     
     commit_msg=""
     local current_model
@@ -709,6 +927,7 @@ ${diff_for_gemini}" 2>/dev/null)
             "https://generativelanguage.googleapis.com/v1beta/models/${current_model}:generateContent?key=${api_key}")
         
         if [[ $? -ne 0 ]]; then
+            dotfiles_menu_log "[COMMIT-FILE-API] curl failed for ${current_model}"
             continue # Erro de rede, tenta o próximo
         fi
             
@@ -719,11 +938,13 @@ ${diff_for_gemini}" 2>/dev/null)
             # Se a chave for expressamente inválida, paramos. Caso contrário (quota, modelo inexistente, etc), tentamos o próximo fallback.
             if [[ "${api_error,,}" == *"api key"* || "${api_error,,}" == *"api_key"* ]]; then
                 echo -e "${C_MARK_BLOCK:-}✖ Erro de Autenticação na API: $api_error${R:-}" >&2
+                dotfiles_menu_log "[COMMIT-FILE-API] auth error: ${api_error}"
                 break
             fi
             # Loga o aviso se não for cota pura e tenta os próximos fallbacks
             [[ "${api_error,,}" == *"quota"* || "${api_error,,}" == *"limit"* || "${api_error,,}" == *"high demand"* || "${api_error,,}" == *"overloaded"* || "${api_error,,}" == *"temporarily"* ]] || \
                 echo -e "${C_MARK_BLOCK:-}⚠ Aviso na API (${current_model}): $api_error (tentando fallback)...${R:-}" >&2
+            dotfiles_menu_log "[COMMIT-FILE-API] api warning (${current_model}): ${api_error}"
             continue
         fi
 
@@ -733,8 +954,11 @@ ${diff_for_gemini}" 2>/dev/null)
     
     if [[ -z "$commit_msg" ]]; then
         echo -e "${C_MARK_BLOCK:-}✖ Não foi possível gerar a mensagem de commit (todos os modelos falharam).${R:-}" >&2
+        dotfiles_menu_log "[COMMIT-FILE-API] all models failed"
         return 0
     fi
+    
+    dotfiles_menu_log "[COMMIT-FILE-API] generated msg: ${commit_msg}"
     
     # Limpa possíveis blocos de código markdown da resposta
     commit_msg=$(echo "$commit_msg" | sed 's/^```[a-zA-Z]*$//g' | sed 's/^```$//g' | awk 'NF')
@@ -748,11 +972,15 @@ ${diff_for_gemini}" 2>/dev/null)
     
     read -r -p "Confirmar e realizar o commit deste arquivo? (sim/não): " ans || true
     if ! dotfiles_menu_is_yes "$ans"; then
+        dotfiles_menu_log "[COMMIT-FILE-API] user cancelled"
         echo "Commit cancelado."
         return 0
     fi
     
-    git -C "$repo_root" commit -m "$commit_msg" -- "$rel_path"
+    git -C "$repo_root" commit -m "$commit_msg
+
+Verified-By: dotfiles-secure-commit" -- "$rel_path"
+    dotfiles_menu_log "[COMMIT-FILE-API] committed: ${commit_msg}"
     echo "Commit realizado com sucesso!"
     
     echo ""
@@ -761,6 +989,8 @@ ${diff_for_gemini}" 2>/dev/null)
         echo -e "${B:-}🚀 Enviando para o repositório remoto...${R:-}"
         git -C "$repo_root" push
     fi
+
+    dotfiles_menu_log "[SESSION] log saved to: ${DOTFILES_COMMIT_LOG}"
 }
 
 # Reage ao estado devolvido por dotfiles_status_for_file (importar, bloquear, link errado, etc.).
