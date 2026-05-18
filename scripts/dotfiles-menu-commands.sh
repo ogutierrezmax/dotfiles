@@ -844,29 +844,83 @@ dotfiles_menu_act_on_entry() {
     esac
 }
 
-# Reconhece o comando "ag" ou "antigravity" no menu principal.
+# Reconhece o comando "term" ou "terminal" no menu principal.
 # Retorna 0 se reconheceu (tratado); 1 se não reconheceu.
-dotfiles_menu_try_antigravity() {
+dotfiles_menu_try_open_terminal() {
     local trimmed=$1
-    if [[ "${trimmed,,}" == "ag" || "${trimmed,,}" == "antigravity" ]]; then
-        dotfiles_menu_antigravity
+    if [[ "${trimmed,,}" == "term" || "${trimmed,,}" == "terminal" ]]; then
+        dotfiles_menu_open_terminal
         return 0
     fi
     return 1
 }
 
-# Abre o repositório no Antigravity.
-dotfiles_menu_antigravity() {
+# Abre um novo terminal no diretório do repositório de dotfiles.
+dotfiles_menu_open_terminal() {
     local repo_root
     repo_root="$(dotfiles_repo_root)"
-    echo ""
-    echo -e "${B:-}🚀 Abrindo o repositório com Antigravity...${R:-}"
-    if command -v antigravity >/dev/null 2>&1; then
-        # Executa em background para não travar o menu
-        antigravity "$repo_root" >/dev/null 2>&1 &
-        echo -e "${C_MARK_INST:-}✅ Antigravity iniciado.${R:-}"
-    else
-        echo -e "${C_MARK_BLOCK:-}✖ Comando 'antigravity' não encontrado.${R:-}"
+
+    # Respeitar variável de ambiente se definida
+    if [[ -n "${DOTFILES_MENU_TERMINAL:-}" ]]; then
+        if command -v "$DOTFILES_MENU_TERMINAL" >/dev/null 2>&1; then
+            echo ""
+            echo -e "${B:-}🖥️  Abrindo terminal ($DOTFILES_MENU_TERMINAL) em ${repo_root}...${R:-}"
+            "$DOTFILES_MENU_TERMINAL" "$repo_root" >/dev/null 2>&1 & disown
+            echo -e "${C_MARK_INST:-}✅ Terminal iniciado.${R:-}"
+            echo ""
+            return
+        fi
     fi
+
+    # Lista de terminais conhecidos e flags para diretório de trabalho
+    # Formato: "comando|flag_cwd"
+    local -a terminals=(
+        "wezterm|start --cwd"
+        "ghostty|--working-directory"
+        "kitty|--directory"
+        "alacritty|--working-directory"
+        "foot|--working-directory"
+        "kgx|--working-directory"
+        "gnome-terminal|--working-directory"
+        "tilix|--working-directory"
+        "xfce4-terminal|--working-directory"
+        "konsole|--workdir"
+        "terminator|--working-directory"
+        "x-terminal-emulator|-e"
+    )
+
+    local entry cmd flags
+    for entry in "${terminals[@]}"; do
+        cmd="${entry%%|*}"
+        flags="${entry#*|}"
+
+        if command -v "$cmd" >/dev/null 2>&1; then
+            echo ""
+            echo -e "${B:-}🖥️  Abrindo terminal ($cmd) em ${repo_root}...${R:-}"
+            
+            # Tratamento especial para x-terminal-emulator e casos genéricos
+            if [[ "$cmd" == "x-terminal-emulator" ]]; then
+                # Tenta abrir um shell e mudar de diretório
+                "$cmd" -e bash -c "cd '$repo_root'; exec \$SHELL -l" >/dev/null 2>&1 & disown
+            else
+                # A maioria dos terminais modernos aceita: cmd --flag cwd
+                # Nota: gnome-terminal precisa de -- antes do -e, mas --working-directory geralmente funciona direto
+                if [[ "$cmd" == "gnome-terminal" ]]; then
+                    "$cmd" "$flags" "$repo_root" >/dev/null 2>&1 & disown
+                else
+                    "$cmd" $flags "$repo_root" >/dev/null 2>&1 & disown
+                fi
+            fi
+            
+            echo -e "${C_MARK_INST:-}✅ Terminal iniciado.${R:-}"
+            echo ""
+            return
+        fi
+    done
+
+    # Fallback
+    echo ""
+    echo -e "${C_MARK_BLOCK:-}✖ Nenhum terminal compatível encontrado.${R:-}"
+    echo -e "  Abra manualmente e execute: cd ${repo_root}"
     echo ""
 }

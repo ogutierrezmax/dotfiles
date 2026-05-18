@@ -57,7 +57,7 @@ main() {
             continue
         fi
 
-        if dotfiles_menu_try_antigravity "$trimmed"; then
+        if dotfiles_menu_try_open_terminal "$trimmed"; then
             continue
         fi
 
