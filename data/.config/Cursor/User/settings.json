@@ -193,4 +193,5 @@
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "window.autoDetectColorScheme": false,
 }
