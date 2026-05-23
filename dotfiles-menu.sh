@@ -7,17 +7,13 @@
 # criar/atualizar o symlink em dotfiles_link_one (scripts/dotfiles-lib.sh).
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-
-# O ShellCheck verifica scripts .sh e avisa sobre erros comuns, más práticas e problemas de portabilidade.
-
+# Bootstrap mínimo: descobre o repo root via dotfiles_repo_root() após carregar a lib.
 # shellcheck source=scripts/dotfiles-lib.sh
-source "${SCRIPT_DIR}/scripts/dotfiles-lib.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/scripts/dotfiles-lib.sh"
 # shellcheck source=scripts/dotfiles-menu-ui.sh
-source "${SCRIPT_DIR}/scripts/dotfiles-menu-ui.sh"
+source "$(dotfiles_repo_root)/scripts/dotfiles-menu-ui.sh"
 # shellcheck source=scripts/dotfiles-menu-commands.sh
-source "${SCRIPT_DIR}/scripts/dotfiles-menu-commands.sh"
+source "$(dotfiles_repo_root)/scripts/dotfiles-menu-commands.sh"
 
 main() {
     local -a entries=()

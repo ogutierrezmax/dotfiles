@@ -19,9 +19,10 @@ KEYWORDS="dotfiles;config;setup;terminal;"
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 
-# Caminho absoluto do diretório deste script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET_PATH="$SCRIPT_DIR/$TARGET_FILENAME"
+# Bootstrap via dotfiles-lib.sh para descobrir o repo root de forma confiável.
+# shellcheck source=scripts/dotfiles-lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/scripts/dotfiles-lib.sh"
+TARGET_PATH="$(dotfiles_repo_root)/$TARGET_FILENAME"
 
 WRAPPER_PATH="$BIN_DIR/$CMD_NAME"
 DESKTOP_PATH="$APP_DIR/$CMD_NAME.desktop"

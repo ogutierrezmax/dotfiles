@@ -1027,7 +1027,7 @@ dotfiles_menu_act_on_entry() {
             ;;
         # Sem fonte em data/ e nada importável em ~.
         unavailable)
-            echo "Não dá para instalar: crie primeiro ${SCRIPT_DIR}/data/${file}"
+            echo "Não dá para instalar: crie primeiro $(dotfiles_data_dir)/${file}"
             return 0
             ;;
         # Symlink já aponta para este repositório.
