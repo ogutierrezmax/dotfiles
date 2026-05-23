@@ -35,7 +35,7 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.32656250000000103},{"w
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
 [Xwayland]
-Scale=1.275
+Scale=1
 
 [org.kde.kdecoration2]
 ButtonsOnLeft=MNSF
