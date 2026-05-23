@@ -27,3 +27,6 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .config/autostart/alfocards.desktop
 .config/autostart/obsidian.desktop
 .config/autostart/plasma-panel-lang-color.desktop
+
+# ai-jail — bubblewrap sandbox for AI coding agents
+.local/bin/ai-jail

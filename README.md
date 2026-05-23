@@ -67,6 +67,7 @@ Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 
 - [🪟 Tmux (Terminal Multiplexer)](./docs/tmux.md): Configuração de persistência e plugins.
 - [🚀 Autostart (Inicialização Automática)](./docs/autostart.md): Gerenciamento de programas que iniciam com o sistema.
+- [🔒 ai-jail (Sandbox para AI Agents)](./docs/ai-jail.md): Bubblewrap sandbox para isolar agentes de IA com deny-lists e namespace isolation.
 - [🐉 KDE Plasma (Desktop Environment)](./docs/kde-plasma.md): Configurações visuais, comportamento de janelas e atalhos globais agrupados em pacote gerenciável.
 
 ## 🤖 AI Context

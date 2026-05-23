@@ -8,6 +8,7 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
 
 ## Estrutura de Arquivos Críticos
 - `data/`: Contém os arquivos originais. Qualquer alteração deve ser feita aqui.
+- `data/.local/bin/ai-jail`: Script sandbox bubblewrap para AI agents — usa deny-lists para isolar secrets do host.
 - `data/gitconfig`: Configurações globais do Git.
 - `data/.config/autostart/`: Arquivos .desktop para inicialização automática de programas.
 - `data/kde-plasma/`: Configurações do KDE Plasma — empacotadas juntas e traduzidas de forma invisível para `~/.config/` pelo gerenciador.
