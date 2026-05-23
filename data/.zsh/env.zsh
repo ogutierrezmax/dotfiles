@@ -3,7 +3,7 @@
 # This file is tracked by Git. For secrets, use a local file like ~/.zsh_local or ~/.env_private
 # which should be added to your .gitignore if it's inside this repository.
 export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
-export PATH=/home/alfo/.opencode/bin:$PATH
+export PATH=$PATH:$HOME/.opencode/bin
 
 # NVM configuration
 export NVM_DIR="$HOME/.nvm"
