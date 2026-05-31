@@ -1,0 +1,14 @@
+{
+  "google": {
+    "type": "api",
+    "key": ""
+  },
+  "deepseek": {
+    "type": "api",
+    "key": ""
+  },
+  "opencode": {
+    "type": "api",
+    "key": ""
+  }
+}

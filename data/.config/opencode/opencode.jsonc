@@ -1,0 +1,47 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["opencode-rules"],
+  "mcp": {
+    "supabase":{
+      "type":"remote",
+      "url": "http://localhost:54321/mcp",
+      "enabled": true
+    }
+  },
+  "permission": {
+    "bash": {
+      // última regra que match vence — "*" deve ser o PRIMEIRO
+      "*": "ask",
+      // --- allow ---
+      "git add *": "allow",
+      "git status *": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "git pull *": "allow",
+      "ls *": "allow",
+      "grep *": "allow",
+      "cat *": "allow",
+      "mkdir *": "allow",
+      "touch *": "allow",
+      "cp *": "allow",
+      "mv *": "allow",
+      // --- ask ---
+      "git commit *": "ask",
+      "git push *": "ask",
+      "chmod *": "ask",
+      "docker run *": "ask",
+      "docker exec *": "ask",
+      // --- deny ---
+      "rm -rf *": "deny",
+      "sudo *": "deny"
+    },
+    // --- allow ---
+    "edit": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "webfetch": "allow",
+    "todowrite": "allow",
+    "question": "allow"
+  }
+}

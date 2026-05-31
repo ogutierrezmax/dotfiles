@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=OpenCode (Home)
+Comment=Open OpenCode AI CLI in the home directory
+Exec=/home/alfo/.local/bin/opencode-home
+Terminal=true
+Categories=Development;Utility;
+Keywords=opencode;ai;cli;

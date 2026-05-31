@@ -1,0 +1,29 @@
+---
+files: ["**/.agents/**", "**/.agents", "**/.zshrc", "**/.zsh/**", "**/.tmux.conf", "**/.gitconfig", "**/.config/kde*", "**/.config/plasma*", "**/.config/kwin*", "**/.config/programa"]
+---
+
+# Dotfiles: diretórios e arquivos que são symlinks para o repositório de dotfiles
+
+Legenda: `origem → symlink → destino real`
+
+## Principais links
+
+| Path | Link | Destino real |
+|------|------|-------------|
+| ~/.agents/ | → ~/_Dev/dotfiles/data/.agents/ | → ~/dotfiles/data/.agents/ |
+| ~/.zshrc | → ~/dotfiles/data/.zshrc | |
+| ~/.zsh/ | → ~/_Dev/dotfiles/data/.zsh/ | → ~/dotfiles/data/.zsh/ |
+| ~/.tmux.conf | → ~/_Dev/dotfiles/data/.tmux.conf | → ~/dotfiles/data/.tmux.conf |
+| ~/.gitconfig | → ~/dotfiles/data/gitconfig | |
+| ~/.config/kdeglobals | → ~/dotfiles/data/kde-plasma/.config/kdeglobals | |
+| ~/.config/kwinrc | → ~/dotfiles/data/kde-plasma/.config/kwinrc | |
+| ~/.config/kwinrulesrc | → ~/dotfiles/data/kde-plasma/.config/kwinrulesrc | |
+| ~/.config/plasma-* | → ~/dotfiles/data/kde-plasma/.config/ | |
+| ~/.config/programa | → ~/dotfiles/data/.config/programa | |
+
+## Cadeia de links
+
+_dev/dotfiles → ~/dotfiles
+_dev/.agents → ~/.agents → ~/dotfiles/data/.agents/
+
+Regra: qualquer alteração nestes symlinks altera o repositório de dotfiles e vice-versa.
