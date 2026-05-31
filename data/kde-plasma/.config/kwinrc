@@ -1,14 +1,20 @@
 [Activities][LastVirtualDesktop]
-e998eb04-d2de-4fcf-beb1-eed2dd6f3658=2fd3fb6a-333c-4967-ac5b-9de500de45c3
+e998eb04-d2de-4fcf-beb1-eed2dd6f3658=2531a838-98a8-45c2-ba98-0569f67dfd7d
 
 [Desktops]
 Id_1=df3a24cb-a8fc-40c4-954a-194e62b50d03
 Id_2=a72d16ea-9001-4ec8-a91e-c7a189b59c8a
 Id_3=2fd3fb6a-333c-4967-ac5b-9de500de45c3
+Id_4=2531a838-98a8-45c2-ba98-0569f67dfd7d
+Id_5=c8ec808f-81ee-4555-9d7f-6d6df3895604
+Id_6=f5a9fc32-166f-4416-81ce-58084beca46f
 Name_1=alfo cards
 Name_2=tab manager
 Name_3=Game
-Number=3
+Name_4=New Desktop
+Name_5=New Desktop
+Name_6=New Desktop
+Number=6
 Rows=1
 
 [Plugins]
