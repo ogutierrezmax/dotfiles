@@ -29,4 +29,4 @@ To ensure a clean and revertible history, all commits MUST be atomic. In this re
 
 ## 🛠 Execution
 
-When using the `git-commit` skill or manual `git` commands, analyze the changes carefully and stage only the files belonging to a single logical change before committing. If multiple logical changes exist, perform multiple `git add` and `git commit` cycles.
+When using the `@git-commit` skill or manual `git` commands, analyze the changes carefully and stage only the files belonging to a single logical change before committing. If multiple logical changes exist, perform multiple `git add` and `git commit` cycles.
