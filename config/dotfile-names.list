@@ -24,7 +24,6 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .tmux.conf
 
 # Autostart
-.config/autostart/alfocards.desktop
 .config/autostart/obsidian.desktop
 .config/autostart/plasma-panel-lang-color.desktop
 
