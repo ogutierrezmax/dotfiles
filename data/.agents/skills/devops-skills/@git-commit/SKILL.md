@@ -1,9 +1,9 @@
 ---
 name: "@git-commit"
-description: "Executa git commit com análise de mensagem convencional, staging inteligente e geração de mensagem. Use quando o usuário pedir para commitar mudanças, criar um git commit ou mencionar \"/commit\". Suporta: (1) Detecção automática de tipo e escopo das mudanças, (2) Geração de mensagens de commit convencionais a partir do diff, (3) Commit interativo com substituições opcionais de tipo/escopo/descrição, (4) Staging de arquivos inteligente para agrupamento lógico."
+description: 'Executa git commit com análise de mensagem convencional, staging inteligente e geração de mensagem. Use quando o usuário pedir para commitar mudanças, criar um git commit ou mencionar "/commit". Suporta: (1) Detecção automática de tipo e escopo das mudanças, (2) Geração de mensagens de commit convencionais a partir do diff, (3) Commit interativo com substituições opcionais de tipo/escopo/descrição, (4) Staging de arquivos inteligente para agrupamento lógico.'
+license: MIT
+allowed-tools: Bash
 ---
-<!-- license: MIT -->
-<!-- allowed-tools: Bash -->
 
 # Git Commit with Conventional Commits
 
