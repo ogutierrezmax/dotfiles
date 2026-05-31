@@ -92,16 +92,64 @@ mv ~/.programarc data/.programarc
 mv ~/.config/programa data/.config/programa
 ```
 
-### 3. Criar symlinks
+### 3. Detectar plataforma e criar symlinks
 
-Use a função existente do repositório quando possível. Se executando manualmente:
+**Detecte o OS antes de operar — comandos variam entre plataformas:**
 
 ```bash
-# O ln -sf cria o link forçando (substitui se já existir)
-ln -sf "$(pwd)/data/.config/programa" ~/.config/programa
+detect_os() {
+  case "$(uname -s)" in
+    Linux*)
+      if grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "wsl"
+      else
+        echo "linux"
+      fi
+      ;;
+    Darwin*) echo "macos" ;;
+    *)       echo "unknown" ;;
+  esac
+}
 ```
 
-O ideal é usar o menu: `./dotfiles-menu.sh` → selecionar o número do arquivo → ele cria o symlink automaticamente.
+**Use `make_symlink()` com backup datado e idempotência para cada arquivo/diretório:**
+
+```bash
+make_symlink() {
+  local src="$1" dst="$2"
+
+  # Backup se arquivo real existir (não symlink)
+  if [[ -e "$dst" && ! -L "$dst" ]]; then
+    local backup="${dst}.bak.$(date +%Y%m%d_%H%M%S)"
+    mv "$dst" "$backup"
+    echo "  ↳ backup: $backup"
+  fi
+
+  # Idempotente: remover symlink antigo quebrado
+  [[ -L "$dst" ]] && rm "$dst"
+
+  # Criar diretório pai se necessário
+  mkdir -p "$(dirname "$dst")"
+
+  ln -s "$src" "$dst"
+  echo "  ✓ $dst → $src"
+}
+```
+
+**Atenção cross-platform — diferenças entre OS:**
+
+| Comando | Linux | macOS | WSL |
+|---------|-------|-------|------|
+| `ln -s` | ✓ | ✓ | ✓* |
+| `readlink -f` | ✓ | ✗** | ✓ |
+| `stat -c %a` | ✓ | ✗*** | ✓ |
+| `sed -i ''` | ✗ | ✓ | ✗ |
+
+\* WSL: symlinks para `/mnt/c/` têm limitações  
+\** macOS: usar `greadlink` (coreutils) ou `realpath`  
+\*** macOS: usar `stat -f %p`
+
+O ideal é usar o menu: `./dotfiles-menu.sh` → selecionar o número do arquivo → ele cria o symlink automaticamente (já inclui backup e idempotência).
 
 ### 4. Atualizar `config/dotfile-names.list`
 
@@ -174,3 +222,5 @@ cat config/dotfile-names.list | grep programa
 - **NUNCA adicione arquivos sensíveis a `data/`** sem antes ter o padrão no `.gitignore`
 - **Agrupe as entradas** em `dotfile-names.list` com um comentário do programa
 - **Teste os symlinks** — um link quebrado é pior que não ter link
+- **SEMPRE detecte o OS** — use `detect_os()` para escolher comandos compatíveis entre Linux/macOS/WSL
+- **SEMPRE seja idempotente** — verifique se o symlink já existe antes de criar, verifique se o arquivo já está em `data/` antes de mover

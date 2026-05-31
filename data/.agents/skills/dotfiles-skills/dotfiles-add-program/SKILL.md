@@ -93,6 +93,29 @@ grep -r "SECURITY NOTE\|DANGER ZONE\|NEVER" data/*programa* data/.config/program
 | ✅ | ✅ | ❌ | ✅ | Só falta doc — pular para etapa 4 |
 | ✅ | ✅ | ✅ | ✅ | Tudo feito — informar o usuário |
 
+Use a ferramenta de estados da `dotfiles-lib.sh` para detecção mais precisa:
+
+```bash
+# Verificar estado de cada arquivo do programa
+for f in data/.config/programa/* data/programa*; do
+  basename=$(basename "$f")
+  dotfiles_status_for_file "$basename"
+done
+```
+
+**Estados possíveis (da `dotfiles-lib.sh`):**
+- `importable`: existe em `~` mas não em `data/` — pode ser importado
+- `not_installed`: existe em `data/` mas sem symlink em `~`
+- `installed`: symlink correto em `~` apontando para `data/`
+- `blocking_file`: arquivo real em `~` impedindo o symlink
+- `wrong_target`: symlink em `~` aponta para lugar errado
+- `unavailable`: não existe em `data/` nem em `~`
+
+Atenção especial para `blocking_file` e `wrong_target`:
+- `blocking_file`: arquivo real em `~` precisa de backup antes do symlink — incluir backup na Etapa 3
+- `wrong_target`: symlink existe mas aponta para outro lugar — remover symlink antigo na Etapa 3
+- `importable`: arquivo existe em `~` — mover para `data/` na Etapa 3
+
 Informe ao usuário o que foi detectado e quais etapas serão executadas.
 
 ---
@@ -293,6 +316,21 @@ detect_os() {
 - Checar se o symlink já existe antes de criar: `[[ -L "$dst" ]] && continue`
 - Checar se o arquivo já está em `data/` antes de mover
 - Nunca sobrescrever `.gitignore` — sempre **append** de novos padrões
+
+**Uso de `dotfiles-lib.sh`:**
+
+Nunca reinvente funções que já existem na lib do repositório. Sempre prefira:
+- `dotfiles_status_for_file` para detectar estado do arquivo (importable, not_installed, blocking_file, etc.)
+- `./dotfiles-menu.sh` para criar symlinks interativamente
+- `dotfiles-lib.sh` para operações batch de instalação/remoção
+
+**Mecanismo de nomeação do `dotfile-names.list`:**
+
+Ao adicionar entradas na lista, siga estas regras:
+- Sem ponto no nome em `data/` → o symlink em `~` ganha ponto (ex: `gitconfig` → `~/.gitconfig`)
+- Com ponto no nome em `data/` → o symlink em `~` mantém o nome (ex: `.zshrc` → `~/.zshrc`)
+- Paths com `/` são suportados e espelham a estrutura (ex: `.config/Cursor/User/settings.json`)
+- Agrupe entradas sob um comentário `# [Nome do programa]`
 
 **CHECKPOINT:**
 Mostre o estado final:
