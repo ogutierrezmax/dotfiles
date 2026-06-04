@@ -97,6 +97,28 @@ is_rw() {
     return 1
 }
 
+# ── Symlink target resolution ──────────────────────────────────
+# If entry is a symlink pointing inside PROJECT_DIR, return 0 and
+# set SYMLINK_TARGET to the resolved absolute path. Used by both
+# directory and file mounts to preserve symlink metadata in sandbox.
+resolve_symlink_target() {
+    local entry="$1"
+    if [ -L "$entry" ]; then
+        local target
+        target=$(readlink -f "$entry" 2>/dev/null) || return 1
+        [[ "$target" == "$PROJECT_DIR"* ]] || return 1
+        SYMLINK_TARGET="$target"
+        return 0
+    fi
+    return 1
+}
+
+# Entries whose symlink target is inside PROJECT_DIR are recreated
+# as --symlink in the sandbox instead of bind-mounting (which resolves
+# the symlink and loses the metadata). Collected here and appended
+# after the PROJECT_DIR bind mount.
+SYMLINK_REPLACEMENTS=()
+
 # ── Auto-discover dot-directories in $HOME ─────────────────────
 # Only directories — regular dotfiles (e.g. .claude.json) are NOT mounted.
 # The tmpfs $HOME is writable so tools can create dotfiles as needed.
@@ -107,6 +129,12 @@ for entry in "$HOME"/.*; do
     [[ "$name" == "." || "$name" == ".." ]] && continue
     is_denied "$name" && continue
 
+    # Symlink pointing inside PROJECT_DIR? Preserve as --symlink
+    if resolve_symlink_target "$entry"; then
+        SYMLINK_REPLACEMENTS+=("--symlink" "$SYMLINK_TARGET" "$entry")
+        continue
+    fi
+
     if is_rw "$name"; then
         DOTFILE_MOUNTS+=("--bind" "$entry" "$HOME/$name")
     else
@@ -115,8 +143,19 @@ for entry in "$HOME"/.*; do
 done
 
 # ── Explicit dotfile mounts (regular files) ────────────────────
-[ -f "$HOME/.gitconfig" ] && DOTFILE_MOUNTS+=("--ro-bind" "$HOME/.gitconfig" "$HOME/.gitconfig")
-[ -f "$HOME/.claude.json" ] && DOTFILE_MOUNTS+=("--bind" "$HOME/.claude.json" "$HOME/.claude.json")
+# Symlink detection applies here too: if .gitconfig is a symlink
+# pointing into PROJECT_DIR, preserve it rather than resolving.
+if resolve_symlink_target "$HOME/.gitconfig"; then
+    SYMLINK_REPLACEMENTS+=("--symlink" "$SYMLINK_TARGET" "$HOME/.gitconfig")
+elif [ -f "$HOME/.gitconfig" ]; then
+    DOTFILE_MOUNTS+=("--ro-bind" "$HOME/.gitconfig" "$HOME/.gitconfig")
+fi
+
+if resolve_symlink_target "$HOME/.claude.json"; then
+    SYMLINK_REPLACEMENTS+=("--symlink" "$SYMLINK_TARGET" "$HOME/.claude.json")
+elif [ -f "$HOME/.claude.json" ]; then
+    DOTFILE_MOUNTS+=("--bind" "$HOME/.claude.json" "$HOME/.claude.json")
+fi
 
 # ── Hide sensitive subdirs inside ~/.config (after rw mount) ───
 CONFIG_HIDE_MOUNTS=()
@@ -210,6 +249,7 @@ bwrap \
   "${LOCAL_HIDE[@]}" \
   "${EXTRA_MOUNTS[@]}" \
   --bind "$PROJECT_DIR" "$PROJECT_DIR" \
+  "${SYMLINK_REPLACEMENTS[@]}" \
   --chdir "$PROJECT_DIR" \
   --die-with-parent \
   --unshare-pid \
