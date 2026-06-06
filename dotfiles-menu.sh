@@ -49,6 +49,10 @@ main() {
             continue
         fi
 
+        if dotfiles_menu_try_install_all "$trimmed"; then
+            continue
+        fi
+
         if dotfiles_menu_try_push "$trimmed"; then
             continue
         fi

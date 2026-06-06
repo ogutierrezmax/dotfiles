@@ -1074,6 +1074,28 @@ dotfiles_menu_act_on_entry() {
     esac
 }
 
+# Reconhece o comando "install" ou "install-all" no menu principal.
+# Executa dotfiles_link_from_dotfile_names para todos os dotfiles.
+# Retorna 0 se reconheceu (tratado); 1 se não reconheceu.
+dotfiles_menu_try_install_all() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "install-all" ]]; then
+        dotfiles_menu_install_all
+        return 0
+    fi
+    return 1
+}
+
+dotfiles_menu_install_all() {
+    echo ""
+    echo -e "${B:-}🚀 Instalando todos os dotfiles...${R:-}"
+    echo ""
+    dotfiles_link_from_dotfile_names
+    echo ""
+    echo -e "${C_MARK_INST:-}✅ Todos os dotfiles foram instalados.${R:-}"
+    echo ""
+}
+
 # Reconhece o comando "term" ou "terminal" no menu principal.
 # Retorna 0 se reconheceu (tratado); 1 se não reconheceu.
 dotfiles_menu_try_open_terminal() {
