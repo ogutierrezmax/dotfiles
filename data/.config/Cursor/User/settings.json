@@ -191,7 +191,7 @@
   "terminal.integrated.enableVisualBell": true,
   "editor.formatOnSave": true,
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
   },
   "window.autoDetectColorScheme": false,
 }
