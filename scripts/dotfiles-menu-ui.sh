@@ -279,7 +279,6 @@ dotfiles_menu_render() {
     printf '\n\n\n\n\n\n\n\n\n\n'
     dotfiles_menu_ui_sep_line
     echo "${B}Dotfiles — estado em ${HOME}${R}"
-    dotfiles_menu_print_git_sync_warnings
     dotfiles_menu_ui_sep_line
     # shellcheck disable=SC2059
     printf " %${MENU_UI_WIDTH_NUM}s${gap}%-${MENU_UI_WIDTH_MARK}s${gap}%-${MENU_UI_WIDTH_FILE}s${gap}%-${MENU_UI_WIDTH_SOURCE}s${gap}%-${MENU_UI_WIDTH_LINK_STATUS}s${gap}%-${MENU_UI_WIDTH_ACTION}s\n" \
@@ -339,6 +338,7 @@ dotfiles_menu_render() {
     echo ""
     dotfiles_menu_print_command_help
     dotfiles_menu_render_alert
+    dotfiles_menu_print_git_sync_warnings
     DOTFILES_MENU_ALERT=""
     echo ""
 }
