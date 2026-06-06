@@ -33,6 +33,7 @@ main() {
     fi
 
     dotfiles_term_colors_init
+    dotfiles_repo_initial_fetch
 
     while true; do
         dotfiles_menu_render entries
@@ -54,6 +55,10 @@ main() {
         fi
 
         if dotfiles_menu_try_push "$trimmed"; then
+            continue
+        fi
+
+        if dotfiles_menu_try_pull "$trimmed"; then
             continue
         fi
 

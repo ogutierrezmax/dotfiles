@@ -313,8 +313,23 @@ dotfiles_repo_git_sync_warning_lines() {
     elif ((ahead > 0)); then
         echo "ATENÇÃO: Há ${ahead} commit(s) local(is) não enviado(s) ao GitHub (git push)."
     elif ((behind > 0)); then
-        echo "ATENÇÃO: Há ${behind} commit(s) no GitHub que ainda não estão aqui (git pull)."
+        echo "📡 Há ${behind} commit(s) no GitHub que ainda não estão aqui. Digite 'pull' para atualizar."
     fi
+}
+
+# Executa git fetch --quiet uma vez (chamado na inicialização do menu).
+# Usa arquivo marcador .git/.dotfiles-fetched para garantir execução única.
+dotfiles_repo_initial_fetch() {
+    local marker
+    marker="$(dotfiles_repo_root)/.git/.dotfiles-fetched"
+    [[ -f "$marker" ]] && return 0
+    git -C "$(dotfiles_repo_root)" fetch --quiet 2>/dev/null || true
+    touch "$marker"
+}
+
+# Executa git pull --ff-only para atualizar o repositório local.
+dotfiles_repo_pull() {
+    git -C "$(dotfiles_repo_root)" pull --ff-only
 }
 
 # Estado do repositório dotfiles em relação ao remoto (ex.: GitHub).

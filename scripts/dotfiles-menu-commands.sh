@@ -726,6 +726,34 @@ dotfiles_menu_push() {
     echo ""
 }
 
+# Reconhece o comando "pull" no menu principal.
+# Retorna 0 se reconheceu (tratado ou cancelado); 1 se não reconheceu.
+dotfiles_menu_try_pull() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "pull" ]]; then
+        dotfiles_menu_pull
+        return 0
+    fi
+    return 1
+}
+
+# Executa git pull --ff-only para atualizar o repositório.
+dotfiles_menu_pull() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}📡 Buscando e aplicando atualizações do repositório remoto...${R:-}"
+    echo ""
+    if dotfiles_repo_pull; then
+        echo ""
+        echo -e "${C_MARK_INST:-}✅ Repositório atualizado com sucesso!${R:-}"
+    else
+        echo ""
+        echo -e "${C_MARK_BLOCK:-}✖ Erro ao atualizar. Verifique se há conflitos ou conectividade.${R:-}"
+    fi
+    echo ""
+}
+
 dotfiles_menu_commit_file() {
     local file=$1
     local key_file data_dir repo_root api_key diff_output response commit_msg ans
