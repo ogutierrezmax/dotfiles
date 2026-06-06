@@ -30,3 +30,10 @@ Você DEVE:
 - **Nunca** peça para o usuário alterar permissões permanentemente (0777, world-writable)
 - **Nunca** assuma local alternativo sem confirmar com o usuário
 - **Nunca** prossiga sem confirmação explícita
+
+## Symlinks preservados no sandbox
+
+Dentro do sandbox, symlinks cujo destino está dentro do diretório do
+projeto são preservados como symlinks reais (não resolvidos).
+Use `readlink` ou `ls -la` para verificá-los. Se o symlink aponta
+para `$PROJECT_DIR`, o destino é writable (bind mount rw do projeto).
