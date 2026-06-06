@@ -75,11 +75,11 @@ main() {
 
         # Resto deve ser índice numérico (linha da tabela).
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo "Opção não reconhecida. Use número, rmN ou add (ver o bloco de comandos acima)."
+            DOTFILES_MENU_ALERT="Opção não reconhecida. Use número, rmN ou add (ver o bloco de comandos acima)."
             continue
         fi
         if ((choice < 1 || choice > ${#entries[@]})); then
-            echo "Número inválido (use 1–${#entries[@]})."
+            DOTFILES_MENU_ALERT="Número inválido (use 1–${#entries[@]})."
             continue
         fi
 
@@ -92,7 +92,7 @@ main() {
 
         echo ""
         dotfiles_link_one "$file"
-        echo "Feito."
+        DOTFILES_MENU_ALERT="Feito."
     done
 }
 

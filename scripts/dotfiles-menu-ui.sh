@@ -251,6 +251,20 @@ dotfiles_menu_ui_format_file_path() {
     echo "${C_FILE_PATH}${part_path}${r}${base_color}${part_file}${r}"
 }
 
+# Mensagem de alerta exibida na parte inferior do menu (abaixo de tudo).
+DOTFILES_MENU_ALERT=""
+
+dotfiles_menu_render_alert() {
+    local _w _pad
+    _w="$(dotfiles_menu_ui_table_width)"
+    printf -v _pad '%*s' "$_w" ''
+    _pad="${_pad// /─}"
+    echo "$_pad"
+    if [[ -n "$DOTFILES_MENU_ALERT" ]]; then
+        echo "${B}⚠ ${DOTFILES_MENU_ALERT}${R}"
+    fi
+}
+
 # Cabeçalho + uma linha por entrada (config/links.list) + legenda.
 # Argumento: nome do array bash (nameref), ex.: dotfiles_menu_render entries
 dotfiles_menu_render() {
@@ -324,6 +338,8 @@ dotfiles_menu_render() {
     dotfiles_menu_print_legend
     echo ""
     dotfiles_menu_print_command_help
+    dotfiles_menu_render_alert
+    DOTFILES_MENU_ALERT=""
     echo ""
 }
 
