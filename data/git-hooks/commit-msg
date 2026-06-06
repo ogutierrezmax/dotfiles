@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# =============================================================================
+# commit-msg hook — dotfiles repository
+# Garante que todo commit foi processado pela skill dotfiles-secure-commit.
+#
+# SECURITY NOTE: Não remova nem contorne este hook.
+# Ele é a última barreira que garante que a auditoria de segurança foi feita.
+# Para bypassar, o usuário teria que usar --no-verify explicitamente,
+# criando um rastro intencional da decisão.
+# =============================================================================
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+SIGNATURE="Verified-By: dotfiles-secure-commit"
+
+if ! grep -qF "$SIGNATURE" "$COMMIT_MSG_FILE"; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  🔴  COMMIT BLOQUEADO — assinatura de segurança ausente     ║"
+  echo "╠══════════════════════════════════════════════════════════════╣"
+  echo "║                                                              ║"
+  echo "║  Este repositório aceita apenas commits que passaram pela   ║"
+  echo "║  auditoria da skill 'dotfiles-secure-commit'.               ║"
+  echo "║                                                              ║"
+  echo "║  Use a skill para commitar com segurança.                   ║"
+
+  echo "║                                                              ║"
+
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  exit 1
+fi
+
+echo "✅ Assinatura de segurança validada pelo hook."
+exit 0

@@ -274,45 +274,19 @@ install_git_hooks() {
   local hooks_dir="$DOTFILES_DIR/.git/hooks"
   mkdir -p "$hooks_dir"
 
-  local pre_commit="$hooks_dir/pre-commit"
-
   if [[ "$DRY_RUN" == "true" ]]; then
-    log_dry "Instalaria hook pre-commit em $pre_commit"
+    log_dry "Instalaria hooks versionados de data/git-hooks/"
     return 0
   fi
 
-  cat > "$pre_commit" << 'HOOK_EOF'
-#!/usr/bin/env bash
-set -euo pipefail
+  # Remove hooks antigos em .git/hooks/ se existirem
+  rm -f "$hooks_dir/pre-commit" "$hooks_dir/commit-msg"
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
-[[ -z "$STAGED" ]] && exit 0
+  # Configura core.hooksPath para usar os hooks versionados
+  git -C "$DOTFILES_DIR" config core.hooksPath data/git-hooks
 
-FOUND=0
-for file in $STAGED; do
-  [[ -f "$file" ]] || continue
-  # Pular binários
-  file --mime "$file" 2>/dev/null | grep -q "charset=binary" && continue
-
-  if grep -qEi \
-    '(api[_-]?key\s*[=:]\s*|secret\s*[=:]\s*['"'"'"]?[A-Za-z0-9]{16,}|password\s*[=:]\s*['"'"'"]?.{8,}|-----BEGIN [A-Z]+ PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{20,})' \
-    "$file" 2>/dev/null; then
-    echo "🔴 BLOQUEADO: possível secret em '$file'"
-    FOUND=1
-  fi
-done
-
-if [[ $FOUND -eq 1 ]]; then
-  echo ""
-  echo "Remova ou mova os secrets para um arquivo excluído pelo .gitignore"
-  echo "antes de commitar. Se for um falso positivo, use:"
-  echo "  git commit --no-verify  (use com cautela)"
-  exit 1
-fi
-HOOK_EOF
-
-  chmod +x "$pre_commit"
-  log_ok "Hook pre-commit instalado: $pre_commit"
+  log_ok "hooksPath configurado: data/git-hooks"
+  log_ok "Hooks ativos: $(ls -1 "$DOTFILES_DIR/data/git-hooks/" | tr '\n' ' ')"
 }
 
 # =============================================================================

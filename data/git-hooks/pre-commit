@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pre-commit hook — dotfiles repository
+# Detecta segredos HARDCODED (valores literais) no diff staged.
+# Ignora variáveis que recebem valores de runtime ($1, $ENV, $(cmd), etc).
+# =============================================================================
+set -euo pipefail
+
+STAGED=$(git diff --cached --name-only)
+FOUND=0
+LAST_OFFENDING_FILE=""
+
+# Padrões: variável sensível recebendo valor LITERAL (sem $, ${}, backticks)
+# Isso ignora: api_key="$1", api_key="${ENV}", read -rs api_key
+HARDCODED_PATTERNS=(
+  # Chaves privadas (sempre flagrar, independente de contexto)
+  '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+
+  # api_key/secret/password/token com valor literal longo (sem interpolação)
+  # [^"'$`{}]+ = string pura, sem variáveis ou command substitution
+  'api[_-]?key\s*=\s*["'"'"'][^"'"'"'$`{}]{10,}["'"'"']'
+  'secret\s*=\s*["'"'"'][^"'"'"'$`{}]{8,}["'"'"']'
+  'password\s*=\s*["'"'"'][^"'"'"'$`{}]{4,}["'"'"']'
+  'token\s*=\s*["'"'"'][^"'"'"'$`{}]{10,}["'"'"']'
+
+  # Prefixos conhecidos de segredos (sempre flagrar)
+  '["'"'"']ghp_[A-Za-z0-9]{36,}["'"'"']'
+  '["'"'"']AKIA[A-Z0-9]{16,}["'"'"']'
+  '["'"'"']eyJ[A-Za-z0-9_-]{10,}["'"'"']'
+)
+
+for file in $STAGED; do
+  [[ -f "$file" ]] || continue
+
+  # Pular arquivos de documentação/instrução de skills para evitar falsos positivos
+  if [[ "$file" == *"SKILL.md" ]] || [[ "$file" == *"/skills/"* ]]; then
+    continue
+  fi
+
+  local_offending=""
+  for pattern in "${HARDCODED_PATTERNS[@]}"; do
+    # Usa -- para separar opções do padrão (evita erro com padrões que começam com -)
+    match=$(git diff --cached "$file" | grep "^+" | grep -E -- "$pattern" || true)
+    [[ -n "$match" ]] && local_offending+="$match"$'\n'
+  done
+
+  # Remove comentários bash (# ...)
+  local_offending=$(echo "$local_offending" | grep -v '^\+#' || true)
+
+  if [[ -n "$local_offending" ]]; then
+    if [[ $FOUND -eq 0 ]]; then
+      echo ""
+      echo "╔══════════════════════════════════════════════════════════════╗"
+      echo "║  🔴  BLOQUEIO DE SEGURANÇA — Segredo Detectado               ║"
+      echo "╚══════════════════════════════════════════════════════════════╝"
+    fi
+
+    echo "Arquivo: $file"
+    echo "Linha(s) suspeita(s):"
+    echo "$local_offending" | sed '/^$/d' | sed 's/^+/  → /'
+    echo "----------------------------------------------------------------"
+    FOUND=1
+    LAST_OFFENDING_FILE="$file"
+  fi
+done
+
+if [[ $FOUND -eq 1 ]]; then
+  echo ""
+  echo "O commit foi bloqueado por conter informações sensíveis."
+  echo ""
+  echo "1. Remova os segredos hardcoded"
+  echo "2. Use variáveis de ambiente ou leitura de arquivo externo"
+  echo "3. Mova para arquivo local não versionado (~/.secrets)"
+  echo ""
+  exit 1
+fi
+
+exit 0
