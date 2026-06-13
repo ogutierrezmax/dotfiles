@@ -28,3 +28,6 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 [ -f ~/.zsh_local ] && source ~/.zsh_local
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+
+# logger automatizado no npm
+source ~/.zsh/pnpm-error-log.zsh
