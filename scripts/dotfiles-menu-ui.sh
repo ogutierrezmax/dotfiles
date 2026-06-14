@@ -339,6 +339,7 @@ dotfiles_menu_render() {
     dotfiles_menu_print_command_help
     dotfiles_menu_render_alert
     dotfiles_menu_print_git_sync_warnings
+    dotfiles_git_print_setup_banner
     DOTFILES_MENU_ALERT=""
     echo ""
 }
@@ -370,6 +371,7 @@ dotfiles_menu_print_command_help() {
     printf '  %-18s  %s\n' "- pull                      Buscar e aplicar atualizações do repositório remoto"
     printf '  %-18s  %s\n' "- push                      Enviar commits locais para o repositório remoto"
     printf '  %-18s  %s\n' "- term / terminal             Abrir terminal neste repositório"
+    printf '  %-18s  %s\n' "- git                       Submenu git / SSH / GitHub"
     printf '  %-18s  %s\n' "- add <nome>                Adicionar um novo dotfile"
     printf '  %-18s  %s\n' "- rm <Número da linha>      Remover um dotfile da lista"
     printf '  %-18s  %s\n' "- Enter (vazio)             Sai do menu."

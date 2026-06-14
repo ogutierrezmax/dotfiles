@@ -14,6 +14,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/scripts/dotfiles-lib.sh"
 source "$(dotfiles_repo_root)/scripts/dotfiles-menu-ui.sh"
 # shellcheck source=scripts/dotfiles-menu-commands.sh
 source "$(dotfiles_repo_root)/scripts/dotfiles-menu-commands.sh"
+# shellcheck source=scripts/dotfiles-menu-git.sh
+source "$(dotfiles_repo_root)/scripts/dotfiles-menu-git.sh"
 
 main() {
     local -a entries=()
@@ -63,6 +65,10 @@ main() {
         fi
 
         if dotfiles_menu_try_open_terminal "$trimmed"; then
+            continue
+        fi
+
+        if dotfiles_menu_try_git_submenu "$trimmed"; then
             continue
         fi
 

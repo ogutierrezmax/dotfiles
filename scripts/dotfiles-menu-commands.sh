@@ -1124,6 +1124,17 @@ dotfiles_menu_install_all() {
     echo ""
 }
 
+# Reconhece o comando "git" no menu principal.
+# Retorna 0 se reconheceu; 1 se não reconheceu.
+dotfiles_menu_try_git_submenu() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "git" ]]; then
+        dotfiles_git_submenu
+        return 0
+    fi
+    return 1
+}
+
 # Reconhece o comando "term" ou "terminal" no menu principal.
 # Retorna 0 se reconheceu (tratado); 1 se não reconheceu.
 dotfiles_menu_try_open_terminal() {
