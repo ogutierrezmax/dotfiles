@@ -75,6 +75,33 @@
       "pluginName": "supabase",
       "installedAt": "2026-04-09T22:30:40.826Z",
       "updatedAt": "2026-04-09T22:30:40.826Z"
+    },
+    "gemini-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/google-gemini/gemini-skills.git",
+      "skillPath": "skills/gemini-api-dev/SKILL.md",
+      "skillFolderHash": "5a9c205998173198f4db6e8cbcaa59d62029e4dd",
+      "installedAt": "2026-06-15T21:06:26.965Z",
+      "updatedAt": "2026-06-15T21:06:26.965Z"
+    },
+    "gemini-live-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/google-gemini/gemini-skills.git",
+      "skillPath": "skills/gemini-live-api-dev/SKILL.md",
+      "skillFolderHash": "8030b605edb4921977b7ae5cc9d1ba223cb7e21d",
+      "installedAt": "2026-06-15T21:10:07.391Z",
+      "updatedAt": "2026-06-15T21:10:07.391Z"
+    },
+    "gemini-interactions-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/google-gemini/gemini-skills.git",
+      "skillPath": "skills/gemini-interactions-api/SKILL.md",
+      "skillFolderHash": "b5dfcb4bff9498974f5b7fede523961644469355",
+      "installedAt": "2026-06-15T21:10:25.581Z",
+      "updatedAt": "2026-06-15T21:10:25.581Z"
     }
   },
   "dismissed": {
@@ -83,15 +110,16 @@
   "lastSelectedAgents": [
     "amp",
     "antigravity",
+    "antigravity-cli",
     "cline",
     "codex",
     "cursor",
     "deepagents",
-    "firebender",
     "gemini-cli",
     "github-copilot",
-    "kimi-cli",
+    "kimi-code-cli",
     "opencode",
-    "warp"
+    "warp",
+    "zed"
   ]
 }
