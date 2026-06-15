@@ -194,4 +194,11 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
   },
   "window.autoDetectColorScheme": false,
+  "window.menuBarVisibility": "compact",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
 }
