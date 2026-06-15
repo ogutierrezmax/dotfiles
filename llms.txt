@@ -16,6 +16,11 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
 - `scripts/dotfiles-lib.sh`: Biblioteca central com funções de manipulação de symlinks (`create_link`, `remove_link`, `check_link_status`).
 - `dotfiles-menu.sh`: Script principal de interface (TUI) para o usuário.
 
+## Programas Gerenciados
+- **WezTerm**: `data/wezterm.lua` — terminal GPU-accelerated configurado via Lua (substituiu Konsole).
+- **Tmux**: `data/.tmux.conf` — multiplexador de terminal com persistência de sessão.
+- **KDE Plasma**: `data/kde-plasma/` — configurações do ambiente desktop agrupadas como pacote.
+
 ## Fluxos para Agentes de IA
 - **Para adicionar novo arquivo**:
     1. Colocar o arquivo em `data/`.

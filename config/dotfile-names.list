@@ -37,3 +37,6 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .config/opencode/rules/agents-symlink.mdc
 .local/share/applications/opencode-home.desktop
 .local/share/opencode/auth.json.example
+
+# WezTerm — GPU-accelerated terminal emulator (replaces Konsole)
+wezterm.lua

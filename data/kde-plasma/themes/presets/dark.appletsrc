@@ -161,7 +161,7 @@ DialogHeight=540
 DialogWidth=720
 
 [Containments][2][Applets][5][Configuration][General]
-launchers=applications:org.kde.konsole.desktop,preferred://filemanager,preferred://browser,applications:freeplane.desktop
+launchers=applications:org.wezfurlong.wezterm.desktop,preferred://filemanager,preferred://browser,applications:freeplane.desktop
 
 [Containments][2][Applets][6]
 immutability=1

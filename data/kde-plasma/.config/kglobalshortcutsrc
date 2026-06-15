@@ -314,4 +314,7 @@ switch to previous activity=none,,Trocar para a atividade anterior
 toggle do not disturb=none,,Alternar o "Não perturbe"
 
 [services][org.kde.konsole.desktop]
+_launch=
+
+[services][org.wezfurlong.wezterm.desktop]
 _launch=Meta+T\tCtrl+Alt+T

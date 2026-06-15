@@ -11,7 +11,7 @@
   "permission": {
     "bash": {
       // última regra que match vence — "*" deve ser o PRIMEIRO
-      "*": "ask",
+
       // --- allow ---
       "git add *": "allow",
       "git status *": "allow",
@@ -25,6 +25,7 @@
       "touch *": "allow",
       "cp *": "allow",
       "mv *": "allow",
+
       // --- ask ---
       "git commit *": "ask",
       "git push *": "ask",
@@ -35,6 +36,7 @@
       "rm -rf *": "deny",
       "sudo *": "deny"
     },
+
     // --- allow ---
     "edit": "allow",
     "read": "allow",
