@@ -2,7 +2,7 @@
 # SECURITY NOTE: Avoid aliasing destructive commands (rm, mv, cp, chmod).
 # LLMs assume standard command behavior when suggesting shell commands.
 # Masked commands cause silent, unexpected data loss.
-alias ls='eza --icons'
+alias ls='eza -lah --icons'
 alias l='eza -l --icons'
 alias ll='eza -lah --icons'
 alias sudo='sudo '
