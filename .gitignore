@@ -28,3 +28,4 @@ data/.config/opencode/package.json
 data/.config/opencode/package-lock.json
 data/.config/opencode/node_modules/
 data/.config/opencode/.gitignore
+data/.local/bin/ai-jail.bak.20260604-140135
