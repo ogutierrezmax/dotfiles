@@ -62,8 +62,9 @@ DOTDIR_RW=(.claude .crush .codex .aider .config .cargo .cache .docker .nvm)
    ```bash
    ai-jail bash              # Shell isolado no diretório atual
    ai-jail claude            # Executa Claude Code no sandbox
-   ai-jail --map /path extra_command  # Monta path extra como ro
-   ai-jail --rw-map /path extra_command  # Monta path extra como rw
+    ai-jail --map /path extra_command  # Monta path extra como ro
+    ai-jail --rw-map /path extra_command  # Monta path extra como rw
+    ai-jail --no-jail COMMAND         # Bypassa o sandbox, executa direto no host
    ```
 
 ## 🧠 Skill relacionada

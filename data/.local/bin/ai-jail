@@ -9,9 +9,20 @@
 # Mounts the project dir read-write, auto-discovers home dotfiles with a
 # deny-list for sensitive dirs, and isolates namespaces.
 #
-# Usage: ai-jail [--map PATH]... COMMAND [ARGS...]
+# Usage: ai-jail [--no-jail] [--map PATH]... COMMAND [ARGS...]
 #        ai-jail claude
 #        ai-jail bash
+#        ai-jail --no-jail COMMAND  # Bypass jail, exec directly
+
+# ── Parse --no-jail flag ──────────────────────────────────────
+# When --no-jail is the first argument, bypass the sandbox entirely
+# and exec the command directly on the host. Useful for debugging,
+# performance comparison, or when the jail causes issues.
+if [[ "${1:-}" == "--no-jail" ]]; then
+    shift
+    echo "Jail Bypassed: executing directly" >&2
+    exec "$@"
+fi
 
 PROJECT_DIR=$(pwd)
 TEMP_HOSTS=$(mktemp /tmp/bwrap-hosts.XXXXXX)
