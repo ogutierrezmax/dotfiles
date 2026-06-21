@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [".cursor/rules/context-tags.mdc"],
   "plugin": ["opencode-rules"],
   "mcp": {
     "supabase":{
@@ -27,6 +28,7 @@
       "mv *": "allow",
 
       // --- ask ---
+      "sudo *": "ask",
       "git commit *": "ask",
       "git push *": "ask",
       "chmod *": "ask",
@@ -34,7 +36,6 @@
       "docker exec *": "ask",
       // --- deny ---
       "rm -rf *": "deny",
-      "sudo *": "deny"
     },
 
     // --- allow ---
