@@ -1,5 +1,6 @@
 [0fa6cf49-9cf1-4a2f-8504-26da28c528be]
 Description=Configurações de janela para google-chrome
+Enabled=false
 opacityactiverule=2
 title=Como deixar as janelas transparentes no KDE Plasma 5.27 - Linux! - YouTube - Google Chrome
 types=1
@@ -7,8 +8,13 @@ wmclass=chrome google-chrome
 wmclasscomplete=true
 wmclassmatch=1
 
+[238616e6-948a-4169-9ff3-59ec6f44545d]
+minsize=2003,1036
+minsizerule=6
+
 [2923d40d-ccc4-4b3d-a15f-08cf7c272762]
 Description=Configurações de janela para factorio
+Enabled=false
 clientmachine=localhost
 opacityactiverule=2
 title=Factorio 2.0.76
@@ -19,6 +25,7 @@ wmclassmatch=1
 
 [7dac17a8-d9e3-46fc-ba4b-dd2be2dd609c]
 Description=Configurações de janela para OxygenNotIncluded
+Enabled=false
 clientmachine=localhost
 opacityactiverule=2
 title=Oxygen Not Included
@@ -28,11 +35,19 @@ wmclass=OxygenNotIncluded
 wmclassmatch=1
 
 [General]
-count=4
-rules=7dac17a8-d9e3-46fc-ba4b-dd2be2dd609c,2923d40d-ccc4-4b3d-a15f-08cf7c272762,0fa6cf49-9cf1-4a2f-8504-26da28c528be,f37e09f4-497b-4c89-88c1-9a6828003826
+count=5
+rules=7dac17a8-d9e3-46fc-ba4b-dd2be2dd609c,2923d40d-ccc4-4b3d-a15f-08cf7c272762,0fa6cf49-9cf1-4a2f-8504-26da28c528be,f37e09f4-497b-4c89-88c1-9a6828003826,c2df5a6c-2231-4a8d-9760-d94e49031ad1
+
+[c2df5a6c-2231-4a8d-9760-d94e49031ad1]
+Description=Configurações para org.wezfurlong.wezterm
+Enabled=false
+opacityinactiverule=2
+wmclass=org.wezfurlong.wezterm
+wmclassmatch=1
 
 [f37e09f4-497b-4c89-88c1-9a6828003826]
 Description=janelas translucidas
+Enabled=false
 opacityactive=98
 opacityactiverule=2
 wmclasscomplete=true

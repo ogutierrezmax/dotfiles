@@ -163,6 +163,7 @@ Switch to Screen to the Left=none,,Mudar para a tela à esquerda
 Switch to Screen to the Right=none,,Mudar para a tela à direita
 Toggle Night Color=none,none,Suspender/Retomar cor noturna
 Toggle Window Raise/Lower=none,,Alternar entre elevar/diminuir janela
+ToggleCurrentThumbnail=Meta+Ctrl+T,Meta+Ctrl+T,Alternar miniaturas para a janela atual
 Walk Through Windows=Alt+Tab,Alt+Tab,Passear pelas janelas
 Walk Through Windows (Reverse)=Alt+Shift+Tab,Alt+Shift+Tab,Passear pelas janelas (sentido inverso)
 Walk Through Windows Alternative=none,,Passear pelas janelas alternativo
@@ -314,7 +315,7 @@ switch to previous activity=none,,Trocar para a atividade anterior
 toggle do not disturb=none,,Alternar o "Não perturbe"
 
 [services][org.kde.konsole.desktop]
-_launch=
+_launch=none
 
 [services][org.wezfurlong.wezterm.desktop]
 _launch=Meta+T\tCtrl+Alt+T
