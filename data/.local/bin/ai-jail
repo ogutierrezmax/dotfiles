@@ -168,6 +168,9 @@ elif [ -f "$HOME/.claude.json" ]; then
     DOTFILE_MOUNTS+=("--bind" "$HOME/.claude.json" "$HOME/.claude.json")
 fi
 
+# ── Dotfiles repo (resolves symlinks from ~/dotfiles) ────────
+DOTFILE_MOUNTS+=("--ro-bind" "$HOME/dotfiles" "$HOME/dotfiles")
+
 # ── Hide sensitive subdirs inside ~/.config (after rw mount) ───
 CONFIG_HIDE_MOUNTS=()
 for denied in "${CONFIG_DENY[@]}"; do
