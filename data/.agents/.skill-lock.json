@@ -102,6 +102,42 @@
       "skillFolderHash": "b5dfcb4bff9498974f5b7fede523961644469355",
       "installedAt": "2026-06-15T21:10:25.581Z",
       "updatedAt": "2026-06-15T21:10:25.581Z"
+    },
+    "prompt-optimizer": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/affaan-m/everything-claude-code.git",
+      "skillPath": "skills/prompt-optimizer/SKILL.md",
+      "skillFolderHash": "6ba48dfeb75c00b4090aaac7dc139fd060ad45dd",
+      "installedAt": "2026-06-16T12:25:52.422Z",
+      "updatedAt": "2026-06-16T12:25:52.422Z"
+    },
+    "prompt-engineer": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/rmyndharis/antigravity-skills.git",
+      "skillPath": "skills/prompt-engineer/SKILL.md",
+      "skillFolderHash": "a2c522f986189172640a760b1b2307df73330879",
+      "installedAt": "2026-06-16T12:25:52.608Z",
+      "updatedAt": "2026-06-16T12:25:52.608Z"
+    },
+    "optimize-prompt": {
+      "source": "orq-ai/assistant-plugins",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/orq-ai/assistant-plugins.git",
+      "skillPath": ".agents/skills/optimize-prompt/SKILL.md",
+      "skillFolderHash": "8ed302ec77e87eba6877bf2bd366498a69f70b32",
+      "installedAt": "2026-06-16T12:27:40.481Z",
+      "updatedAt": "2026-06-16T12:27:40.481Z"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/antfu/skills.git",
+      "skillPath": "skills/vitest/SKILL.md",
+      "skillFolderHash": "b9413e0a4a6880e09e63f13ce59ee7de4019a27d",
+      "installedAt": "2026-06-20T22:35:44.677Z",
+      "updatedAt": "2026-06-20T22:35:44.677Z"
     }
   },
   "dismissed": {
