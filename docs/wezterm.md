@@ -39,6 +39,7 @@ O WezTerm usa uma tecla **Leader** (`Ctrl+a`) para comandos de gerenciamento de 
 | `Ctrl+a` `z` | Zoom no painel ativo |
 | `Ctrl+a` `q` | Fechar painel |
 | `Ctrl+a` `x` | Modo cópia |
+| `Ctrl+Shift+a` | Selecionar tudo e copiar |
 | `Ctrl+Shift+c` | Copiar |
 | `Ctrl+Shift+v` | Colar |
 | `Ctrl+Shift+n` | Nova janela |
@@ -46,6 +47,8 @@ O WezTerm usa uma tecla **Leader** (`Ctrl+a`) para comandos de gerenciamento de 
 | `Ctrl+Shift+w` | Fechar aba |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Alternar abas |
 | `Ctrl+Shift+PageUp/Down` | Scroll por página |
+
+> **Nota**: `Ctrl+K` e `Ctrl+L` são desabilitados como defaults para evitar conflitos. `Ctrl+Shift+A` é um binding customizado via callback Lua (copia silenciosa, sem feedback visual de seleção).
 
 ### Mouse
 - `Ctrl+Clique`: Abrir link sob o cursor

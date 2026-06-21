@@ -8,7 +8,7 @@ config.font = wezterm.font('MesloLGS Nerd Font')
 config.font_size = 13.0
 config.dpi = 96.0
 
-config.window_background_opacity = 0.88
+config.window_background_opacity = 0.95
 config.macos_window_background_blur = 0
 config.window_background_image_hsb = {
   brightness = 0.04,
@@ -42,7 +42,33 @@ config.adjust_window_size_when_changing_font_size = false
 config.default_prog = { 'zsh' }
 
 config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1000 }
+
+-- Select All + Copy to clipboard
+local function select_all_and_copy(window, pane)
+  local dim = pane:get_dimensions()
+  local text = pane:get_text_from_region(
+    0, dim.scrollback_top,
+    dim.cols, dim.scrollback_top + dim.scrollback_rows
+  )
+  window:copy_to_clipboard(text)
+end
+
 config.keys = {
+  {
+    key = 'k',
+    mods = 'CTRL',
+    action = wezterm.action.DisableDefaultAssignment,
+  },
+  {
+    key = 'l',
+    mods = 'CTRL',
+    action = wezterm.action.DisableDefaultAssignment,
+  },
+  {
+    key = 'a',
+    mods = 'CTRL|SHIFT',
+    action = wezterm.action_callback(select_all_and_copy),
+  },
   {
     key = '|',
     mods = 'LEADER',
