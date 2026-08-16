@@ -15,7 +15,7 @@ Os arquivos `.desktop` definem como cada aplicação deve ser iniciada. Abaixo, 
 ```ini
 [Desktop Entry]
 Type=Application
-Exec=/home/max/_Dev/dotfiles/scripts/plasma-panel-lang-color.sh
+Exec=/home/max/dotfiles/scripts/plasma-panel-lang-color.sh
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
