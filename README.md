@@ -92,4 +92,4 @@ Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 - [📦 Pacotes (Instalação de Programas)](./docs/packages.md): Lista curada por gerenciador e script de instalação (`install-packages.sh`).
 
 ## 🤖 AI Context
-Este repositório é **AI-Ready**. Agentes de IA podem encontrar um mapa completo do sistema em [llms.txt](./llms.txt).
+Este repositório é **AI-Ready**. Agentes de IA podem encontrar um mapa completo do sistema em [AGENTS.md](./AGENTS.md).
