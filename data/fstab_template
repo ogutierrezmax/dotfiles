@@ -1,0 +1,27 @@
+# Nova partição                               /bkp               nofail              0 0 #Nova partição                               partição    bkp    nofail              0 0 # /etc/fstab: static file system information.
+#
+# Use "blkid" to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# systemd generates mount units based on this file, see systemd.mount(5).
+# Please run "systemctl daemon-reload" after making changes here.
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/sda2 during installation
+UUID=e544b350-d6a9-47d5-a085-82a7eb731da3   /           ext4   errors=remount-ro   0 1 
+# /boot/efi was on /dev/sda1 during installation
+UUID=9507-BFBE                              /boot/efi   vfat   umask=0077          0 1 
+# /home was on /dev/sda4 during installation
+UUID=9f9de2f7-eb6a-47bc-a646-a2053dc0f3e1   /home       ext4   defaults            0 2 
+# swap was on /dev/sda3 during installation
+UUID=9f082db7-8a95-46ad-98f8-506a331a97d4   none        swap   sw                  0 0 
+# NVMe drive for games - safe mount with nofail
+# UUID=da79eb42-cf57-4528-9209-56dbd2e7ad26   /mnt/nvme    ext4   defaults,nofail,errors=remount-ro 0 2
+
+
+
+
+# DANDO PERMISSAO PRO MEU NTFS
+# MODO ANTIGO: /dev/sda2 /mnt/sandisk ntfs-3g defaults 0 0
+UUID=BEFCA544FCA4F833 /mnt/sandisk ntfs-3g uid=max,gid=max,umask=0022,nofail 0 0
