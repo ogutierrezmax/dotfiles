@@ -1124,6 +1124,42 @@ dotfiles_menu_install_all() {
     echo ""
 }
 
+# Reconhece os comandos "pkgs" / "packages" no menu principal.
+# Retorna 0 se reconheceu; 1 se não reconheceu.
+dotfiles_menu_try_packages() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "pkgs" || "${trimmed,,}" == "packages" ]]; then
+        dotfiles_menu_packages
+        return 0
+    fi
+    return 1
+}
+
+# Submenu de instalação de programas (config/install-packages.list).
+dotfiles_menu_packages() {
+    local repo_root script choice
+    repo_root="$(dotfiles_repo_root)"
+    script="${repo_root}/scripts/install-packages.sh"
+    while true; do
+        echo ""
+        echo -e "${B:-}📦 Programas (config/install-packages.list)${R:-}"
+        echo "  1) Ver plano (dry-run)"
+        echo "  2) Instalar tudo (com confirmações)"
+        echo "  3) Instalar só apt"
+        echo "  4) Ver lista crua"
+        echo "  0) Voltar"
+        read -r -p "Opção: " choice || true
+        case "$choice" in
+            1) "$script" --dry-run ;;
+            2) "$script" --install ;;
+            3) "$script" --install apt ;;
+            4) "$script" --list ;;
+            0) return ;;
+            *) echo "Opção inválida." ;;
+        esac
+    done
+}
+
 # Reconhece o comando "git" no menu principal.
 # Retorna 0 se reconheceu; 1 se não reconheceu.
 dotfiles_menu_try_git_submenu() {

@@ -1,3 +1,13 @@
+# ============================================================================
+# SNAPSHOT BRUTO DOS PACOTES — config/packages-snapshot.list
+# ----------------------------------------------------------------------------
+# Dump do "dpkg -l" da máquina original (257 pacotes, incluindo dependências
+# e base do sistema). NÃO é usado para instalação — serve apenas de referência
+# do que existia.
+#
+# Para instalar programas, edite config/install-packages.list
+# (lista curada por gerenciador) e rode: scripts/install-packages.sh --install
+# ============================================================================
 adb
 adduser
 antigravity

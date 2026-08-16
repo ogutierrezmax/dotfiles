@@ -1,0 +1,125 @@
+# ============================================================================
+# LISTA CURADA DE PROGRAMAS — config/install-packages.list
+# ----------------------------------------------------------------------------
+# Instalação de programas por gerenciador. Usada por scripts/install-packages.sh
+# (comando "pkgs" no dotfiles-menu.sh).
+#
+# Formato (uma entrada por linha):  gerenciador:valor
+#
+#   apt:pacote       pacote do repositório Debian (via sudo apt)
+#   deb:binario|URL  pacote .deb oficial baixado de URL e instalado via apt (resolve deps)
+#   flatpak:appid    app Flatpak do Flathub
+#   snap:snap        pacote Snap
+#   brew:formula     fórmula Homebrew (requer brew instalado antes)
+#   npm:pacote       pacote global npm (via npm install -g)
+#   pipx:pacote      pacote Python via pipx
+#   script:URL       instalador oficial (baixa e EXECUTA código de terceiros)
+#   manual:texto     apenas instruções (nunca executa nada)
+#
+# Regras:
+#   - Linhas em branco e linhas que começam com # são ignoradas.
+#   - Comentários após "#" no fim da linha são ignorados.
+#   - O script detecta o que já está instalado e pula.
+#   - Entradas "manual:" são apenas mostradas (nunca executadas).
+#   - Entradas "script:" exigem confirmação individual (executam código externo).
+# ============================================================================
+
+# --- Core / terminal ----------------------------------------------------------
+apt:git
+apt:tmux
+apt:zsh
+apt:curl
+apt:wget
+apt:ca-certificates
+apt:file
+apt:tree
+apt:htop
+apt:ripgrep
+apt:fd-find
+apt:fzf
+apt:eza
+apt:bat
+apt:zoxide
+apt:jq
+apt:unzip
+apt:zip
+apt:less
+apt:xdg-utils
+
+# --- Build / dev ----------------------------------------------------------------
+apt:build-essential
+apt:cmake
+apt:ninja-build
+apt:pkg-config
+apt:meson
+apt:ffmpeg
+apt:python3
+apt:python3-pip
+apt:python3-venv
+apt:pipx
+apt:postgresql
+apt:postgresql-client
+# Deps de desenvolvimento de mídia (da máquina anterior):
+# apt:libavcodec-dev
+# apt:libavdevice-dev
+# apt:libavformat-dev
+# apt:libavutil-dev
+# apt:libsdl2-2.0-0
+# apt:libsdl2-dev
+
+# --- Ferramentas de sistema -------------------------------------------------------
+apt:lsof
+apt:net-tools
+apt:traceroute
+apt:smartmontools
+apt:usbutils
+apt:pciutils
+apt:adb
+apt:flatpak
+apt:snapd
+apt:xvfb
+apt:gparted
+apt:hdparm
+apt:qdirstat
+apt:qdiskinfo
+apt:k4dirstat
+apt:kdiskmark
+
+# --- GUI: pacotes .deb oficiais baixados ---------------------------------------------
+deb:google-chrome-stable|https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+deb:code|https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
+deb:discord|https://discord.com/api/download/stable?platform=linux&format=deb
+
+# --- Flatpak ------------------------------------------------------------------------
+# Preencha com seus apps Flatpak (veja: flatpak list --app).
+# flatpak:com.spotify.Client
+
+# --- Snap ----------------------------------------------------------------------------
+# Preencha com seus snaps (veja: snap list).
+# snap:some-snap
+
+# --- Homebrew ------------------------------------------------------------------------
+# Requer o Homebrew instalado antes (veja entrada manual abaixo).
+# brew:atuin
+
+# --- npm global ----------------------------------------------------------------------
+# npm:pnpm
+# npm:typescript
+
+# --- pipx -----------------------------------------------------------------------------
+# pipx:some-tool
+
+# --- Instaladores oficiais (EXECUTAM código de terceiros — confirmação individual) ------
+script:https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
+
+# --- Manuais (apenas instruções, nada é executado) --------------------------------------
+manual:Instalar oh-my-zsh (não use o instalador interativo — ele edita o .zshrc do repo e tenta chsh): git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh
+manual:Instalar Cursor: baixe o .deb em https://www.cursor.com/downloads ou instale via flatpak
+manual:Instalar Obsidian: baixe o .deb em https://obsidian.md/download ou via flatpak
+manual:Instalar Brave: adicione o repo oficial (https://brave.com/linux) ou use o .deb do site
+manual:Instalar Steam: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install steam (precisa de contrib/non-free)
+manual:Instalar WezTerm: repo oficial https://wezterm.org/install-linux.html (ou cargo install)
+manual:Instalar Docker: curl -fsSL https://get.docker.com | sh
+manual:Instalar GitHub CLI: repo oficial https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+manual:Instalar Homebrew: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+manual:Instalar TPM (tmux): git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm

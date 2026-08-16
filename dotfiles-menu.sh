@@ -56,6 +56,10 @@ main() {
             continue
         fi
 
+        if dotfiles_menu_try_packages "$trimmed"; then
+            continue
+        fi
+
         if dotfiles_menu_try_push "$trimmed"; then
             continue
         fi
