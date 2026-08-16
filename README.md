@@ -25,7 +25,7 @@ graph TD
 | Caminho | Propósito |
 | :--- | :--- |
 | `data/` | **Fonte da Verdade**: Arquivos reais de configuração. |
-| `config/` | Listas de controle (`dotfile-names.list`, `packages.list`). |
+| `config/` | Listas de controle (`dotfile-names.list`), lista de programas (`install-packages.list`) e snapshot de referência (`packages-snapshot.list`). |
 | `scripts/` | Core logic, UI do menu e scripts de instalação. |
 | `docs/` | Documentação técnica aprofundada e notas. |
 
@@ -49,6 +49,25 @@ Para visualizar o estado de cada link e gerenciar manualmente:
 ./dotfiles-menu.sh
 ```
 
+### 4. Instalar Programas (Lista Curada)
+Os symlinks só cobrem *configurações*. Para instalar os **programas** que você
+usa, o repositório tem uma lista curada por gerenciador
+(`config/install-packages.list`):
+
+```bash
+# Ver o plano (o que já está instalado e o que falta):
+./scripts/install-packages.sh --dry-run
+
+# Instalar com confirmações (sudo apt, flatpak, snap, brew, npm, .deb...):
+./scripts/install-packages.sh --install
+
+# Instalar apenas um gerenciador (ex.: só apt):
+./scripts/install-packages.sh --install apt
+```
+
+> O mesmo fluxo está disponível no menu interativo com o comando `pkgs`.
+> Veja [docs/packages.md](./docs/packages.md) para o formato da lista e detalhes.
+
 ## 🛠️ Como Adicionar Novos Dotfiles
 A maneira recomendada de adicionar novos arquivos é através do menu interativo, que automatiza a importação e criação de links:
 
@@ -70,6 +89,7 @@ Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 - [🔒 ai-jail (Sandbox para AI Agents)](./docs/ai-jail.md): Bubblewrap sandbox para isolar agentes de IA com deny-lists e namespace isolation.
 - [🐉 KDE Plasma (Desktop Environment)](./docs/kde-plasma.md): Configurações visuais, comportamento de janelas e atalhos globais agrupados em pacote gerenciável.
 - [⚡ WezTerm (GPU Terminal)](./docs/wezterm.md): Terminal rápido configurado via Lua, substituindo o Konsole.
+- [📦 Pacotes (Instalação de Programas)](./docs/packages.md): Lista curada por gerenciador e script de instalação (`install-packages.sh`).
 
 ## 🤖 AI Context
 Este repositório é **AI-Ready**. Agentes de IA podem encontrar um mapa completo do sistema em [llms.txt](./llms.txt).
