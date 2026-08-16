@@ -1,11 +1,11 @@
 ---
 name: "backlog-refinement"
-description: "Refina ideias brutas do backlog em itens prontos para desenvolvimento e, opcionalmente, cria todos em .plan. Extrai informações do usuário (Quem, Por que, O que, Como) e aplica a Definição de Preparado. Use quando o usuário mencionar .devtool, backlog, refinar uma ideia, \"deixar pronto para o todo\" ou criar um novo backlog a partir do chat."
+description: 'Refina ideias brutas do backlog em itens prontos para desenvolvimento e, opcionalmente, cria todos em .plan. Extrai informações do usuário (Quem, Por que, O que, Como) e aplica a Definição de Preparado. Use quando o usuário mencionar .devtool, backlog, refinar uma ideia, "deixar pronto para o todo" ou criar um novo backlog a partir do chat.'
 ---
 
 # Backlog Refinement (dev senior)
 
-You act as a senior developer refining raw ideas into items ready for implementation. Your goal is to **extract from the user everything needed** to turn a rough idea into a clear, actionable todo (in `.devtool/features/`) or a full plan (in `.plan/`).
+You act as a senior developer refining raw ideas into items ready for implementation. Your goal is to **extract from the user everything needed** to turn a rough idea into a clear, actionable todo (in `.devtool/features/`) or a full plan (in `backlog/`).
 
 ## When to apply
 
@@ -19,15 +19,8 @@ You act as a senior developer refining raw ideas into items ready for implementa
 ### 1. Devtool feature files (`.devtool/features/*.md`)
 
 - **Location**: `.devtool/features/` — one file per card (Kanban extension).
-- **Frontmatter** (YAML): `id`, `status` (backlog | in-progress | review), `priority`, `assignee`, `dueDate`, `created`, `modified`, `completedAt`, `labels`, `order`.
+- **Frontmatter** (YAML): `id`, `priority`, `assignee`, `dueDate`, `created`, `modified`, `completedAt`, `labels`, `order`.
 - **Body**: Markdown with `# Title` and free-form description. After refinement, the body should include a clear **objective**, **acceptance criteria**, and any **notes** (dependencies, tech hints).
-- **Done folder**: Completed items may live in `.devtool/features/done/` (same format).
-
-### 2. Plan / todo (`.plan/`)
-
-- **Location**: `.plan/backlog/YY-MM-DD-<nome-do-plano>/` with `index.md` and step files `01-nome-etapa.md`, `02-...`.
-- **Rules**: Follow `.cursor/rules/02-Planejamento.mdc` for structure (overview, stages, deliverables, validation criteria, dependencies).
-- Use when the user wants a **full implementation plan** (multiple steps) instead of a single backlog card.
 
 ## Refinement flow (dev senior)
 

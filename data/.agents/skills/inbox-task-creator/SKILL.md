@@ -1,11 +1,20 @@
 ---
 name: inbox-task-creator
-description: Decompose user input (errors, refactorings, implementations, etc.) into structured tasks and creates each one via inbox-task.mjs. Use when the user provides a list of bugs, errors, refactoring needs, feature requests, or any work description that should be split into multiple tracked tasks in .devtool/features/Inbox/.
+description: Decompose any user input (errors, refactorings, implementations, features, plans, etc.) into structured tasks and creates each one via inbox-task.mjs. Use when the user provides a list of bugs, errors, refactoring needs, feature requests, or any work description that should be split into multiple tracked tasks in .devtool/features/inbox/.
 ---
 
 # Inbox Task Creator
 
 Creates structured inbox tasks from user input using `.devtool/scripts/inbox-task.mjs`.
+
+## Rules
+
+- pare qualquer atividade anterior a skill
+- considere que em vez de implementar o usuário quer que crie a(s) task(s) para implementar depois
+- as tasks devem conter todo o contexto relevante à implementação
+- cada task deve carregar contexto de encaixe: objetivo final, dependências entre tasks (anterior/seguinte) e critério de aceite que conecta ao todo — para que executada isoladamente não produza lacunas
+- cada task é executada num chat novo, portanto **não pode depender de contexto implícito** do plano original
+- o conjunto de tasks deve **cobrir o objetivo final sem lacunas** entre elas
 
 ## Fluxo de execução
 
@@ -74,22 +83,69 @@ echo '# Title\n\nBody content' | node .devtool/scripts/inbox-task.mjs --labels '
 Regras:
 - Conteúdo DEVE começar com `# Title` (exigido pelo script)
 - Incluir contexto relevante após o título
+- Incluir seção `## Encaixe no plano` mapeando: objetivo final, dependências (tasks que devem vir antes/depois), e como esta task contribui para o todo
+- Se o lote veio de um plano maior (ex: `implementation-planner`), referenciar o plano e o número do passo
 - `--labels` deve ser JSON array não vazio
 - Usar `\n` para quebras de linha no echo
+
+Exemplo de body com encaixe:
+
+```markdown
+## Contexto
+O schema do banco ainda não suporta heróis com múltiplas habilidades.
+
+## Encaixe no plano
+Passo 2 de 5 do plano "Sistema de Habilidades".
+Depende da task 1 (criar tabela herois).
+Habilita a task 3 (UI de habilidades).
+
+## Critério de aceite
+Após esta task, o endpoint `GET /heroes/:id/skills` retorna 200 com array de skills.
+```
 
 ### 6. Reportar
 
 ```
-✅ N task(s) criadas em .devtool/features/Inbox/:
+✅ N task(s) criadas em .devtool/features/inbox/:
   filename1.md  ← Title 1
   filename2.md  ← Title 2
 ```
+
+### 7. Verificar cobertura do plano
+
+Cada task perderá visão do objetivo por rodar em chat novo. Para evitar lacunas:
+
+**a) Contexto compartilhado obrigatório**
+No body de cada task, inclua as seções:
+```
+## Objetivo final
+[paráfrase do que o usuário pediu]
+
+## Esta task no plano
+Passo X de Y — [o que ela faz e por que existe]
+
+## Dependências
+- Bloqueia: [tasks que dependem desta]
+- Bloqueada por: [tasks que esta precisa antes]
+
+## Critério de aceite
+[o que comprova que esta task está completa, do ponto de vista do objetivo final]
+```
+
+**b) Usar plano mestre (quando aplicável)**
+Se o input for plano complexo, gere antes um plano via `implementation-planner` e referencie o plano_id em todas as tasks.
+
+**c) Task de verificação final**
+Crie uma última task `[chore] Verificar cobertura: [objetivo]` com um checklist de todas as tasks criadas. Ela só é executada após todas as outras estarem fechadas, validando que juntas entregam o objetivo.
+
+**d) Encadeamento explícito**
+Na `Segmentar em tasks`, verifique se a soma das tasks cobre integralmente o input. Se houver ambiguidade (ex: "depois fazer X"), documente como task separada ou remova do escopo com aviso ao usuário.
 
 ## Auto-verificação
 
 Após criar cada task:
 - [ ] Script exitou com código 0
-- [ ] Output é um path válido em `.devtool/features/Inbox/`
+- [ ] Output é um path válido em `.devtool/features/inbox/`
 - [ ] Arquivo existe com frontmatter válido
 
 ## Exemplos

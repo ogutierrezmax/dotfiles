@@ -15,7 +15,7 @@ Este workflow define o processo estrutural para criar ecossistemas de artefatos 
 
 ### 0. 🚀 Bootstrap obrigatório do índice (`docs/product/index.md`)
 
-- **Execução obrigatória:** rodar o script `bash /home/alfo/_Dev/.agents/skills/create-product-stage/bootstrap-product-index.sh` que garante a existência do `docs/product/index.md`
+- **Execução obrigatória:** rodar o script `bash /home/max/_Dev/.agents/skills/create-product-stage/bootstrap-product-index.sh` que garante a existência do `docs/product/index.md`
 - Leia o arquivo `docs/product/index.md` completamente para que possamos saber onde estão todos os arquivos que impactão a etapa atual
 
 ### 1. 🎯 Elicitação de Contexto
@@ -39,7 +39,7 @@ Este workflow define o processo estrutural para criar ecossistemas de artefatos 
 ### 2. 🔍 Pesquisa de Padrões de Mercado
 
 - **A pesquisa não é opcional.** Sem ela, os artefatos nascem com nomenclatura errada, em quantidade excessiva ou com lacunas estruturais.
-- **Antes de pesquisar na web, sempre verifique cache local de pesquisa** em `/home/alfo/_Dev/.agents/skills/create-product-stage/.cache`.
+- **Antes de pesquisar na web, sempre verifique cache local de pesquisa** em `/home/max/_Dev/.agents/skills/create-product-stage/.cache`.
 - Regras de cache (obrigatórias):
   - Se existir resultado de pesquisa com data de atualização nos **últimos 30 dias**, **não** executar pesquisa web; reutilize os dados locais como fonte primária.
   - Se não existir resultado recente (pasta vazia, inexistente ou arquivos com mais de 30 dias), aí sim execute pesquisa web.
