@@ -3,7 +3,7 @@
 [Desktop Entry]
 Type=Application
 # DANGER ZONE: This executes a custom shell script from the dotfiles repository.
-Exec=/home/alfo/_Dev/dotfiles/scripts/plasma-panel-lang-color.sh
+Exec=/home/max/_Dev/dotfiles/scripts/plasma-panel-lang-color.sh
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
