@@ -11,6 +11,7 @@ source ~/.zsh/env.zsh
 source ~/.zsh/plugins.zsh
 source ~/.zsh/history.zsh
 source ~/.zsh/aliases.zsh
+source ~/.zsh/opencode.zsh
 
 # User configuration
 bindkey '^L' autosuggest-accept
