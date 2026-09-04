@@ -13,6 +13,11 @@
 #        ai-jail claude
 #        ai-jail bash
 #        ai-jail --no-jail COMMAND  # Bypass jail, exec directly
+#
+# ENV MARKER: RUNNING_INSIDE_SANDBOX=true is set inside the jail (via
+# --setenv) and =false on the --no-jail host path. AI agents read this to
+# switch between strict (sandbox) and flexible (host) AGENTS.md rules.
+# Do NOT rename/remove without updating AGENTS.md.
 
 # ── Parse --no-jail flag ──────────────────────────────────────
 # When --no-jail is the first argument, bypass the sandbox entirely
@@ -21,6 +26,7 @@
 if [[ "${1:-}" == "--no-jail" ]]; then
     shift
     echo "Jail Bypassed: executing directly" >&2
+    export RUNNING_INSIDE_SANDBOX=false
     exec "$@"
 fi
 
@@ -251,11 +257,11 @@ bwrap \
   "${GPU_MOUNTS[@]}" \
   "${SHM_MOUNT[@]}" \
   --proc /proc \
-  --tmpfs /tmp \
+  --tmpfs /tmp:size=4G \
   --tmpfs /run \
   "${DOCKER_MOUNT[@]}" \
   "${DISPLAY_MOUNTS[@]}" \
-  --tmpfs "$HOME" \
+  --tmpfs "$HOME":size=512M \
   "${DOTFILE_MOUNTS[@]}" \
   "${CONFIG_HIDE_MOUNTS[@]}" \
   "${CACHE_HIDE_MOUNTS[@]}" \
@@ -270,6 +276,7 @@ bwrap \
   --unshare-uts \
   --unshare-ipc \
   --hostname "ai-sandbox" \
+  --setenv RUNNING_INSIDE_SANDBOX true \
   "${DISPLAY_ENV[@]}" \
   --setenv PS1 "(jail) \w \$ " \
   --setenv _ZO_DOCTOR 0 \
