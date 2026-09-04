@@ -38,5 +38,8 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .local/share/applications/opencode-home.desktop
 .local/share/opencode/auth.json.example
 
+# PATH da sessão gráfica (systemd user environment.d) — cobre Dolphin e autostart
+.config/environment.d/path.conf
+
 # WezTerm — GPU-accelerated terminal emulator (replaces Konsole)
 wezterm.lua
