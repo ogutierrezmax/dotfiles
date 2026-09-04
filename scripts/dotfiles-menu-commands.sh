@@ -331,8 +331,10 @@ NUNCA use nomes de modelos Gemini como nomes de arquivo.
 TAREFA 1 — AUDITORIA DE SEGURANÇA
 Analise cada alteração por estas categorias:
 - 🔴 BLOQUEAR (status="fail"): segredos/credenciais (api_key, token, secret, password, -----BEGIN, GITHUB_TOKEN, AWS_SECRET, PRIVATE_KEY), chaves privadas (.pem, .key)
-- 🟡 ALERTAR (status="warn"): paths absolutos hardcoded (/home/username/, /Users/), permissões excessivas (chmod 777, chmod 666)
+- 🟡 ALERTAR (status="warn"): paths absolutos literais (/home/username/, /Users/foo/), permissões excessivas (chmod 777, chmod 666)
 - 🟢 INFO (status="pass"): arquivos de backup staged (*.bak*, *.bkp, *~)
+
+Paths absolutos literais são apenas aqueles com nome de usuário hardcoded (ex.: /home/max/). Variáveis de ambiente portáveis como $HOME, ${HOME}, $USER e ${XDG_*} são boas práticas em dotfiles — NÃO as sinalize.
 
 Se encontrar qualquer 🔴, status="fail" e liste em findings.
 Se encontrar apenas 🟡, status="warn" e liste em findings.
