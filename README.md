@@ -30,6 +30,16 @@ graph TD
 | `docs/` | Documentação técnica aprofundada e notas. |
 
 ## 🚀 Quick Start
+Markdown
+## 🚀 Quick Start
+
+### 0. Configurar Autenticação SSH (Máquina Nova)
+Se você está configurando uma nova máquina e ainda não tem uma chave SSH vinculada ao GitHub, rode o comando abaixo no terminal. Ele gerará a chave ED25519 e copiará a chave pública para a sua área de transferência (ou exibirá no terminal):
+
+```bash
+ssh-keygen -t ed25519 -C "$(git config user.email)" -f ~/.ssh/id_ed25519 -N "" && xclip -selection clipboard < ~/.ssh/id_ed25519.pub 2>/dev/null || cat ~/.ssh/id_ed25519.pub
+Cole a chave em github.com/settings/keys antes de realizar o clone.
+```
 
 ### 1. Clonar o Repositório
 ```bash
