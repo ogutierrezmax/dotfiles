@@ -38,8 +38,9 @@ Se você está configurando uma nova máquina e ainda não tem uma chave SSH vin
 
 ```bash
 ssh-keygen -t ed25519 -C "$(git config user.email)" -f ~/.ssh/id_ed25519 -N "" && xclip -selection clipboard < ~/.ssh/id_ed25519.pub 2>/dev/null || cat ~/.ssh/id_ed25519.pub
-Cole a chave em github.com/settings/keys antes de realizar o clone.
 ```
+Cole a chave em github.com/settings/keys antes de realizar o clone.
+
 
 ### 1. Clonar o Repositório
 ```bash
