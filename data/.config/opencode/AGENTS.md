@@ -83,3 +83,26 @@ Do not use for: refactoring, writing scripts from scratch, debugging business lo
 3. `query-docs` with the selected library ID and what to look up in the library's documentation (not single words), scoped to a single concept. If the question spans multiple distinct concepts (e.g. routing and auth and caching), make a separate `query-docs` call per concept with the same library ID, unless the question is about how the concepts interact — combined queries dilute ranking and return shallow results for each topic
 4. Answer using the fetched docs
 <!-- context7 -->
+
+## Desambiguação de tempo verbal (VERB TENSE)
+
+Em textos de planejamento, o presente do indicativo é ambíguo: pode descrever o
+**estado atual** do sistema ou o **efeito da mudança planejada**. Ex.: "Adicionar
+(X espelha Y)" não deixa claro se X já espelha Y hoje ou se passará a espelhar após
+a implementação.
+
+Ao escrever ou interpretar descrições de tarefas, planos, ADRs ou listas de mudança:
+
+- **Estado atual** (já existe hoje): marque com "já" ou "(atual)" —
+  ex.: "Adicionar (X já usa Y — estado atual)".
+- **Ação/resultado da implementação** (passará a existir com a mudança): marque com
+  "passará a", "deve" ou "(resultado desta tarefa)" —
+  ex.: "Adicionar (X passará a usar Y — resultado desta tarefa)".
+
+Frase ambígua → reescreva para desambiguar ou pergunte antes de agir; nunca assuma o
+significado. Aplica-se também a respostas sobre o estado do código: distinga o que
+"está" implementado do que "será" após as mudanças.
+
+Instâncias do mesmo padrão: "Adicionar (ogtz espelha config padrão; alfokoji
+scaffold)", "Refatorar (módulo já consome a nova API)", "Corrigir (auth valida
+token no cliente)".
