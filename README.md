@@ -91,6 +91,7 @@ Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 - [⚡ WezTerm (GPU Terminal)](./docs/wezterm.md): Terminal rápido configurado via Lua, substituindo o Konsole.
 - [📦 Pacotes (Instalação de Programas)](./docs/packages.md): Lista curada por gerenciador e script de instalação (`install-packages.sh`).
 - [🧩 Agent Skills Bridge](./docs/agent-skills-bridge.md): Symlinks por-skill das ferramentas de IA apontando para o acervo central `~/.agents/skills`.
+- [🔐 opencode-profiles (opencode-pf)](./docs/opencode-profiles.md): Perfis isolados do OpenCode (conta/API por perfil) com servidor privado `--standalone` — substitui o `opencode-multi`.
 
 ## 🤖 AI Context
 Este repositório é **AI-Ready**. Agentes de IA podem encontrar um mapa completo do sistema em [AGENTS.md](./AGENTS.md).
