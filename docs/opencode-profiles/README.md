@@ -142,6 +142,16 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 | Auth/sessões/dados (`XDG_DATA_HOME` → `<perfil>/opencode/`) | State (`~/.local/state/opencode`) |
 | Servidor (`--standalone` — privado) | Daemon padrão do opencode v2 (outro processo, env original) |
 
+## 📐 Diagramas
+
+- [📐 Arquitetura do isolamento](./uml-arquitetura.md) — o que cada perfil vê
+  (config/dados privados) e o que o wrapper contorna (daemon compartilhado).
+- [📐 Sequência do `run` (quebrado × corrigido)](./uml-sequencia.md) — fluxo do
+  `opencode-multi` (perfil inerte) versus o `opencode-pf` (servidor privado com
+  env do perfil).
+- [📐 Ciclo de vida do perfil](./uml-ciclo-de-vida.md) — estados
+  `missing`/`needs-auth`/`healthy` e as transições de cada comando da CLI.
+
 ## 🧯 Troubleshooting
 
 - **`doctor` avisa "background service compartilhado ATIVO"**: é o daemon padrão
