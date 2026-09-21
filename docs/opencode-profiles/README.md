@@ -22,8 +22,14 @@ executa o opencode com **servidor privado** (fora do daemon compartilhado):
 export OPENCODE_CONFIG_DIR="$cfg"      # config do perfil
 export XDG_DATA_HOME="$data"           # data DO PERFIL (não o pai!)
 export OPENCODE_PROFILE="$name"
-exec "$bin" --standalone "$@"          # servidor privado — fora do daemon comum
+exec "$bin" "$@" --standalone          # servidor privado — `--standalone` no FIM
 ```
+
+> `--standalone` é posicionado **após** os args: o CLI do opencode v2 rejeita o
+> flag antes de um subcomando (`opencode --standalone auth list` → *Unrecognized
+> flag*), mas aceita no fim (`opencode auth list --standalone`). Isso garante que
+> `run <perfil> <subcomando>` (ex.: `run ogtz auth list`) funcione — e o TUI puro
+> (`run ogtz`) vira `opencode --standalone`, idêntico ao comportamento anterior.
 
 Os perfis espelhados são declarados em `config/opencode-profiles.list`:
 
@@ -65,14 +71,22 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 - **Arquivos versionados**: apenas os declarados em `config/opencode-profiles.list`
   (configs de `ogtz`/`alfokoji` + scaffold) e o próprio código dos scripts — todos
   auditados sem segredos nem caminhos absolutos de máquina.
-- **Arquivos excluídos (sensíveis/gerados)**: `auth.json`, `cli.json`,
-  `service.json` (mode 600), `node_modules/`, `package.json`, `package-lock.json`,
-  `.gitignore` — ficam locais por perfil; o instalador **nunca os toca**.
+- **Onde vivem as credenciais (v2)**: no opencode v2, auth fica na tabela
+  `credential` do SQLite (`<perfil>/opencode/opencode.db`) — o `auth.json` é o
+  formato **legado do V1**, importado na migração. Não existe export/import no CLI.
+- **Arquivos excluídos (sensíveis/gerados)**: `cli.json`, `service.json`
+  (mode 600), `node_modules/`, `package.json`, `package-lock.json`, `.gitignore`
+  — ficam locais por perfil; o instalador **nunca os toca**.
+- **Credenciais só entram com opt-in explícito**: `create --init` e
+  `create --with-auth` copiam do perfil padrão **apenas a tabela `credential`**
+  do SQLite (sem sessões/storage de mensagens) + `auth.json` legado, se presente.
+  Sem esses flags, o script nunca lê/escreve/versiona segredos.
 - **Guardrails aplicados**: header `SECURITY NOTE` no topo dos scripts; validação
   de nome de perfil (regex `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`); `remove` exige
   confirmação (ou `--yes` explícito) e usa `${CONFIG_ROOT:?}`/`${DATA_ROOT:?}`
   contra `rm -rf /`; `clone` **não propaga** `auth.json` nem o banco de sessões
-  (login novo via `/connect`); `--init` copia config **sem** segredos/runtime.
+  (login novo via `/connect`); `--init` copia config **sem** segredos de
+  config/runtime (`cli.json`, `service.json`, `node_modules/`).
 
 ## 🚀 Como instalar (Manual)
 
@@ -88,8 +102,9 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
    ```
 4. **Crie/use um perfil**:
    ```bash
-   opencode-pf create trabalho --init   # espelha config padrão (sem segredos)
-   opencode-pf run trabalho             # dentro: /connect para autenticar
+   opencode-pf create trabalho --init   # espelha config do padrão + credenciais (SQLite 'credential' + auth.json legado)
+   opencode-pf run trabalho auth list   # providers deste perfil (servidor privado)
+   opencode-pf run trabalho             # TUI; dentro: /connect para adicionar outra conta
    ```
 
 ## 🔧 Como adicionar um novo perfil ao repo
@@ -116,10 +131,10 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 | `opencode-multi` | `opencode-pf` | Correção vs. original |
 | :--- | :--- | :--- |
 | `create <n>` | `create <n>` | idem (scaffold + subdirs) |
-| `create <n> --init` | `create <n> --init [--with-auth]` | dados copiados para `<perfil>/opencode/` (não raiz); sem segredos/runtime |
-| `list` | `list` | status checa `<perfil>/opencode/auth.json` (lugar certo) |
+| `create <n> --init` | `create <n> --init [--with-auth]` | dados copiados para `<perfil>/opencode/` (não raiz); sem segredos de config/runtime — **e agora copia credenciais** (SQLite `credential` + auth.json legado) |
+| `list` | `list` | status checa `<perfil>/opencode/auth.json` **ou** a tabela `credential` do SQLite do perfil |
 | `show <n>` | `show <n>` | idem + auth/tamanho |
-| `run <n>` | `run <n> [-- args]` | `XDG_DATA_HOME` **por perfil** + `--standalone` (servidor privado) |
+| `run <n>` | `run <n> [-- args]` | `XDG_DATA_HOME` **por perfil** + `--standalone` no fim dos args (aceita subcomandos: `run <n> auth list`) |
 | `clone <a> <b>` | `clone <a> <b>` | copia config sem credenciais; auth novo |
 | `remove <n>` | `remove <n> [--yes]` | idem + confirmação explícita |
 | — | `doctor` | diagnóstico: daemon compartilhado, resíduos, status dos perfis |
@@ -139,7 +154,7 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 | Isolado por perfil | Compartilhado (aceitável) |
 | :--- | :--- |
 | Config (`OPENCODE_CONFIG_DIR`) | Cache (`~/.cache/opencode`) |
-| Auth/sessões/dados (`XDG_DATA_HOME` → `<perfil>/opencode/`) | State (`~/.local/state/opencode`) |
+| Auth/sessões/dados (`XDG_DATA_HOME` → `<perfil>/opencode/`; credenciais na tabela `credential` do SQLite + `auth.json` legado) | State (`~/.local/state/opencode`) |
 | Servidor (`--standalone` — privado) | Daemon padrão do opencode v2 (outro processo, env original) |
 
 ## 📐 Diagramas
@@ -157,9 +172,10 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 - **`doctor` avisa "background service compartilhado ATIVO"**: é o daemon padrão
   do opencode v2. Sessões dele seguem em `~/.local/share/opencode/`; os perfis
   rodam privados via `opencode-pf run` — o aviso é informativo.
-- **Perfil `needs-auth` com `auth.json` presente**: no `opencode-multi` era o
-  bug 2 (auth órfã na raiz). Aqui `list`/`show` checam o lugar certo
-  (`<perfil>/opencode/auth.json`).
+- **Perfil `needs-auth` com credencial presente**: no `opencode-multi` era o
+  bug 2 (auth órfã na raiz). Aqui `list`/`show` checam o lugar certo —
+  `<perfil>/opencode/auth.json` **ou** a tabela `credential` do SQLite
+  (`<perfil>/opencode/opencode.db`), que é onde o v2 guarda auth de verdade.
 - **Resíduos de execução antiga** (artefatos do env quebrado do `opencode-multi`,
   **não usados pelo `opencode-pf`** — conferir e remover manualmente, com
   confirmação, para liberar ~2,4 GB):

@@ -4,9 +4,13 @@
 # isolamento REAL (o original tem 3 bugs: XDG_DATA_HOME no pai, --init copiando
 # para lugar errado e nenhum tratamento do background service do opencode v2).
 #
-#   create <nome> [--init]   Cria perfil (--init espelha ~/.config/opencode SEM
-#                            copiar segredos: cli.json, service.json, auth.json,
-#                            node_modules, package*.json)
+#   create <nome> [--init] [--with-auth]
+#                            Cria perfil. --init espelha ~/.config/opencode sem
+#                            runtime (node_modules, package*.json) e sem segredos
+#                            de config (cli.json, service.json). --init e
+#                            --with-auth também copiam as CREDENCIAIS do perfil
+#                            padrão (tabela 'credential' do SQLite do opencode v2
+#                            + auth.json legado) — opt-in explícito.
 #   list                     Lista perfis e status (config/auth)
 #   show <nome>              Detalhes de um perfil
 #   run <nome> [-- args]     Roda opencode ISOLADO por perfil:
@@ -19,8 +23,9 @@
 #   doctor                   Diagnóstico de perfis e do ambiente
 #
 # SECURITY NOTE (guardrails para humanos e agentes de IA):
-#   - Este script NUNCA lê/escreve/versiona segredos (auth.json, cli.json,
-#     service.json) nem runtime (node_modules, package*.json).
+#   - Credenciais só são copiadas com --init/--with-auth (opt-in explícito do
+#     usuário). Sem esses flags, este script NUNCA lê/escreve/versiona segredos
+#     (auth.json, cli.json, service.json) nem runtime (node_modules, package*.json).
 #   - `remove` apaga diretórios de perfil → valida o nome (regex) e exige
 #     confirmação (ou --yes explícito).
 #   - `clone` não propaga credenciais nem o banco de sessões (login novo via
@@ -76,6 +81,112 @@ pf_copy_config() {
     done < <(find "$src" -mindepth 1 -maxdepth 1 -print0 2>/dev/null || true)
 }
 
+# Copia SOMENTE as credenciais do perfil padrão (~/.local/share/opencode) para
+# o data dir do perfil. No opencode v2, auth vive na tabela `credential` do
+# SQLite (opencode.db) — não existe export/import no CLI — então o perfil
+# inicializa o próprio DB com o schema real (migrações do opencode, via um
+# `auth list --standalone` rápido e sem rede) e recebe só as linhas da tabela
+# `credential` (SEM sessões/storage de mensagens). auth.json legado (V1) também
+# é copiado, se presente. Não é fatal se falhar (apenas avisa).
+# Opt-in: chamada apenas por `create --init` / `create --with-auth`.
+pf_copy_credentials() {
+    local dst_data=$1 cfg=$2 name=$3
+    local dst_oc="$1/opencode"
+    local src_db="$DEFAULT_DATA/opencode.db" src_auth="$DEFAULT_DATA/auth.json"
+    local init_cmd="$OPENCODE_CMD" out copied=0
+
+    if [[ -x "$OPENCODE_BIN" ]]; then
+        init_cmd="$OPENCODE_BIN"
+    fi
+
+    if [[ -f "$src_db" ]] && command -v python3 >/dev/null 2>&1; then
+        mkdir -p "$dst_oc"
+        # inicializa o DB do perfil com o schema real (migrações do opencode),
+        # só se ainda não existir; servidor standalone privado, sem rede.
+        if ! [[ -f "$dst_oc/opencode.db" ]] && command -v "$init_cmd" >/dev/null 2>&1; then
+            (export OPENCODE_CONFIG_DIR="$cfg" XDG_DATA_HOME="$dst_data" OPENCODE_PROFILE="$name"
+             "$init_cmd" auth list --standalone --format json >/dev/null 2>&1) || true
+        fi
+        if [[ -f "$dst_oc/opencode.db" ]]; then
+            out=$(python3 - "$src_db" "$dst_oc/opencode.db" 2>&1 <<'PY' || true
+import sqlite3, sys
+try:
+    src, dst = sys.argv[1], sys.argv[2]
+    s = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+    try:
+        n = s.execute("SELECT COUNT(*) FROM credential").fetchone()[0]
+        if n == 0:
+            print("EMPTY")
+            sys.exit(0)
+        d = sqlite3.connect(dst)
+        try:
+            cols = [r[1] for r in s.execute("PRAGMA table_info(credential)")]
+            rows = s.execute("SELECT * FROM credential").fetchall()
+            q = ", ".join("?" * len(cols))
+            d.executemany(
+                f"INSERT OR REPLACE INTO credential ({', '.join(cols)}) VALUES ({q})",
+                rows,
+            )
+            d.commit()
+            print(f"OK {len(rows)}")
+        finally:
+            d.close()
+    finally:
+        s.close()
+except Exception as e:
+    print(f"ERROR {e}")
+PY
+            )
+        fi
+        case "$out" in
+            OK*)
+                chmod 600 "$dst_oc/opencode.db" 2>/dev/null || true
+                copied=1
+                echo "✓ Credenciais copiadas do perfil padrão (${out#OK } no SQLite) → $dst_oc/opencode.db"
+                ;;
+            EMPTY)
+                echo "  Aviso: perfil padrão sem credenciais (tabela 'credential' vazia) — nada copiado." >&2
+                ;;
+            ERROR*)
+                echo "  Aviso: falha ao copiar credenciais do SQLite padrão (${out#ERROR })." >&2
+                ;;
+            *)
+                echo "  Aviso: não foi possível inicializar o DB do perfil para copiar credenciais." >&2
+                ;;
+        esac
+    fi
+
+    if [[ -f "$src_auth" ]]; then
+        mkdir -p "$dst_oc"
+        cp "$src_auth" "$dst_oc/auth.json"
+        chmod 600 "$dst_oc/auth.json"
+        copied=1
+        echo "✓ auth.json (legado V1) copiado do perfil padrão."
+    fi
+
+    if ((!copied)); then
+        echo "  Aviso: nenhuma credencial encontrada no perfil padrão (sem opencode.db nem auth.json)." >&2
+    fi
+}
+
+# Verifica se um perfil tem credenciais: auth.json legado OU tabela `credential`
+# preenchida no opencode.db (v2). $1 = dir data/opencode do perfil.
+pf_has_credentials() {
+    local oc_dir=$1
+    [[ -f "$oc_dir/auth.json" ]] && return 0
+    [[ -f "$oc_dir/opencode.db" ]] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    python3 - "$oc_dir/opencode.db" <<'PY' >/dev/null 2>&1
+import sqlite3, sys
+try:
+    c = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+    n = c.execute("SELECT COUNT(*) FROM credential").fetchone()[0]
+    sys.exit(0 if n > 0 else 1)
+finally:
+    c.close()
+PY
+}
+
 # ── comandos ─────────────────────────────────────────────────────────────────
 
 pf_create() {
@@ -98,22 +209,19 @@ pf_create() {
             echo "  Aviso: não existe config padrão em $DEFAULT_CONFIG — perfil criado em branco." >&2
         else
             pf_copy_config "$DEFAULT_CONFIG" "$cfg"
-            echo "✓ Config espelhada de $DEFAULT_CONFIG (sem segredos/runtime)."
+            echo "✓ Config espelhada de $DEFAULT_CONFIG (sem segredos de config/runtime)."
         fi
     fi
-    if ((with_auth)); then
-        if [[ -f "$DEFAULT_DATA/auth.json" ]]; then
-            mkdir -p "$data/opencode"
-            cp "$DEFAULT_DATA/auth.json" "$data/opencode/auth.json"
-            chmod 600 "$data/opencode/auth.json"
-            echo "✓ auth.json copiado de $DEFAULT_DATA/auth.json (mesmas credenciais)."
-        else
-            echo "  Aviso: $DEFAULT_DATA/auth.json não existe — nada copiado." >&2
-        fi
+    if ((init || with_auth)); then
+        pf_copy_credentials "$data" "$cfg" "$name"
     fi
     echo ""
     echo "Para usar:            opencode-pf run $name"
-    echo "Para autenticar:      dentro do opencode, use /connect (login a partir do zero)."
+    if ((init || with_auth)); then
+        echo "Credenciais:          copiadas do perfil padrão (veja mensagens acima)."
+    else
+        echo "Para autenticar:      dentro do opencode, use /connect (login a partir do zero)."
+    fi
 }
 
 pf_list() {
@@ -133,7 +241,9 @@ pf_list() {
             config="yes"
         fi
         auth="no"
-        [[ -f "$DATA_ROOT/$name/opencode/auth.json" ]] && auth="yes"
+        if pf_has_credentials "$DATA_ROOT/$name/opencode"; then
+            auth="yes"
+        fi
         if [[ "$auth" == "yes" ]]; then
             status="healthy"
         elif [[ "$config" == "yes" ]]; then
@@ -153,10 +263,10 @@ pf_show() {
     echo "Perfil: $name"
     echo "  config: $cfg  ($([[ -d "$cfg" ]] && echo "existe" || echo "NÃO existe"))"
     echo "  data:   $data ($([[ -d "$data" ]] && echo "existe" || echo "NÃO existe"))"
-    if [[ -f "$data/opencode/auth.json" ]]; then
-        echo "  auth:   configurado em $data/opencode/auth.json"
+    if pf_has_credentials "$data/opencode"; then
+        echo "  auth:   configurado (SQLite 'credential' e/ou auth.json legado em $data/opencode)"
     else
-        echo "  auth:   não configurado (rode 'opencode-pf run $name' e use /connect)"
+        echo "  auth:   não configurado (rode 'opencode-pf run $name' e use /connect, ou crie com --init/--with-auth)"
     fi
     if [[ -d "$cfg" ]]; then
         echo "  conteúdo de config/:"
@@ -201,7 +311,7 @@ pf_run() {
     echo "opencode-pf: perfil '$name' — servidor privado (--standalone)"
     echo "  config: $cfg"
     echo "  data:   $data/opencode (auth.json/sessões deste perfil)"
-    exec "$bin" --standalone "$@"
+    exec "$bin" "$@" --standalone
 }
 
 pf_clone() {
@@ -283,8 +393,9 @@ Uso: opencode-pf <comando> [args...]
 
 Comandos:
   create <nome> [--init] [--with-auth]
-                      Cria perfil (--init: espelha ~/.config/opencode sem segredos;
-                      --with-auth: copia também auth.json do perfil padrão)
+                      Cria perfil (--init: espelha ~/.config/opencode sem segredos
+                      de config/runtime; --init/--with-auth: copiam também as
+                      credenciais do perfil padrão — SQLite 'credential' + auth.json legado)
   list                      Lista perfis e status (config/auth)
   show <nome>               Detalhes de um perfil
   run <nome> [-- args]      Roda opencode isolado (config+auth+dados+servidor privado)
