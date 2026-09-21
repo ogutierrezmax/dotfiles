@@ -192,7 +192,10 @@ done
 # ── Override ~/.local subdirs as rw (parent .local is ro) ──────
 LOCAL_OVERRIDES=()
 [ -d "$HOME/.local/state" ] && LOCAL_OVERRIDES+=("--bind" "$HOME/.local/state" "$HOME/.local/state")
-for rw_share in zoxide crush opencode atuin mise yarn flutter kotlin NuGet pipx ruby-advisory-db uv pnpm; do
+# opencode-multi: dados dos perfis isolados do opencode-pf (profiles/<perfil>/opencode).
+# Precisa ser rw para 'opencode-pf run <perfil>' funcionar dentro do jail
+# (o pai ~/.local é montado ro) — mesma classe de sensibilidade que ~/.local/share/opencode.
+for rw_share in zoxide crush opencode atuin mise yarn flutter kotlin NuGet pipx ruby-advisory-db uv pnpm opencode-multi; do
     [ -d "$HOME/.local/share/$rw_share" ] && LOCAL_OVERRIDES+=("--bind" "$HOME/.local/share/$rw_share" "$HOME/.local/share/$rw_share")
 done
 
