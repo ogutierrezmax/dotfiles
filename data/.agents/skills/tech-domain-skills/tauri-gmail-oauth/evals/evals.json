@@ -1,0 +1,43 @@
+{
+  "skill_name": "tauri-gmail-oauth",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We have a Tauri v2 + React desktop mail client in this repo. Add Google Gmail login: the user clicks Sign in with Google, reads their inbox (readonly), and stays signed in after restart. Use the Desktop OAuth client id in GOOGLE_CLIENT_ID. I do not care about Drive or Calendar.",
+      "expected_output": "Rust auth module with PKCE S256, loopback 127.0.0.1:0, opener-based browser login, keyring refresh token, start_login/check_session/logout/gmail_request commands, frontend without token storage, gmail.readonly + identity scopes.",
+      "files": [],
+      "expectations": [
+        "Authorization uses code_challenge_method=S256",
+        "Login URL is opened via tauri-plugin-opener or equivalent, not a WebviewWindow",
+        "Loopback binds 127.0.0.1:0 or otherwise uses an OS-assigned port",
+        "Refresh token is stored with the keyring crate, not localStorage",
+        "Frontend invoke results do not include access_token or refresh_token",
+        "Gmail scope is gmail.readonly unless a broader scope is justified"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review this Tauri app's Google login. It opens accounts.google.com in a WebviewWindow, keeps the refresh token in localStorage, and the loopback server listens on 127.0.0.1:8080. Tell me what must change before we ship.",
+      "expected_output": "Audit report with fail findings for A1 (WebView), A2 (localStorage tokens), A4 (static port), and required fixes pointing at opener, keyring, and ephemeral bind.",
+      "files": [],
+      "expectations": [
+        "Flags WebviewWindow / embedded login as a failure",
+        "Flags localStorage token storage as a failure",
+        "Flags hardcoded port 8080 as a failure",
+        "Does not call the current design production-ready"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use a custom URI scheme com.acme.mail for the Google OAuth redirect in our Tauri v2 app on Windows and Linux. Login should still work if the app was already running. We develop on macOS too.",
+      "expected_output": "Deep-link config, single-instance plugin first, Rust token exchange, and an explicit macOS tauri-dev limitation with loopback recommended for local macOS iteration.",
+      "files": [],
+      "expectations": [
+        "Configures tauri-plugin-deep-link with scheme com.acme.mail",
+        "Registers tauri-plugin-single-instance before deep-link on desktop",
+        "Token exchange remains in Rust with PKCE",
+        "Documents that macOS tauri dev will not receive the custom scheme without a bundled app"
+      ]
+    }
+  ]
+}
