@@ -1162,6 +1162,29 @@ dotfiles_menu_packages() {
     done
 }
 
+# Reconhece o comando "skills" no menu principal: reconstrói os symlinks de
+# skills de IA para o acervo central ~/.agents/skills (config/agent-skills-bridge.list).
+# Retorna 0 se reconheceu; 1 se não reconheceu.
+dotfiles_menu_try_skills() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "skills" ]]; then
+        dotfiles_menu_skills
+        return 0
+    fi
+    return 1
+}
+
+dotfiles_menu_skills() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🧩 Reconstruindo symlinks de skills (agent-skills-bridge)${R:-}"
+    echo ""
+    "${repo_root}/scripts/install-agent-skills-bridge.sh"
+    echo ""
+    echo -e "${C_MARK_INST:-}✅ Bridge de skills atualizado.${R:-}"
+}
+
 # Reconhece o comando "git" no menu principal.
 # Retorna 0 se reconheceu; 1 se não reconheceu.
 dotfiles_menu_try_git_submenu() {

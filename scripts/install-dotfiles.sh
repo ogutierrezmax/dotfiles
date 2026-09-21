@@ -20,4 +20,11 @@ echo ""
 
 dotfiles_link_from_dotfile_names
 
+# Bridge de skills de IA → acervo central ~/.agents/skills (config/agent-skills-bridge.list).
+# Cria os symlinks por-skill nas ferramentas que não leem ~/.agents/skills nativamente
+# (Claude Code, Devin, Antigravity; espelhos opcionais em Cursor/Gemini).
+if [[ -x "${SCRIPT_DIR}/install-agent-skills-bridge.sh" ]]; then
+    "${SCRIPT_DIR}/install-agent-skills-bridge.sh"
+fi
+
 echo "Configuração concluída!"

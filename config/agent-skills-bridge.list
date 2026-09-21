@@ -1,0 +1,26 @@
+# Mapeamento de skills por ferramenta de IA (usado por scripts/install-agent-skills-bridge.sh).
+#
+# Formato: <ferramenta>|<skill>
+#   <ferramenta>  chave da tabela TOOL_DIRS no script (claude|devin|antigravity|cursor|gemini).
+#   <skill>       pode ser:
+#     - "*"                        → TODAS as "leaf skills" de topo (dir com SKILL.md direto)
+#     - "<nome>"                   → skill leaf, ex.: context7-mcp
+#     - "<bundle>/<nome>"          → sub-skill dentro de um bundle, ex.: tech-domain-skills/tauri-gmail-oauth
+#
+# NÃO precisa de entrada aqui (leem ~/.agents/skills nativamente, sem symlink):
+#   VS Code (Copilot), GitHub Copilot CLI, OpenCode e Codex já compartilham ~/.agents/skills.
+#   Cursor e Gemini CLI também leem ~/.agents/skills; entradas aqui são opcionais (espelho explícito).
+
+# Claude Code — só lê ~/.claude/skills → bridge completo
+claude|*
+
+# Devin — só lê ~/.config/devin/skills → bridge completo
+devin|*
+
+# Antigravity — não lê ~/.agents/skills de forma confiável (bug conhecido no CLI).
+# Brida nos 3 caminhos que o IDE/CLI/2.0 reconhecem: ~/.agent/skills (backward-compat),
+# ~/.gemini/antigravity/skills (global oficial do IDE) e ~/.gemini/config/skills (2.0).
+antigravity|*
+
+# Cursor — espelho explícito de sub-skills de bundle já usadas (opcional; o resto vem de ~/.agents/skills)
+cursor|tech-domain-skills/tauri-gmail-oauth

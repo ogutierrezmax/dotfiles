@@ -13,8 +13,10 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
 - `data/.config/autostart/`: Arquivos .desktop para inicialização automática de programas.
 - `data/kde-plasma/`: Configurações do KDE Plasma — empacotadas juntas e traduzidas de forma invisível para `~/.config/` pelo gerenciador.
 - `config/dotfile-names.list`: Arquivo texto simples contendo a lista de arquivos em `data/` que devem ser linkados.
+- `config/agent-skills-bridge.list`: Escopo de bridagem de skills de IA (formato `<ferramenta>|<skill>`, `*` = todas as leaf skills).
 - `scripts/dotfiles-lib.sh`: Biblioteca central com funções de manipulação de symlinks (`create_link`, `remove_link`, `check_link_status`).
-- `dotfiles-menu.sh`: Script principal de interface (TUI) para o usuário.
+- `scripts/install-agent-skills-bridge.sh`: Reconstrói os symlinks por-skill das ferramentas de IA (`claude|*`, `devin|*`, `antigravity|*`...) apontando para o acervo central `data/.agents/skills`. Idempotente; converte cópias idênticas em symlink com backup em `.bkp/`; pulsa dirs divergentes.
+- `dotfiles-menu.sh`: Script principal de interface (TUI) para o usuário. Comando `skills` roda o bridge.
 
 ## Programas Gerenciados
 - **WezTerm**: `data/wezterm.lua` — terminal GPU-accelerated configurado via Lua (substituiu Konsole).

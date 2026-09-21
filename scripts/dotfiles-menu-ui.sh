@@ -368,6 +368,7 @@ dotfiles_menu_print_command_help() {
     printf '  %-18s  %s\n' "- <Número da linha>         Ação da coluna action"
     printf '  %-18s  %s\n' "- install-all                Instalar todos os dotfiles da lista"
     printf '  %-18s  %s\n' "- pkgs                      Instalar programas da lista curada"
+    printf '  %-18s  %s\n' "- skills                    Reconstruir symlinks de skills de IA (~/.agents/skills)"
     printf '  %-18s  %s\n' "- commit                    Smart commit (AI agrupa alterações)"
     printf '  %-18s  %s\n' "- pull                      Buscar e aplicar atualizações do repositório remoto"
     printf '  %-18s  %s\n' "- push                      Enviar commits locais para o repositório remoto"

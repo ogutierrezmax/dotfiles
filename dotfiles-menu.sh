@@ -60,6 +60,10 @@ main() {
             continue
         fi
 
+        if dotfiles_menu_try_skills "$trimmed"; then
+            continue
+        fi
+
         if dotfiles_menu_try_push "$trimmed"; then
             continue
         fi

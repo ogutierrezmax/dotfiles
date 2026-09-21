@@ -90,6 +90,7 @@ Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 - [🐉 KDE Plasma (Desktop Environment)](./docs/kde-plasma.md): Configurações visuais, comportamento de janelas e atalhos globais agrupados em pacote gerenciável.
 - [⚡ WezTerm (GPU Terminal)](./docs/wezterm.md): Terminal rápido configurado via Lua, substituindo o Konsole.
 - [📦 Pacotes (Instalação de Programas)](./docs/packages.md): Lista curada por gerenciador e script de instalação (`install-packages.sh`).
+- [🧩 Agent Skills Bridge](./docs/agent-skills-bridge.md): Symlinks por-skill das ferramentas de IA apontando para o acervo central `~/.agents/skills`.
 
 ## 🤖 AI Context
 Este repositório é **AI-Ready**. Agentes de IA podem encontrar um mapa completo do sistema em [AGENTS.md](./AGENTS.md).
