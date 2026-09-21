@@ -126,6 +126,30 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 4. **Execute** `opencode-pf doctor` ou `./scripts/install-opencode-profiles.sh`
    para criar os symlinks no ambiente.
 
+## 🔐 Como saber em qual perfil estou (badge dentro do opencode)
+
+O `opencode-pf run <perfil>` exporta `OPENCODE_PROFILE` antes do `exec`, e um
+**plugin CLI (TUI)** versionado renderiza um badge com o nome do perfil **dentro
+do próprio opencode** — sem tocar no título da janela/terminal.
+
+- **O que mostra**: `🔐 <perfil>` no rodapé da home e junto ao prompt (slots
+  `home.footer.status` / `prompt.footer.status` — *status contributions*, após
+  os health indicators e antes da versão).
+- **Quando aparece**: somente com `OPENCODE_PROFILE` setado (via `opencode-pf run`).
+  `opencode` puro (sem perfil) não renderiza nada.
+- **Como funciona a descoberta**: o plugin é carregado automaticamente de
+  `<config-dir>/plugins/profile-status/tui.tsx`, onde `<config-dir>` é o
+  `OPENCODE_CONFIG_DIR` do perfil (`~/.config/opencode-multi/profiles/<nome>`).
+  O `.tsx` com JSX é aceito pelo discovery do v2.0.12 sem build prévio.
+- **Fonte única**: `data/.config/opencode/plugins/profile-status/tui.tsx`;
+  `plugins/profile-status` em cada perfil é symlink criado pelo
+  `install-opencode-profiles.sh`. Nada é adicionado ao `cli.json` (sensível/local).
+- **Perfil novo**: basta incluir no `config/opencode-profiles.list` e rodar o
+  instalador:
+  ```
+  <nome>|plugins/profile-status|data/.config/opencode/plugins/profile-status
+  ```
+
 ## 📖 Paridade de features com o `opencode-multi`
 
 | `opencode-multi` | `opencode-pf` | Correção vs. original |

@@ -12,6 +12,8 @@ ogtz|opencode.jsonc|data/.config/opencode/opencode.jsonc
 ogtz|tui.json|data/.config/opencode/tui.json
 ogtz|AGENTS.md|data/.config/opencode/AGENTS.md
 ogtz|rules/agents-symlink.mdc|data/.config/opencode/rules/agents-symlink.mdc
+ogtz|plugins/profile-status|data/.config/opencode/plugins/profile-status
 
 # alfokoji — scaffold mínimo versionado (opencode.json só com $schema).
 alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.json
+alfokoji|plugins/profile-status|data/.config/opencode/plugins/profile-status
