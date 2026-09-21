@@ -299,6 +299,9 @@ pf_run() {
     export OPENCODE_CONFIG_DIR="$cfg"
     export XDG_DATA_HOME="$data"
     export OPENCODE_PROFILE="$name"
+    # Estado do sandbox p/ o badge do plugin TUI (profile-status):
+    # 1 = com ai-jail (via launcher), 0 = --no-jail (binário direto).
+    export OPENCODE_PF_JAIL=$((1 - no_jail))
     bin="$OPENCODE_CMD"
     if ((no_jail)); then
         if [[ -x "$OPENCODE_BIN" ]]; then

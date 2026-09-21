@@ -135,6 +135,10 @@ do próprio opencode** — sem tocar no título da janela/terminal.
 - **O que mostra**: `🔐 <perfil>` no rodapé da home e junto ao prompt (slots
   `home.footer.status` / `prompt.footer.status` — *status contributions*, após
   os health indicators e antes da versão).
+- **Jail vs `--no-jail`**: o ícone reflete o sandbox via `OPENCODE_PF_JAIL`
+  (exportado pelo script): `🔐 <perfil>` com ai-jail ativo; `🤞 <perfil>`
+  (dedos cruzados) com `--no-jail` — binário direto, sem sandbox. Ausente →
+  `🔐` (conservador).
 - **Quando aparece**: somente com `OPENCODE_PROFILE` setado (via `opencode-pf run`).
   `opencode` puro (sem perfil) não renderiza nada.
 - **Como funciona a descoberta**: o plugin é carregado automaticamente de
