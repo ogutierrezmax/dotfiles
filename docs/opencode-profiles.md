@@ -92,6 +92,25 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
    opencode-pf run trabalho             # dentro: /connect para autenticar
    ```
 
+## 🔧 Como adicionar um novo perfil ao repo
+
+1. **Crie o arquivo scaffold** no repo (copie o padrão existente):
+   ```bash
+   cp data/.config/opencode-multi/profiles/alfokoji/opencode.json \
+      data/.config/opencode-multi/profiles/<nome>/opencode.json
+   mkdir -p data/.config/opencode-multi/profiles/<nome>
+   ```
+2. **Liste os arquivos versionados** em `config/opencode-profiles.list`:
+   ```
+   <nome>|opencode.json|data/.config/opencode-multi/profiles/<nome>/opencode.json
+   # Para espelhar a config normal (fonte única):
+   <nome>|opencode.jsonc|data/.config/opencode/opencode.jsonc
+   <nome>|tui.json|data/.config/opencode/tui.json
+   ```
+3. **Commit** os novos arquivos + a lista atualizada.
+4. **Execute** `opencode-pf doctor` ou `./scripts/install-opencode-profiles.sh`
+   para criar os symlinks no ambiente.
+
 ## 📖 Paridade de features com o `opencode-multi`
 
 | `opencode-multi` | `opencode-pf` | Correção vs. original |
@@ -131,10 +150,20 @@ alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.js
 - **Perfil `needs-auth` com `auth.json` presente**: no `opencode-multi` era o
   bug 2 (auth órfã na raiz). Aqui `list`/`show` checam o lugar certo
   (`<perfil>/opencode/auth.json`).
-- **Resíduos de execução antiga**: `~/.local/share/opencode-multi/profiles/opencode/`
-  (skeleton do env quebrado), dados órfãos de perfis (ex.: `opencode.db` copiada
-  pelo `--init` original) — não são lidos pelo `opencode-pf`; conferir com
-  `opencode-pf show <nome>` e remover manualmente.
+- **Resíduos de execução antiga** (artefatos do env quebrado do `opencode-multi`,
+  **não usados pelo `opencode-pf`** — conferir e remover manualmente, com
+  confirmação, para liberar ~2,4 GB):
+  ```bash
+  # skeleton compartilhado (bug 1) — 16K
+  ~/.local/share/opencode-multi/profiles/opencode
+  # dados órfãos do perfil (bug 2: cópia no lugar errado) — ~2,4 GB
+  ~/.local/share/opencode-multi/profiles/ogtz          # (2,4 GB de opencode.db)
+  # artefatos pequenos do mesmo env quebrado
+  ~/.local/share/opencode-multi/profiles/opencode-multi
+  ~/.local/share/opencode-multi/profiles/opentui
+  ```
+  Os dados **reais** ficam em `~/.local/share/opencode/` (auth + `opencode.db` do
+  daemon) — **não** removê-los.
 
 ---
 *Este documento foi gerado durante o onboarding do opencode-profiles nos dotfiles.*
