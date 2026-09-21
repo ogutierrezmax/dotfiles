@@ -1185,6 +1185,29 @@ dotfiles_menu_skills() {
     echo -e "${C_MARK_INST:-}✅ Bridge de skills atualizado.${R:-}"
 }
 
+# Reconhece o comando "profiles" no menu principal: reconstrói os symlinks dos
+# perfis do OpenCode para a fonte única (config/opencode-profiles.list).
+# Retorna 0 se reconheceu; 1 se não reconheceu.
+dotfiles_menu_try_profiles() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "profiles" ]]; then
+        dotfiles_menu_profiles
+        return 0
+    fi
+    return 1
+}
+
+dotfiles_menu_profiles() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🗂️  Reconstruindo symlinks dos perfis OpenCode (opencode-profiles)${R:-}"
+    echo ""
+    "${repo_root}/scripts/install-opencode-profiles.sh"
+    echo ""
+    echo -e "${C_MARK_INST:-}✅ Perfis OpenCode atualizados.${R:-}"
+}
+
 # Reconhece o comando "git" no menu principal.
 # Retorna 0 se reconheceu; 1 se não reconheceu.
 dotfiles_menu_try_git_submenu() {

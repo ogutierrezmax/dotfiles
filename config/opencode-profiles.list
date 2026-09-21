@@ -1,0 +1,17 @@
+# Perfis do OpenCode gerenciados por scripts/install-opencode-profiles.sh.
+# Formato: <perfil>|<dest relativo ao perfil>|<fonte relativa no repo>
+#   - dest  → caminho DENTRO de ~/.config/opencode-multi/profiles/<perfil>/
+#   - fonte → arquivo no repo (data/...) que vira o alvo do symlink
+#
+# Arquivos SENSÍVEIS (cli.json, service.json) e runtime (node_modules,
+# package*.json) NUNCA entram aqui — permanecem locais em cada perfil.
+#
+# ogtz — espelho da config padrão (fonte única: aponta para os MESMOS arquivos
+#        que o perfil normal ~/.config/opencode usa, versionados no repo).
+ogtz|opencode.jsonc|data/.config/opencode/opencode.jsonc
+ogtz|tui.json|data/.config/opencode/tui.json
+ogtz|AGENTS.md|data/.config/opencode/AGENTS.md
+ogtz|rules/agents-symlink.mdc|data/.config/opencode/rules/agents-symlink.mdc
+
+# alfokoji — scaffold mínimo versionado (opencode.json só com $schema).
+alfokoji|opencode.json|data/.config/opencode-multi/profiles/alfokoji/opencode.json

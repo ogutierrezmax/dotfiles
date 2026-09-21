@@ -30,6 +30,9 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 # ai-jail — bubblewrap sandbox for AI coding agents
 .local/bin/ai-jail
 
+# opencode-pf — CLI de perfis isolados do OpenCode (scripts/opencode-pf.sh)
+.local/bin/opencode-pf
+
 # OpenCode — AI coding assistant CLI
 .config/opencode/opencode.jsonc
 .config/opencode/tui.json

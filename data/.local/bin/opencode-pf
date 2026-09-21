@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Launcher do CLI de perfis OpenCode (scripts/opencode-pf.sh).
+# Instalado como symlink em ~/.local/bin/opencode-pf via config/dotfile-names.list.
+# Uso: opencode-pf <comando> [args...]  — veja `opencode-pf help`.
+set -euo pipefail
+
+REAL="$(readlink -f "${BASH_SOURCE[0]}")" || REAL="${BASH_SOURCE[0]}"
+ROOT="$(cd "$(dirname "$REAL")/../../.." && pwd)"
+exec bash "$ROOT/scripts/opencode-pf.sh" "$@"

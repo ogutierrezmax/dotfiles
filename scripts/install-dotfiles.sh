@@ -27,4 +27,10 @@ if [[ -x "${SCRIPT_DIR}/install-agent-skills-bridge.sh" ]]; then
     "${SCRIPT_DIR}/install-agent-skills-bridge.sh"
 fi
 
+# Perfis OpenCode → symlinks por-arquivo para a fonte única
+# (config/opencode-profiles.list; preserva cli.json/service.json locais).
+if [[ -x "${SCRIPT_DIR}/install-opencode-profiles.sh" ]]; then
+    "${SCRIPT_DIR}/install-opencode-profiles.sh"
+fi
+
 echo "Configuração concluída!"
