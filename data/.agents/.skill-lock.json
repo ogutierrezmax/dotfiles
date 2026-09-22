@@ -81,18 +81,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/google-gemini/gemini-skills.git",
       "skillPath": "skills/gemini-api-dev/SKILL.md",
-      "skillFolderHash": "5a9c205998173198f4db6e8cbcaa59d62029e4dd",
+      "skillFolderHash": "ec4137bcce0c00e883345337fbd1f67075f42c39",
       "installedAt": "2026-06-15T21:06:26.965Z",
-      "updatedAt": "2026-06-15T21:06:26.965Z"
+      "updatedAt": "2026-09-10T17:48:40.406Z"
     },
     "gemini-live-api-dev": {
       "source": "google-gemini/gemini-skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/google-gemini/gemini-skills.git",
       "skillPath": "skills/gemini-live-api-dev/SKILL.md",
-      "skillFolderHash": "8030b605edb4921977b7ae5cc9d1ba223cb7e21d",
+      "skillFolderHash": "7cbbfacda1726538adf7bb67168847aff5a6733b",
       "installedAt": "2026-06-15T21:10:07.391Z",
-      "updatedAt": "2026-06-15T21:10:07.391Z"
+      "updatedAt": "2026-09-10T17:48:40.410Z"
     },
     "gemini-interactions-api": {
       "source": "google-gemini/gemini-skills",
@@ -138,6 +138,15 @@
       "skillFolderHash": "b9413e0a4a6880e09e63f13ce59ee7de4019a27d",
       "installedAt": "2026-06-20T22:35:44.677Z",
       "updatedAt": "2026-06-20T22:35:44.677Z"
+    },
+    "gemini-omni-flash-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/google-gemini/gemini-skills.git",
+      "skillPath": "skills/gemini-omni-flash-api/SKILL.md",
+      "skillFolderHash": "890c2c5be7db675a0ff80f875199cebf1fe5bdbd",
+      "installedAt": "2026-09-10T17:48:40.413Z",
+      "updatedAt": "2026-09-10T17:48:40.413Z"
     }
   },
   "dismissed": {
