@@ -38,5 +38,6 @@
         "**/.DS_Store": true,
         "**/Thumbs.db": true
     },
-    "hide-files.files": []
+    "hide-files.files": [],
+    "alfo-kanban.notion.databaseId": "cd90ff25-306c-4208-bdbc-c80b8467ea77"
 }
