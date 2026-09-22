@@ -1,12 +1,18 @@
 [Activities][LastVirtualDesktop]
-e998eb04-d2de-4fcf-beb1-eed2dd6f3658=a72d16ea-9001-4ec8-a91e-c7a189b59c8a
+e998eb04-d2de-4fcf-beb1-eed2dd6f3658=cc8a84af-a335-4afd-8083-abd9fc093ee0
 
 [Desktops]
 Id_1=df3a24cb-a8fc-40c4-954a-194e62b50d03
 Id_2=a72d16ea-9001-4ec8-a91e-c7a189b59c8a
+Id_3=c6eeb708-1b6d-434f-b30e-1fd087867801
+Id_4=6af1731c-b60c-40a2-94ac-99e9194d1d23
+Id_5=cc8a84af-a335-4afd-8083-abd9fc093ee0
+Id_6=63cbb9df-b632-4954-a377-efbc0a14b865
 Name_1=Search
-Name_2=OPEN HOK
-Number=2
+Name_2=openhok
+Name_3=hourly-checkin
+Name_4=alfo kanban
+Number=6
 Rows=1
 
 [Plugins]
