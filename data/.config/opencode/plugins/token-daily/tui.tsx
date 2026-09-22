@@ -9,12 +9,22 @@
 //   - Guarda totais por dia ("YYYY-MM-DD") em storage durável ("token-daily").
 //   - Renderiza no rodapé (home.footer.status + prompt.footer.status):
 //        ↑5k ↓2k sublinhado — valores arredondados (sem ponto); clique (ou
-//        /token-daily na paleta) abre um dialog centralizado com a data do dia
-//        sozinha no topo (◀ Seg 22 Set ▶ — ◀/▶ indicam navegação) e o breakdown
-//        (input/output/reasoning/cache read/write, com casa decimal), que fica
-//        aberto até clicar fora (ou esc). Dentro do dialog, ←/→ navegam entre
-//        os dias com uso registrado (mode:"modal" + enabled, sem roubar
-//        left/right do cursor no prompt).
+//        /token-daily na paleta) abre um dialog centralizado com "token-daily"
+//        no topo (linha de título bold + "esc", padrão do DialogConfirm nativo)
+//        e a data do dia centralizada logo abaixo (◀ Ter 22 Set ▶ — ◀/▶ indicam
+//        navegação), com o breakdown (input/output/reasoning/cache read/write,
+//        com casa decimal), que fica aberto até clicar fora (ou esc). Dentro do
+//        dialog, ←/→ navegam entre os dias com uso registrado (mode:"modal" +
+//        enabled, sem roubar left/right do cursor no prompt).
+//
+// Requisito do host v2.0.12: as layers do keymap são registradas por um
+// COMPONENTE montado via slot (KeymapLayers), nunca no setup(). O setup() do
+// plugin roda fora do Keymap.Provider do host, então context.keymap.layer() lá
+// lança "Keymap.Provider is missing" — erro que um try/catch silencioso
+// engolia, deixando a paleta (No matching commands) e as setas (no-op) mortas.
+// Registrado por componente (mesmo padrão do DialogConfirm nativo, que chama
+// createLayer no corpo do componente), o Solid desregistra as layers sozinho
+// ao desmontar o componente — sem cleanup manual.
 //
 // Limitações conhecidas (v1):
 //   - Atribui o delta ao dia em que ele foi observado (não ao timestamp exato
@@ -207,7 +217,7 @@ export default Plugin.define({
 
     // Navegação entre os dias com uso no modal (←/→).
     const [viewDay, setViewDay] = createSignal("")
-    let dialogOpen = false
+    const [dialogOpen, setDialogOpen] = createSignal(false)
     const dayKeys = (): string[] =>
       Object.keys(days.days)
         .filter((key) => {
@@ -237,7 +247,7 @@ export default Plugin.define({
         return
       }
       setViewDay(todayKey())
-      dialogOpen = true
+      setDialogOpen(true)
       context.ui.dialog.show(
         () => {
           const key = viewDay()
@@ -247,7 +257,12 @@ export default Plugin.define({
           const label = key === todayKey() ? `${fmtDay(key)} (hoje)` : fmtDay(key)
           return (
             <box padding={1} flexDirection="column">
-              {/* Data sozinha, centralizada, com ◀ ▶ indicando navegação entre dias. */}
+              {/* Título no topo — padrão do DialogConfirm nativo (bold + "esc"). */}
+              <box flexDirection="row" justifyContent="space-between">
+                <text bold>token-daily</text>
+                <text dim>esc</text>
+              </box>
+              {/* Data centralizada, com ◀ ▶ indicando navegação entre dias. */}
               <box width="100%" justifyContent="center">
                 <text bold>◀  {label}  ▶</text>
               </box>
@@ -263,7 +278,7 @@ export default Plugin.define({
           )
         },
         () => {
-          dialogOpen = false
+          setDialogOpen(false)
         },
       )
       // O show() do plugin chama replace(), que RESETA centered=false sem
@@ -274,10 +289,16 @@ export default Plugin.define({
       setTimeout(() => context.ui.dialog.set({ size: "medium", centered: true }), 0)
     }
 
-    // Comando de paleta/slash — fallback por teclado (não depende de mouse).
-    let stopKeymap = () => {}
-    try {
-      const layer = context.keymap.layer(() => ({
+    // Layers do keymap — registradas por COMPONENTE, não no setup().
+    // No host v2.0.12 o setup() do plugin roda fora do Keymap.Provider, então
+    // context.keymap.layer() lá lança "Keymap.Provider is missing" (silenciado
+    // na versão antiga, deixando paleta e setas mortas). Montado via slot, este
+    // componente executa sob o provider — padrão do DialogConfirm nativo, que
+    // chama createLayer no corpo do componente. O Solid desregistra as layers
+    // ao desmontar o componente (ownership), sem cleanup manual.
+    const KeymapLayers = () => {
+      // Comando de paleta/slash — fallback por teclado (não depende de mouse).
+      context.keymap.layer(() => ({
         mode: "global",
         priority: 10,
         commands: [
@@ -291,28 +312,18 @@ export default Plugin.define({
           },
         ],
       }))
-      if (typeof layer === "function") stopKeymap = layer
-    } catch {
-      // API de keymap indisponível nesta versão — badge (mouse/clique) segue ok.
-    }
-
-    // Navegação por ←/→ entre os dias no modal. Usa mode:"modal" (atalhos só
-    // ativos com dialog aberto) + enabled (só quando É o nosso dialog), para
-    // não roubar left/right do cursor no prompt. Espelha o padrão dos dialogs
-    // nativos (ex.: DialogConfirm bind left/right com createLayer({mode:"modal"})).
-    let stopNavKeys = () => {}
-    try {
-      const navLayer = context.keymap.layer(() => ({
+      // Navegação por ←/→ entre os dias no modal. mode:"modal" (atalhos só
+      // ativos com dialog aberto) + enabled (só quando É o nosso dialog), para
+      // não roubar left/right do cursor no prompt.
+      context.keymap.layer(() => ({
         mode: "modal",
-        enabled: () => dialogOpen,
+        enabled: () => dialogOpen(),
         commands: [
           { bind: "left", title: "token-daily: dia anterior", group: "token-daily", run: () => navDay(-1) },
           { bind: "right", title: "token-daily: próximo dia", group: "token-daily", run: () => navDay(1) },
         ],
       }))
-      if (typeof navLayer === "function") stopNavKeys = navLayer
-    } catch {
-      // API de keymap indisponível nesta versão — navegação por setas desativada.
+      return null
     }
 
     const badge = () => {
@@ -335,15 +346,22 @@ export default Plugin.define({
       )
     }
     const unregisterHome = context.ui.slot({ append: "home.footer.status", render: badge })
-    const unregisterPrompt = context.ui.slot({ append: "prompt.footer.status", render: badge })
+    // As layers do keymap vivem no slot do PROMPT (presente na home e em
+    // sessões): é aqui que KeymapLayers monta uma única vez, sob o
+    // Keymap.Provider do host. O badge do prompt renderiza junto.
+    const promptSlot = () => (
+      <>
+        <KeymapLayers />
+        {badge()}
+      </>
+    )
+    const unregisterPrompt = context.ui.slot({ append: "prompt.footer.status", render: promptSlot })
 
     return () => {
       stopEvents()
       clearInterval(timer)
       clearInterval(rollover)
       clearInterval(paintTimer)
-      stopKeymap()
-      stopNavKeys()
       unregisterHome()
       unregisterPrompt()
     }
