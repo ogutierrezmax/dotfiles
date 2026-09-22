@@ -234,6 +234,9 @@ dotfiles_link_one() {
         echo "Erro: arquivo não existe em data/: $file" >&2
         return 1
     fi
+    # Garante o diretório pai do destino (ex.: ~/.config/opencode/plugins/
+    # para o plugin token-daily) — necessário em máquina nova.
+    mkdir -p "$(dirname "$dest")"
     echo "Criando link simbólico para $file → $dest"
     ln -sf "$src" "$dest"
 }

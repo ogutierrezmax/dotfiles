@@ -38,6 +38,7 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .config/opencode/tui.json
 .config/opencode/AGENTS.md
 .config/opencode/rules/agents-symlink.mdc
+.config/opencode/plugins/token-daily
 .local/share/applications/opencode-home.desktop
 .local/share/opencode/auth.json.example
 
