@@ -1,5 +1,5 @@
 ---
-tags: [dotfiles, versionamento, kde-plasma, arquitetura, stow]
+tags: [dotfiles, versionamento, kde-plasma, arquitetura, stow, isolamento, daemon, cli]
 type: concept
 ---
 
@@ -48,4 +48,17 @@ type: concept
 2. **tmpfs $HOME**: Montar `$HOME` como tmpfs e fazer bind seletivo de dotdirs é mais seguro que montar `$HOME` real e esconder subdiretórios.
 3. **Docker Socket**: Expor `/var/run/docker.sock` dá ao agente controle total do Docker host — documentar com SECURITY NOTE.
 4. **Runtimes Externos**: Mise, NVM e similares executam código dentro do sandbox — se o runtime estiver comprometido, o sandbox não protege.
+
+## 6. Isolamento por Perfil em CLIs com Background Service
+**Contexto**: Wrappers que encapsulam CLIs com "perfis" (config/auth/estado por perfil) quebram quando o CLI subjacente migra de arquitetura processo-único para um **background service compartilhado**. O wrapper exporta o env do perfil no cliente, mas quem executa de verdade (o daemon) nasceu antes, com o env original — os perfis ficam **inertes** e compartilham conta/estado entre si.
+**Solução Abstraída**: O isolamento só é real se o **servidor privado nascer com o env do perfil**:
+1. **Env no processo real**: todas as variáveis de redirecionamento (config dir, data dir) devem ser exportadas antes do `exec` do processo que vai executar; quando há daemon, o cliente deve iniciar servidor próprio (flag tipo `--standalone`) em vez de conectar no serviço compartilhado — senão nada do env chega a quem roda.
+2. **Data dir por instância**: o diretório de dados apontado pelo perfil deve ser o **nível da instância** (`<root>/<perfil>/…`), nunca o pai — o pai vira área comum entre todos os perfis.
+3. **Verificação de lugar**: para validar "tem config/auth?", conferir o caminho que o app resolve de verdade (ex.: `opencode debug paths`), não o lugar que o wrapper "acha" que deve ser — o caminho resolvido muda entre versões do app.
+4. **Espelhamento por fonte única**: perfis que espelham a config normal devem usar symlinks para os MESMOS arquivos versionados — sem duplicar cópias que divergem com o tempo.
+**Princípios**:
+- Wrapper bash próprio (paridade de features + correções) > fork de projeto em outra linguagem > plugin no processo (plugin roda tarde demais para redirecionar startup).
+- Arquivos de credencial (`auth.json`, `cli.json`, `service.json`) nunca versionar; preservá-los locais e por perfil.
+- Remoção/cópia de perfis: confirmação explícita do usuário antes de `rm`; `clone` não propaga credenciais nem banco de sessões (login novo via `/connect`).
+- Diagnóstico (`doctor`) deve alertar sobre daemon compartilhado ativo e resíduos de execução antiga — sintomas de env quebrado são confundíveis com bug do usuário.
 
