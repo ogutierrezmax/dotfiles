@@ -194,11 +194,12 @@ done
 LOCAL_OVERRIDES=()
 [ -d "$HOME/.local/state" ] && LOCAL_OVERRIDES+=("--bind" "$HOME/.local/state" "$HOME/.local/state")
 
-# Isola state e config do OpenCode na jail para rodar background service independente (porta 49380)
+# Isola state, config e data do OpenCode na jail para rodar background service independente (porta 49380)
 # sem interferir no background service do host (porta 49376 / default).
 JAIL_OC_STATE="$HOME/.local/state/opencode-jail"
 JAIL_OC_CONFIG="$HOME/.config/opencode-jail"
-mkdir -p "$JAIL_OC_STATE" "$JAIL_OC_CONFIG"
+JAIL_OC_DATA="$HOME/.local/share/opencode-jail"
+mkdir -p "$JAIL_OC_STATE" "$JAIL_OC_CONFIG" "$JAIL_OC_DATA"
 if [ ! -f "$JAIL_OC_CONFIG/service.json" ]; then
     printf '{"port": 49380}\n' > "$JAIL_OC_CONFIG/service.json"
 fi
@@ -209,14 +210,23 @@ for _item in opencode.jsonc AGENTS.md tui.json plugins rules; do
         ln -sfn "$HOME/.config/opencode/$_item" "$JAIL_OC_CONFIG/$_item"
     fi
 done
+
+# Copia credenciais de autenticacao para a jail nao perder login do provedor:
+for _auth in auth.json mcp-auth.json; do
+    if [ -f "$HOME/.local/share/opencode/$_auth" ] && [ ! -f "$JAIL_OC_DATA/$_auth" ]; then
+        cp "$HOME/.local/share/opencode/$_auth" "$JAIL_OC_DATA/$_auth"
+    fi
+done
+
 LOCAL_OVERRIDES+=("--bind" "$JAIL_OC_STATE" "$HOME/.local/state/opencode")
 LOCAL_OVERRIDES+=("--bind" "$JAIL_OC_CONFIG" "$HOME/.config/opencode")
+LOCAL_OVERRIDES+=("--bind" "$JAIL_OC_DATA" "$HOME/.local/share/opencode")
 
 
 # opencode-multi: dados dos perfis isolados do opencode-pf (profiles/<perfil>/opencode).
 # Precisa ser rw para 'opencode-pf run <perfil>' funcionar dentro do jail
-# (o pai ~/.local é montado ro) — mesma classe de sensibilidade que ~/.local/share/opencode.
-for rw_share in zoxide crush opencode atuin mise yarn flutter kotlin NuGet pipx ruby-advisory-db uv pnpm opencode-multi; do
+# (o pai ~/.local é montado ro).
+for rw_share in zoxide crush atuin mise yarn flutter kotlin NuGet pipx ruby-advisory-db uv pnpm opencode-multi; do
     [ -d "$HOME/.local/share/$rw_share" ] && LOCAL_OVERRIDES+=("--bind" "$HOME/.local/share/$rw_share" "$HOME/.local/share/$rw_share")
 done
 
