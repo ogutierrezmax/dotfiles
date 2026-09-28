@@ -194,6 +194,23 @@ done
 LOCAL_OVERRIDES=()
 [ -d "$HOME/.local/state" ] && LOCAL_OVERRIDES+=("--bind" "$HOME/.local/state" "$HOME/.local/state")
 
+# Isola state e config do OpenCode na jail para rodar background service independente (porta 49380)
+# sem interferir no background service do host (porta 49376 / default).
+JAIL_OC_STATE="$HOME/.local/state/opencode-jail"
+JAIL_OC_CONFIG="$HOME/.config/opencode-jail"
+mkdir -p "$JAIL_OC_STATE" "$JAIL_OC_CONFIG"
+if [ ! -f "$JAIL_OC_CONFIG/service.json" ]; then
+    printf '{"port": 49380}\n' > "$JAIL_OC_CONFIG/service.json"
+fi
+for _item in opencode.jsonc AGENTS.md tui.json plugins rules; do
+    if [ -e "$HOME/dotfiles/data/.config/opencode/$_item" ]; then
+        ln -sfn "$HOME/dotfiles/data/.config/opencode/$_item" "$JAIL_OC_CONFIG/$_item"
+    elif [ -e "$HOME/.config/opencode/$_item" ] && [ ! -e "$JAIL_OC_CONFIG/$_item" ]; then
+        ln -sfn "$HOME/.config/opencode/$_item" "$JAIL_OC_CONFIG/$_item"
+    fi
+done
+LOCAL_OVERRIDES+=("--bind" "$JAIL_OC_STATE" "$HOME/.local/state/opencode")
+LOCAL_OVERRIDES+=("--bind" "$JAIL_OC_CONFIG" "$HOME/.config/opencode")
 
 
 # opencode-multi: dados dos perfis isolados do opencode-pf (profiles/<perfil>/opencode).
@@ -250,6 +267,13 @@ fi
 # ── Assemble and launch ───────────────────────────────────────
 echo "Jail Active: $PROJECT_DIR"
 
+OPENCODE_ENV=()
+if [ -z "${OPENCODE_CONFIG_DIR:-}" ]; then
+    OPENCODE_ENV+=("--setenv" "OPENCODE_CONFIG_DIR" "$JAIL_OC_CONFIG")
+else
+    OPENCODE_ENV+=("--setenv" "OPENCODE_CONFIG_DIR" "$OPENCODE_CONFIG_DIR")
+fi
+
 bwrap \
   --ro-bind /usr /usr \
   --ro-bind /bin /bin \
@@ -284,6 +308,7 @@ bwrap \
   --unshare-ipc \
   --hostname "ai-sandbox" \
   --setenv AI_EXECUTION_MODE "jail" \
+  "${OPENCODE_ENV[@]}" \
   "${DISPLAY_ENV[@]}" \
   --setenv PS1 "(jail) \w \$ " \
   --setenv _ZO_DOCTOR 0 \
