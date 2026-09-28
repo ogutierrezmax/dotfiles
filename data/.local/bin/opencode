@@ -11,8 +11,9 @@ if [[ "${1:-}" == "--no-jail" ]]; then
     exec ~/.opencode/bin/opencode "$@"
 fi
 
-# Se já estamos dentro da sandbox, executa o binário direto (evita aninhar ai-jail):
-if [[ "${AI_EXECUTION_MODE:-}" == "jail" ]]; then
+# Se já estamos DENTRO da sandbox (fato do kernel: UTS namespace isolado),
+# executa o binário direto para não aninhar ai-jail.
+if [[ "$(hostname)" == "ai-sandbox" ]]; then
     exec ~/.opencode/bin/opencode "$@"
 fi
 
