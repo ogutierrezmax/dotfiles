@@ -49,24 +49,40 @@ Por isso, a detecção de execução em Sandbox segue uma hierarquia estrita:
 
 ---
 
-## 4. Decisão Arquitetural: Isolamento Estrito de Dois Daemons
+## 4. Decisão Arquitetural: Isolamento Estrito de Três Camadas (Config, State, Data)
 
-Para eliminar as divergências da matriz acima, adotamos a arquitetura de **dois daemons independentes e simultâneos**:
+Para eliminar as divergências e o sequestro de sessões entre o cliente e o servidor, adotamos a arquitetura de **dois daemons independentes e simultâneos**, isolando não apenas config e state, mas também a camada de dados:
 
 ```text
 [ HOST LINUX ]
  ├── Daemon Host:
- │    ├── Porta: 49376 (ou padrão)
+ │    ├── Porta: 49376 (ou padrão 49374)
  │    ├── Config: ~/.config/opencode/service.json
  │    ├── State:  ~/.local/state/opencode/service.json
+ │    ├── Data:   ~/.local/share/opencode (opencode.db, logs, sessions)
  │    └── Namespace: Nativo (hostname debian, AI_EXECUTION_MODE=host)
  │
  └── Daemon Jail:
       ├── Porta: 49380
-      ├── Config: ~/.config/opencode-jail/service.json (montado sobre ~/.config/opencode)
+      ├── Config: ~/.config/opencode-jail (montado sobre ~/.config/opencode)
       ├── State:  ~/.local/state/opencode-jail (montado sobre ~/.local/state/opencode)
+      ├── Data:   ~/.local/share/opencode-jail (montado sobre ~/.local/share/opencode)
       └── Namespace: Bubblewrap (hostname ai-sandbox, AI_EXECUTION_MODE=jail)
 ```
+
+### Mecânica Interna Descoberta no Binário do OpenCode v2:
+1. **Descoberta via `service.ensure` / `service.discover`**:
+   - A CLI do OpenCode busca o arquivo de registro em `$XDG_STATE_HOME/opencode/service.json`.
+   - Se o arquivo apontar para uma URL HTTP que responda ao handshake `/api/info` em `127.0.0.1`, a CLI reutiliza aquele daemon imediatamente, transformando-se apenas em sua interface.
+   - Como o `bwrap` compartilha o namespace de rede loopback com o host, portas abertas na sandbox são alcançáveis pelo host e vice-versa.
+2. **Resolução XDG vs `OPENCODE_CONFIG_DIR`**:
+   - O binário do OpenCode utiliza `OPENCODE_CONFIG_DIR` apenas para regras de projeto e plugins, mas a definição da porta padrão e da inicialização do serviço (`p` e `Kt`) consulta **`XDG_CONFIG_HOME`** e **`XDG_STATE_HOME`**.
+   - Por isso, montar fisicamente `JAIL_OC_CONFIG` sobre `~/.config/opencode` e `JAIL_OC_STATE` sobre `~/.local/state/opencode` dentro do container é o único mecanismo garantido para forçar a porta 49380 na jail.
+3. **Isolamento de Banco SQLite (`JAIL_OC_DATA`)**:
+   - O daemon mantém conexões ativas com `opencode.db` em `~/.local/share/opencode`. Se host e jail compartilharem essa pasta, ocorrem colisões de lock SQLite e contaminação de sessões ativas.
+   - A montagem de `~/.local/share/opencode-jail` elimina esse conflito preservando as credenciais essenciais (`auth.json`, `mcp-auth.json`).
+4. **Guard do Wrapper por Hostname**:
+   - Em `data/.local/bin/opencode`, a checagem `[[ "$(hostname)" == "ai-sandbox" ]]` substitui a antiga checagem por variável `AI_EXECUTION_MODE == "jail"`. Isso impede que o launcher assuma falso confinamento antes de disparar o `ai-jail`.
 
 ### Regras de Execução nos Wrappers:
 1. `opencode --no-jail`:
@@ -75,9 +91,9 @@ Para eliminar as divergências da matriz acima, adotamos a arquitetura de **dois
    - Conecta ao daemon persistente do host (porta 49376).
 2. `opencode` (padrão):
    - Executa via `ai-jail`.
-   - Se já estiver dentro de um sandbox (`AI_EXECUTION_MODE=jail`), executa o binário direto para evitar aninhamento acidental de Bubblewrap.
+   - Se já estiver dentro de um sandbox (`hostname == ai-sandbox`), executa o binário direto para evitar aninhamento acidental de Bubblewrap.
    - Conecta ao daemon persistente da jail (porta 49380).
-   - Não compartilha nem sobrescreve os arquivos de serviço do host.
+   - Não compartilha nem sobrescreve os arquivos de serviço ou o SQLite do host.
 
 ---
 

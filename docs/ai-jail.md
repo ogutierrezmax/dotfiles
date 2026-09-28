@@ -68,7 +68,7 @@ DOTDIR_RW=(.claude .crush .codex .aider .config .cargo .cache .docker .nvm)
    ```
 
 ## 🧠 OpenCode v2 e Daemons Independentes
-Para ferramentas com arquitetura cliente-servidor como o OpenCode v2, o `ai-jail` isola automaticamente o diretório de estado (`~/.local/state/opencode-jail`) e de configuração (`~/.config/opencode-jail` na porta 49380). Isso garante que o daemon da jail e o daemon do host funcionem simultaneamente sem vazamento de comandos.
+Para ferramentas com arquitetura cliente-servidor como o OpenCode v2, o `ai-jail` isola automaticamente três camadas: o diretório de estado (`~/.local/state/opencode-jail`), o de configuração (`~/.config/opencode-jail` na porta 49380) e o de dados/SQLite (`~/.local/share/opencode-jail`). Isso garante que o daemon da jail e o daemon do host funcionem simultaneamente sem sequestro de sessões nem disputas de lock.
 - Veja detalhes completos no documento de decisão: [ADR-002: Detecção de Sandbox e Daemons do OpenCode v2](security/adr-002-deteccao-de-jail-e-daemons-opencode.md).
 
 ## 🧠 Skill relacionada
