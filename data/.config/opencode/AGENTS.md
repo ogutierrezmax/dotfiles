@@ -8,17 +8,18 @@ O opencode pode rodar **dentro** do sandbox bubblewrap (ai-jail) ou **direto no 
 **Comando canônico de detecção:**
 
 ```bash
-echo "$RUNNING_INSIDE_SANDBOX"; hostname
+echo "AI_EXECUTION_MODE=${AI_EXECUTION_MODE:-<unset>}"; hostname
 ```
 
-- `RUNNING_INSIDE_SANDBOX=true` (ou `hostname` == `ai-sandbox`, fallback p/ sessões antigas)
-  → **modo JAIL**, aplique as regras estritas da seção "Always Rule".
-- `RUNNING_INSIDE_SANDBOX=false` (ou ausente) → **modo HOST**, aplique as regras flexíveis
-  da seção "Modo HOST (--no-jail)".
+- Se `hostname == "ai-sandbox"` → **modo JAIL** (fato físico do kernel via UTS namespace isolado).
+  Aplique as regras estritas da seção "Always Rule".
+- Se `hostname != "ai-sandbox"` (ex.: `debian`) e `AI_EXECUTION_MODE == "host"` (ou ausente) → **modo HOST**
+  (usuário escolheu deliberadamente `--no-jail`). Aplique as regras flexíveis da seção "Modo HOST (--no-jail)".
+- **Regra de Divergência**:
+  - `hostname == "ai-sandbox"` com qualquer valor de variável → **sempre JAIL** (o kernel não mente; o processo está fisicamente no sandbox).
+  - `hostname != "ai-sandbox"` com `AI_EXECUTION_MODE == "jail"` → **HOST com alerta** (o comando está rodando no host real, mas a sessão herdou variável de intenção da jail). Trate como HOST para permissões de sistema, mas avise o usuário da divergência de daemon.
 
-Por segurança, se houver **qualquer indício** de jail (hostname `ai-sandbox`, variável
-`true`, `$HOME` em tmpfs) e os sinais divergirem, trate como **JAIL** — nunca relaxe a
-segurança por ambiguidade.
+
 
 ## Modo HOST (--no-jail) — regras flexíveis
 

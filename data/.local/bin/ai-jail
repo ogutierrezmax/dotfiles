@@ -14,9 +14,9 @@
 #        ai-jail bash
 #        ai-jail --no-jail COMMAND  # Bypass jail, exec directly
 #
-# ENV MARKER: RUNNING_INSIDE_SANDBOX=true is set inside the jail (via
-# --setenv) and =false on the --no-jail host path. AI agents read this to
-# switch between strict (sandbox) and flexible (host) AGENTS.md rules.
+# ENV MARKER: AI_EXECUTION_MODE is set to 'jail' inside the sandbox (via
+# --setenv) and 'host' on the --no-jail bypass path. AI agents read this to
+# understand the user's intended execution mode.
 # Do NOT rename/remove without updating AGENTS.md.
 
 # ── Parse --no-jail flag ──────────────────────────────────────
@@ -26,9 +26,10 @@
 if [[ "${1:-}" == "--no-jail" ]]; then
     shift
     echo "Jail Bypassed: executing directly" >&2
-    export RUNNING_INSIDE_SANDBOX=false
+    export AI_EXECUTION_MODE=host
     exec "$@"
 fi
+
 
 PROJECT_DIR=$(pwd)
 TEMP_HOSTS=$(mktemp /tmp/bwrap-hosts.XXXXXX)
@@ -192,6 +193,9 @@ done
 # ── Override ~/.local subdirs as rw (parent .local is ro) ──────
 LOCAL_OVERRIDES=()
 [ -d "$HOME/.local/state" ] && LOCAL_OVERRIDES+=("--bind" "$HOME/.local/state" "$HOME/.local/state")
+
+
+
 # opencode-multi: dados dos perfis isolados do opencode-pf (profiles/<perfil>/opencode).
 # Precisa ser rw para 'opencode-pf run <perfil>' funcionar dentro do jail
 # (o pai ~/.local é montado ro) — mesma classe de sensibilidade que ~/.local/share/opencode.
@@ -279,8 +283,10 @@ bwrap \
   --unshare-uts \
   --unshare-ipc \
   --hostname "ai-sandbox" \
-  --setenv RUNNING_INSIDE_SANDBOX true \
+  --setenv AI_EXECUTION_MODE "jail" \
   "${DISPLAY_ENV[@]}" \
   --setenv PS1 "(jail) \w \$ " \
   --setenv _ZO_DOCTOR 0 \
   bash -c "$MISE_INIT && $NVM_INIT && ${*:-bash}"
+
+

@@ -302,6 +302,13 @@ pf_run() {
     # Estado do sandbox p/ o badge do plugin TUI (profile-status):
     # 1 = com ai-jail (via launcher), 0 = --no-jail (binário direto).
     export OPENCODE_PF_JAIL=$((1 - no_jail))
+    # Sinal explícito para agentes de IA: modo de execução pretendido.
+    if ((no_jail)); then
+        export AI_EXECUTION_MODE=host
+    else
+        export AI_EXECUTION_MODE=jail
+    fi
+
     bin="$OPENCODE_CMD"
     if ((no_jail)); then
         if [[ -x "$OPENCODE_BIN" ]]; then
