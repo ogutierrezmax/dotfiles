@@ -1,0 +1,23 @@
+#!/bin/bash
+# Wrapper do opencode: aplica ai-jail por padrão, bypass com --no-jail.
+# Gerenciado pelo dotfiles (data/.local/bin/opencode → ~/.local/bin/opencode).
+#
+# Com a arquitetura de dois daemons independentes (Host na porta 49376 / Jail na porta 49380),
+# o --no-jail usa diretamente o daemon do host, preservando as vantagens da persistência
+# de conversas em segundo plano mesmo após fechar o terminal.
+if [[ "${1:-}" == "--no-jail" ]]; then
+    shift
+    export AI_EXECUTION_MODE=host
+    exec ~/.opencode/bin/opencode "$@"
+fi
+
+# Se já estamos dentro da sandbox, executa o binário direto (evita aninhar ai-jail):
+if [[ "${AI_EXECUTION_MODE:-}" == "jail" ]]; then
+    exec ~/.opencode/bin/opencode "$@"
+fi
+
+
+exec ai-jail ~/.opencode/bin/opencode "$@"
+
+
+
