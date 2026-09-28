@@ -41,6 +41,8 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .config/opencode/AGENTS.md
 .config/opencode/rules/agents-symlink.mdc
 .config/opencode/plugins/token-daily
+# jail-status — indicador 🟢/🔴/⚪ do sandbox ai-jail + comando /jail
+.config/opencode/plugins/jail-status
 .local/share/applications/opencode-home.desktop
 .local/share/opencode/auth.json.example
 
