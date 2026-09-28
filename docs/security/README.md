@@ -29,8 +29,10 @@ Este repositório utiliza padrões de anotação para orientar agentes de IA sob
 ---
 
 ## 🗺️ Documentos Adicionais
+- [ADR-002: Detecção de Sandbox e Daemons do OpenCode v2](adr-002-deteccao-de-jail-e-daemons-opencode.md)
 - [Guia de Gerenciamento de Segredos](secrets.md) (Em breve)
 - [Políticas de Acesso SSH](ssh.md) (Em breve)
+
 
 ---
 

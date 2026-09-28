@@ -67,6 +67,10 @@ DOTDIR_RW=(.claude .crush .codex .aider .config .cargo .cache .docker .nvm)
     ai-jail --no-jail COMMAND         # Bypassa o sandbox, executa direto no host
    ```
 
+## 🧠 OpenCode v2 e Daemons Independentes
+Para ferramentas com arquitetura cliente-servidor como o OpenCode v2, o `ai-jail` isola automaticamente o diretório de estado (`~/.local/state/opencode-jail`) e de configuração (`~/.config/opencode-jail` na porta 49380). Isso garante que o daemon da jail e o daemon do host funcionem simultaneamente sem vazamento de comandos.
+- Veja detalhes completos no documento de decisão: [ADR-002: Detecção de Sandbox e Daemons do OpenCode v2](security/adr-002-deteccao-de-jail-e-daemons-opencode.md).
+
 ## 🧠 Skill relacionada
 
 Existe uma skill `ai-jail-security-layer-mapper` em `~/.agents/skills/ai-jail-security-layer-mapper/` que mapeia cada seção de segurança do script e verifica se outras ferramentas no sistema deveriam ser configuradas da mesma forma.
@@ -74,3 +78,4 @@ Existe uma skill `ai-jail-security-layer-mapper` em `~/.agents/skills/ai-jail-se
 ---
 
 *Este documento foi gerado durante o onboarding do ai-jail nos dotfiles.*
+
