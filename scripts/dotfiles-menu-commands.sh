@@ -1208,6 +1208,29 @@ dotfiles_menu_profiles() {
     echo -e "${C_MARK_INST:-}✅ Perfis OpenCode atualizados.${R:-}"
 }
 
+# Reconhece o comando "install" no menu principal: roda o install-dotfiles.sh
+# completo (dotfiles + skills bridge + perfis OpenCode) de uma vez.
+# Retorna 0 se reconheceu; 1 se não reconheceu.
+dotfiles_menu_try_install() {
+    local trimmed=$1
+    if [[ "${trimmed,,}" == "install" ]]; then
+        dotfiles_menu_install
+        return 0
+    fi
+    return 1
+}
+
+dotfiles_menu_install() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🚀 Executando install-dotfiles.sh (dotfiles + skills + perfis OpenCode)...${R:-}"
+    echo ""
+    echo "s" | "${repo_root}/scripts/install-dotfiles.sh"
+    echo ""
+    echo -e "${C_MARK_INST:-}✅ Instalação completa.${R:-}"
+}
+
 # Reconhece o comando "git" no menu principal.
 # Retorna 0 se reconheceu; 1 se não reconheceu.
 dotfiles_menu_try_git_submenu() {
