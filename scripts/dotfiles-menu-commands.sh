@@ -1162,13 +1162,18 @@ dotfiles_menu_packages() {
     done
 }
 
-# Reconhece o comando "skills" no menu principal: reconstrói os symlinks de
-# skills de IA para o acervo central ~/.agents/skills (config/agent-skills-bridge.list).
+# Reconhece o comando "skills" (e "skills doctor") no menu principal: reconstrói
+# os symlinks de skills de IA para o acervo central ~/.agents/skills
+# (config/agent-skills-bridge.list); com "doctor" roda o diagnóstico read-only.
 # Retorna 0 se reconheceu; 1 se não reconheceu.
 dotfiles_menu_try_skills() {
-    local trimmed=$1
-    if [[ "${trimmed,,}" == "skills" ]]; then
+    local trimmed=${1,,}
+    if [[ "$trimmed" == "skills" ]]; then
         dotfiles_menu_skills
+        return 0
+    fi
+    if [[ "$trimmed" == "skills doctor" || "$trimmed" == "skills --doctor" ]]; then
+        dotfiles_menu_skills_doctor
         return 0
     fi
     return 1
@@ -1183,6 +1188,23 @@ dotfiles_menu_skills() {
     "${repo_root}/scripts/install-agent-skills-bridge.sh"
     echo ""
     echo -e "${C_MARK_INST:-}✅ Bridge de skills atualizado.${R:-}"
+}
+
+# Diagnóstico read-only: quantas skills cada ferramenta enxerga, links quebrados,
+# manifest desatualizado e avisos de higiene. Não escreve nada em $HOME.
+dotfiles_menu_skills_doctor() {
+    local repo_root rc=0
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🩺 Diagnóstico do bridge de skills (read-only)${R:-}"
+    echo ""
+    "${repo_root}/scripts/install-agent-skills-bridge.sh" --doctor || rc=$?
+    echo ""
+    if ((rc == 0)); then
+        echo -e "${C_MARK_INST:-}✅ Bridge de skills íntegro.${R:-}"
+    else
+        echo -e "${C_MARK_NONE:-}⚠️  Drift detectado — rode 'skills' para convergir.${R:-}"
+    fi
 }
 
 # Reconhece o comando "profiles" no menu principal: reconstrói os symlinks dos
