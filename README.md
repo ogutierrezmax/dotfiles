@@ -101,7 +101,7 @@ Confira os guias detalhados sobre as ferramentas gerenciadas por estes dotfiles:
 - [🐉 KDE Plasma (Desktop Environment)](./docs/kde-plasma.md): Configurações visuais, comportamento de janelas e atalhos globais agrupados em pacote gerenciável.
 - [⚡ WezTerm (GPU Terminal)](./docs/wezterm.md): Terminal rápido configurado via Lua, substituindo o Konsole.
 - [📦 Pacotes (Instalação de Programas)](./docs/packages.md): Lista curada por gerenciador e script de instalação (`install-packages.sh`).
-- [🧩 Agent Skills Bridge](./docs/agent-skills-bridge.md): Symlinks por-skill das ferramentas de IA apontando para o acervo central `~/.agents/skills`.
+- [🧩 Agent Skills Bridge](./docs/agent-skills-bridge.md): Symlinks por-skill das ferramentas de IA (Claude, Devin, Copilot, Antigravity, Cursor) apontando para o acervo central `~/.agents/skills` — 79 skills flattening os bundles, com `--doctor` read-only.
 - [🔐 opencode-profiles (opencode-pf)](./docs/opencode-profiles/README.md): Perfis isolados do OpenCode (conta/API por perfil) com servidor privado `--standalone` — substitui o `opencode-multi`.
 
 ## 🤖 AI Context
