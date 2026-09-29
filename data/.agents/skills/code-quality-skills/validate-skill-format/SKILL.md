@@ -1,6 +1,6 @@
 ---
 name: "validate-skill-format"
-description: "Varre todos os SKILL.md do repositório e valida o frontmatter: L1 exatamente '---', L2 'name: \\"...\\"' com aspas duplas, L3 começa com 'description: \\"', e linha anterior ao '---' de fechamento termina com '\\"'. Nunca modifica arquivos — apenas reporta problemas e sugere correções."
+description: "Varre todos os SKILL.md do repositório e valida o frontmatter: L1 é o delimitador de abertura (três hifens) sozinho na linha, L2 tem 'name' entre aspas duplas, L3 começa com 'description' entre aspas duplas, e o delimitador de fechamento fica numa linha própria. Nunca modifica arquivos — apenas reporta problemas e sugere correções. Nota: o texto do frontmatter não pode conter a sequência de três hifens — o parser do Antigravity a trata como fim do bloco."
 ---
 
 # validate-skill-format
