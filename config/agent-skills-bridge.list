@@ -1,26 +1,43 @@
 # Mapeamento de skills por ferramenta de IA (usado por scripts/install-agent-skills-bridge.sh).
 #
-# Formato: <ferramenta>|<skill>
-#   <ferramenta>  chave da tabela TOOL_DIRS no script (claude|devin|antigravity|cursor|gemini).
-#   <skill>       pode ser:
-#     - "*"                        → TODAS as "leaf skills" de topo (dir com SKILL.md direto)
+# Formato: <ferramenta>|<spec>
+#   <ferramenta>  chave da tabela TOOL_DIRS no script
+#                 (claude|devin|antigravity|copilot|cursor|gemini).
+#   <spec>        pode ser:
+#     - "*"                        → todas as "leaf skills" de topo (dir com SKILL.md direto)
+#     - "**"                       → TODAS as skills em qualquer profundidade, achatadas por
+#                                    basename (bundle/sub-skill passa a ter nome próprio)
 #     - "<nome>"                   → skill leaf, ex.: context7-mcp
 #     - "<bundle>/<nome>"          → sub-skill dentro de um bundle, ex.: tech-domain-skills/tauri-gmail-oauth
 #
-# NÃO precisa de entrada aqui (leem ~/.agents/skills nativamente, sem symlink):
-#   VS Code (Copilot), GitHub Copilot CLI, OpenCode e Codex já compartilham ~/.agents/skills.
-#   Cursor e Gemini CLI também leem ~/.agents/skills; entradas aqui são opcionais (espelho explícito).
+# POR QUE "**": Claude, Devin, Copilot, Antigravity, Cursor e Gemini escaneiam UM
+# NÍVEL (procura <root>/<skill>/SKILL.md). O acervo tem 11 leaves no topo e 68
+# sub-skills dentro de bundles (dotfiles-skills/, tech-domain-skills/, ...) que
+# essas ferramentas NUNCA enxergam. Só o OpenCode lê recursivamente. O "**"
+# achata as 79 no nível 1 sem duplicar nenhum arquivo (são symlinks).
+#
+# NÃO precisa de entrada aqui (leem ~/.agents/skills nativamente, sem bridge):
+#   OpenCode e Codex — compartilham ~/.agents/skills e leem bundles.
+#   VS Code/Copilot e o Copilot CLI leem ~/.agents/skills TAMBÉM, mas só as leaves
+#   (1 nível) — daí a entrada explícita em ~/.copilot/skills abaixo.
 
 # Claude Code — só lê ~/.claude/skills → bridge completo
-claude|*
+claude|**
 
 # Devin — só lê ~/.config/devin/skills → bridge completo
-devin|*
+devin|**
 
-# Antigravity — não lê ~/.agents/skills de forma confiável (bug conhecido no CLI).
-# Brida nos 3 caminhos que o IDE/CLI/2.0 reconhecem: ~/.agent/skills (backward-compat),
-# ~/.gemini/antigravity/skills (global oficial do IDE) e ~/.gemini/config/skills (2.0).
-antigravity|*
+# Antigravity 2.0 (CLI `agy` + IDE) — raiz global = ~/.gemini/config/skills.
+# Bridge per-skill nos 3 caminhos reconhecidos e, além disso, um manifest
+# skills.json apontando para o acervo REAL (o scanner é Go e não segue symlink
+# de diretório — o manifest é a rota que não depende de symlink).
+antigravity|**
+antigravity|@manifest
 
-# Cursor — espelho explícito de sub-skills de bundle já usadas (opcional; o resto vem de ~/.agents/skills)
+# Copilot — ~/.copilot/skills é a raiz pessoal do core do VS Code e do Copilot CLI
+# (o core também lê ~/.agents/skills, mas só as 11 leaves por causa do 1 nível).
+copilot|**
+
+# Cursor — já lê ~/.agents/skills nativamente; espelho explícito de sub-skills
+# de bundle já usadas (opcional).
 cursor|tech-domain-skills/tauri-gmail-oauth
