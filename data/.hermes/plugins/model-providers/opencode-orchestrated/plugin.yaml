@@ -1,0 +1,5 @@
+name: opencode-orchestrated-provider
+kind: model-provider
+version: 1.0.0
+description: OpenCode CLI agent via local ACP subprocess bridge
+author: Max

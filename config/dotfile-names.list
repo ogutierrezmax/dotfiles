@@ -51,3 +51,6 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 
 # WezTerm — GPU-accelerated terminal emulator (replaces Konsole)
 wezterm.lua
+
+# Hermes Agent — OpenCode Orchestrated model provider plugin
+.hermes/plugins/model-providers/opencode-orchestrated

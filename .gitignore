@@ -36,3 +36,8 @@ data/.zsh/.zsh
 
 # Duplicate of devops-skills/@git-commit kept only locally
 data/.agents/@git-commit/
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
