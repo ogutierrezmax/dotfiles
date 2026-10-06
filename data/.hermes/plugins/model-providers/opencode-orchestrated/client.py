@@ -41,11 +41,13 @@ _ROLE_LABELS = {
     "context": "Context",
 }
 
+_OPENCODE_FORWARDED_TOOLS = {"memory", "skill_manage", "skills_list", "todo"}
+
 _PROMPT_PREAMBLE = (
-    "You are being used as the active ACP agent backend for Hermes.",
-    "Use ACP capabilities to complete tasks.",
-    "IMPORTANT: If you take an action with a tool, you MUST output tool calls using "
-    "<tool_call>{...}</tool_call> blocks with JSON exactly in OpenAI function-call shape.",
+    "You are acting as the autonomous agent backend for Hermes.",
+    "Solve user requests directly using your capabilities, web research, and reasoning.",
+    "If you need to interact with Hermes state or memory, emit tool calls using "
+    "<tool_call>{...}</tool_call> blocks with JSON in OpenAI function-call shape.",
     "If no tool is needed, answer normally.",
 )
 
@@ -276,7 +278,10 @@ def _format_messages_as_prompt(
 ) -> str:
     from agent.acp_openai_bridge import render_tool_bridge_sections
 
-    sections: list[str] = [*_PROMPT_PREAMBLE, *render_tool_bridge_sections(tools, tool_choice)]
+    sections: list[str] = [
+        *_PROMPT_PREAMBLE,
+        *render_tool_bridge_sections(tools, tool_choice, allowlist=_OPENCODE_FORWARDED_TOOLS),
+    ]
     transcript: list[str] = []
     for message in (m for m in messages if isinstance(m, dict)):
         role = str(message.get("role") or "unknown").strip().lower()
