@@ -1,0 +1,36 @@
+# Windows dotfiles — instalador: scripts/install-dotfiles.ps1
+#
+# Formato: <src relativo a data/>|<destino no Windows>
+#   ~    = $env:USERPROFILE (ex.: ~/.gitconfig → C:\Users\<user>\.gitconfig)
+#   %VAR% = variável de ambiente (ex.: %APPDATA%\Cursor\User\...)
+# Linhas vazias e linhas que começam com # são ignoradas.
+#
+# INDEPENDENTE de config/dotfile-names.list (fluxo Linux) — listas separadas,
+# scripts separados; nenhum fluxo toca o outro.
+
+# Git — autocontido (data/windows/gitconfig): espelha o gitconfig base, mas com
+# editor vim (o Linux usa nano, que não existe no Windows nativo).
+windows/gitconfig|~/.gitconfig
+
+# Skills de IA — acervo central (lido nativamente por OpenCode, Codex, Cursor,
+# Copilot core). O bridge por-ferramenta é scripts/install-agent-skills-bridge.ps1.
+.agents|~/.agents
+
+# OpenCode — config + plugins (jail-status degrada para ⚪ host fora do sandbox)
+.config/opencode/opencode.jsonc|~/.config/opencode/opencode.jsonc
+.config/opencode/tui.json|~/.config/opencode/tui.json
+.config/opencode/AGENTS.md|~/.config/opencode/AGENTS.md
+.config/opencode/rules/agents-symlink.mdc|~/.config/opencode/rules/agents-symlink.mdc
+.config/opencode/plugins/token-daily|~/.config/opencode/plugins/token-daily
+.config/opencode/plugins/jail-status|~/.config/opencode/plugins/jail-status
+.local/share/opencode/auth.json.example|~/.local/share/opencode/auth.json.example
+
+# WezTerm — o data/wezterm.lua tem guarda de OS: powershell.exe no Windows, zsh no Linux
+wezterm.lua|~/.wezterm.lua
+
+# Cursor IDE — %APPDATA% no Windows equivale a ~/.config/Cursor no Linux
+.config/Cursor/User/settings.json|%APPDATA%/Cursor/User/settings.json
+.config/Cursor/User/keybindings.json|%APPDATA%/Cursor/User/keybindings.json
+
+# Hermes Agent — ponte ACP Python para modelos do OpenCode
+.hermes/plugins/model-providers/opencode-orchestrated|~/.hermes/plugins/model-providers/opencode-orchestrated
