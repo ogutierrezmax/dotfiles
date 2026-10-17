@@ -39,7 +39,12 @@ config.window_decorations = 'RESIZE'
 config.window_close_confirmation = 'NeverPrompt'
 config.adjust_window_size_when_changing_font_size = false
 
-config.default_prog = { 'zsh' }
+-- Shell padrão por SO: zsh no Linux/macOS, powershell no Windows nativo.
+if wezterm.target_triple:find('windows') then
+  config.default_prog = { 'powershell.exe' }
+else
+  config.default_prog = { 'zsh' }
+end
 
 config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1000 }
 
