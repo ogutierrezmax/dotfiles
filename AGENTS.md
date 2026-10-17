@@ -1,6 +1,6 @@
 # dotfiles
 
-Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linux.
+Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linux **e Windows nativo** (fluxos independentes — ver `docs/windows.md`).
 
 ## Contexto Geral
 - **Objetivo**: Centralizar configurações de sistema e aplicativos (Zsh, Git, VSCode, etc) em um único repositório e usar symlinks para aplicá-los na Home do usuário.
@@ -25,6 +25,11 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
 - `data/.config/opencode/plugins/response-rule/index.ts`: **Plugin de servidor v2 do limite de respostas** — registra `ctx.session.hook("context")` e reescreve o system prompt para forçar "fewer than 8 lines" (EDITE as constantes no topo). Default export é um objeto literal `id`+`setup` **sem import de `@opencode/plugin`**: o servidor só resolve esse pacote com node_modules no config-dir (ausente no perfil), então o objeto literal satisfaz o schema do runtime. Substitui o antigo `plugin/response-rule.ts` (hook v1 `experimental.chat.system.transform`, quebrado no v2). Descoberto em `<config-dir>/plugins/response-rule/` e espelhado por perfil pelo `install-opencode-profiles.sh`.
 - `data/.config/opencode/plugins/token-daily/tui.tsx`: **Plugin CLI (TUI) do contador diário de tokens** — escuta `message.updated` (+ timer de 30s como rede de segurança), soma apenas o DELTA novo por sessão (baseline persistido em `token-daily-seen`, evita double-count após restart) e acumula por dia (`YYYY-MM-DD`) em storage durável (`token-daily`). Renderiza nos slots `home.footer.status`/`prompt.footer.status`: `↑X ↓Y` sublinhado — clique (ou `/token-daily` na paleta) abre dialog centralizado com a **data do dia sozinha no topo** (`◀ Seg 22 Set (hoje) ▶` — ◀/▶ indicam navegação) e o breakdown do dia (input/output/reasoning/cache), que fica aberto até clicar fora; dentro do dialog, `←`/`→` navegam entre os dias com uso registrado (layer `mode:"modal"` + `enabled`, sem roubar `left`/`right` do cursor do prompt). Espelhado por perfil via `install-opencode-profiles.sh` e linkado no config padrão via `dotfile-names.list` (apenas `token-daily`, sem response-rule, para não mudar o comportamento do opencode padrão).
 - `dotfiles-menu.sh`: Script principal de interface (TUI) para o usuário. Comando `skills` roda o bridge e `skills doctor` o diagnóstico read-only; comando `profiles` roda o instalador de perfis OpenCode.
+- `config/dotfile-names-windows.list`: Lista de dotfiles **Windows** (formato `<src em data/>|<dest>` com `~`/`%APPDATA%`) — independente da lista Linux.
+- `data/windows/gitconfig`: Git config Windows autocontido (`editor = vim`); o `data/gitconfig` é Linux-only (puro bash).
+- `scripts/dotfiles-lib.ps1`: Biblioteca PowerShell (prefixo `Dotfiles`, ex.: `New-DotfilesLink`, `Backup-DotfilesDest`, `Test-DotfilesSymlinkCapability`) — fallback symlink → junction (dirs, sem admin) → cópia (files, com aviso); cópias idênticas são promovidas a symlink quando o privilégio volta.
+- `scripts/install-dotfiles.ps1`: Instalador Windows (`-Yes`/`-Status`/`-Remove`) — usa `config/dotfile-names-windows.list`, backup datado em `.bkp/` (slug `HH-MM`, sem colons), chama o bridge PS ao final; NUNCA toca scripts/listas `.sh` ou o fluxo Linux.
+- `scripts/install-agent-skills-bridge.ps1`: Port 1:1 do bridge bash (mesma `config/agent-skills-bridge.list` compartilhada; modos `-DryRun`/`-Doctor`). Detalhe em `docs/windows.md`.
 
 - `data/.hermes/plugins/model-providers/opencode-orchestrated/`: **Plugin OpenCode Orchestrated para o Hermes Agent** — ponte ACP local para modelos gratuitos do OpenCode sem API keys. **REGRA DE STEALTH INVIOLÁVEL**: O OpenCode nunca deve detectar que está sendo usado como backend por outro agente. Ver detalhes completos em `data/.hermes/plugins/model-providers/opencode-orchestrated/AGENTS.md`.
 
@@ -34,10 +39,14 @@ Repositório de gerenciamento de dotfiles (arquivos de configuração) para Linu
 - **KDE Plasma**: `data/kde-plasma/` — configurações do ambiente desktop agrupadas como pacote.
 
 ## Fluxos para Agentes de IA
-- **Para adicionar novo arquivo**:
+- **Para adicionar novo arquivo (Linux)**:
     1. Colocar o arquivo em `data/`.
     2. Adicionar o nome do arquivo em `config/dotfile-names.list`.
     3. (Opcional) Executar `scripts/install-dotfiles.sh` para linkar.
+- **Para adicionar novo arquivo (Windows)**:
+    1. Colocar o arquivo em `data/` (pode ser o mesmo do Linux).
+    2. Adicionar a entrada `<src>|<dest>` em `config/dotfile-names-windows.list`.
+    3. (Opcional) Executar `scripts\install-dotfiles.ps1` para linkar (fallback sem admin incluso).
 - **Convenções de Código**:
     - Scripts Bash seguem `ShellCheck`.
     - Commits devem ser **atômicos**: uma ferramenta ou mudança lógica por commit.
