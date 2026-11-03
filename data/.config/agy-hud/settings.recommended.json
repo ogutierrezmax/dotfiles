@@ -1,0 +1,51 @@
+{
+  "model": "Gemini 4 Argon (Medium)",
+  "notifications": true,
+  "toolPermission": "proceed-in-sandbox",
+  "enableTerminalSandbox": true,
+  "permissions": {
+    "allow": [
+      "command(ls)",
+      "command(pwd)",
+      "command(date)",
+      "command(regex:^git (status|branch|log|diff|show|add|commit|checkout))",
+      "command(regex:^cat .*)",
+      "command(regex:^grep .*)",
+      "command(regex:^find .*)",
+      "command(regex:^head .*)",
+      "command(regex:^tail .*)",
+      "command(regex:^file .*)",
+      "command(regex:^ps (aux|ef))",
+      "command(regex:^lsof -i .*)",
+      "command(regex:^df -h)",
+      "command(regex:^du -sh .*)",
+      "command(regex:^curl .*)",
+      "command(regex:^npm (run (build|test|lint|dev)|install|audit))",
+      "command(regex:^npx (tsc|vitest|eslint|prettier).*)",
+      "command(regex:^cargo (check|test|clippy).*)",
+      "command(regex:^shellcheck .*)",
+      "command(regex:^python3? (-m venv|.*\\.py))",
+      "command(regex:^pip(3)? (install -r .*|list|show .*))"
+    ],
+    "deny": [
+      "command(regex:^rm -rf /.*)",
+      "command(regex:^chmod (777|\\+x) .*)",
+      "command(regex:^chown ..*)"
+    ],
+    "ask": [
+      "command(sudo)",
+      "command(regex:^git (push|pull|rebase|merge))",
+      "command(regex:^kill -9 .*)",
+      "command(regex:^docker (run|stop|rm|rmi))"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.gemini/config/plugins/agy-hud/hooks/status-line.sh"
+  },
+  "trustedWorkspaces": [
+    "/home/max",
+    "/home/max/_Dev/_Games/_supremacy/scrapando pra clonar",
+    "/home/max/dotfiles"
+  ]
+}
