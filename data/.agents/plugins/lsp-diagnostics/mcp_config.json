@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "lsp-typescript": {
+      "command": "/home/max/.local/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        ".",
+        "--lsp",
+        "/home/max/.local/bin/typescript-language-server",
+        "--",
+        "--stdio"
+      ]
+    },
+    "lsp-python": {
+      "command": "/home/max/.local/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        ".",
+        "--lsp",
+        "/home/max/.local/bin/pyright-langserver",
+        "--",
+        "--stdio"
+      ]
+    },
+    "lsp-rust": {
+      "command": "/home/max/.local/bin/mcp-language-server",
+      "args": [
+        "--workspace",
+        ".",
+        "--lsp",
+        "/home/max/.cargo/bin/rust-analyzer"
+      ]
+    }
+  }
+}

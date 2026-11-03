@@ -1,0 +1,6 @@
+{
+  "name": "lsp-diagnostics",
+  "version": "1.0.0",
+  "description": "Diagnóstico semântico via Language Server Protocol (TypeScript, Python/Pyright e Rust) conectado por mcp-language-server",
+  "disabled": true
+}
