@@ -1,0 +1,5 @@
+{
+  "name": "agy-guardrails",
+  "version": "1.0.0",
+  "description": "Protocolo Explore-Plan-Execute, roteamento context-mode e hooks determinísticos de proteção de testes para o Antigravity CLI (agy)"
+}

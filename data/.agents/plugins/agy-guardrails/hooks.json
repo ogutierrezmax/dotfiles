@@ -1,0 +1,17 @@
+{
+  "test-file-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "edit_file|write_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/guard-tests.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
