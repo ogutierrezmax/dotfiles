@@ -1,0 +1,16 @@
+[Unit]
+Description=rclone: agenda o backup do HD SanDisk (diário, retoma se perdeu a hora)
+Documentation=man:systemd.timer(5)
+
+[Timer]
+# Uma vez por dia. Copy é incremental: roda de novo e só envia o que é novo.
+OnCalendar=daily
+# Persistent=true = se a máquina estava desligada na hora marcada,
+# o job roda assim que ela ligar. É o "reiniciar e continuar".
+Persistent=true
+AccuracySec=5m
+RandomizedDelaySec=30m
+Unit=rclone-backup.service
+
+[Install]
+WantedBy=timers.target

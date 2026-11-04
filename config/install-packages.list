@@ -123,3 +123,4 @@ manual:Instalar Docker: curl -fsSL https://get.docker.com | sh
 manual:Instalar GitHub CLI: repo oficial https://github.com/cli/cli/blob/trunk/docs/install_linux.md
 manual:Instalar Homebrew: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 manual:Instalar TPM (tmux): git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+manual:Instalar rclone (upstream, com checksum): rode ./scripts/install-rclone.sh (o rclone do apt é 1.60, antigo demais)

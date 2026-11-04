@@ -41,3 +41,8 @@ data/.agents/@git-commit/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# rclone — NUNCA versionar rclone.conf (contém client_secret e refresh_token OAuth)
+data/.config/rclone/rclone.conf
+**/rclone.conf
+

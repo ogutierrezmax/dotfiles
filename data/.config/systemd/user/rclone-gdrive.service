@@ -1,0 +1,25 @@
+[Unit]
+Description=rclone mount Google Drive em ~/GoogleDrive
+Documentation=https://rclone.org/commands/rclone_mount/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+ExecStartPre=/usr/bin/mkdir -p %h/GoogleDrive
+ExecStart=/usr/bin/rclone mount gdrive: %h/GoogleDrive \
+  --config %h/.config/rclone/rclone.conf \
+  --cache-dir %h/.cache/rclone \
+  --vfs-cache-mode full \
+  --vfs-cache-max-size 8G \
+  --vfs-cache-max-age 24h \
+  --dir-cache-time 1000h \
+  --poll-interval 15s \
+  --drive-export-formats docx,xlsx,pptx,pdf,svg \
+  --exclude="/Backup-SanDisk-1TB/**"
+ExecStop=/usr/bin/fusermount3 -u %h/GoogleDrive
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

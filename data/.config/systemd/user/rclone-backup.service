@@ -1,0 +1,41 @@
+[Unit]
+Description=rclone: backup do SSD SanDisk 1TB para o Google Drive
+Documentation=https://rclone.org/commands/rclone_copy/
+# Guarda-corpo: se o HD não estiver montado, o job é PULADO (nunca sobe lixo).
+ConditionPathIsMountPoint=/mnt/sandisk
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Rotação simples: guarda a execução anterior como .log.1 (2 arquivos no máximo).
+ExecStartPre=/usr/bin/bash -c 'test -f %h/backup-sandisk.log && mv -f %h/backup-sandisk.log %h/backup-sandisk.log.1 || true'
+ExecStart=/usr/bin/rclone copy /mnt/sandisk gdrive:Backup-SanDisk-1TB \
+  --config %h/.config/rclone/rclone.conf \
+  --fast-list \
+  --transfers 4 \
+  --checkers 8 \
+  --drive-chunk-size 64M \
+  --create-empty-src-dirs \
+  --drive-stop-on-upload-limit \
+  --retries 5 \
+  --low-level-retries 20 \
+  --exclude=/*RECYCLE.BIN/** \
+  --exclude=.Trash-1000/** \
+  --log-file=%h/backup-sandisk.log \
+  --log-level=INFO \
+  --stats=30s \
+  --stats-one-line \
+  --stats-log-level=NOTICE \
+  --rc \
+  --rc-addr=127.0.0.1:5577 \
+  --rc-no-auth
+# 197 GiB: sem timeout. 0 desabilita.
+# 4 transferências (não 8): o link SATA deste SSD é instável sob carga.
+TimeoutStartSec=0
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=default.target

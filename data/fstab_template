@@ -22,6 +22,13 @@ UUID=9f082db7-8a95-46ad-98f8-506a331a97d4   none        swap   sw               
 
 
 
-# DANDO PERMISSAO PRO MEU NTFS
+# DANDO PERMISSAO PRO MEU NTFS (SanDisk SSD PLUS 1TB)
 # MODO ANTIGO: /dev/sda2 /mnt/sandisk ntfs-3g defaults 0 0
-UUID=BEFCA544FCA4F833 /mnt/sandisk ntfs-3g uid=max,gid=max,umask=0022,nofail 0 0
+#
+# MODO NORMAL (rw) — só depois de reparar o NTFS no Windows (chkdsk):
+# UUID=BEFCA544FCA4F833 /mnt/sandisk ntfs-3g uid=max,gid=max,umask=0022,nofail 0 0
+#
+# MODO RESGATE (ro) — usado enquanto o NTFS está inconsistente
+# ($MFTMirr != $MFT) ou o link SATA está instável. `nofail` evita
+# travar o boot quando o SSD cai do barramento.
+UUID=BEFCA544FCA4F833  /mnt/sandisk  ntfs3  ro,nofail,x-systemd.device-timeout=10s,uid=max,gid=max,umask=0022  0 0

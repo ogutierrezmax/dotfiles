@@ -58,3 +58,8 @@ wezterm.lua
 # Antigravity CLI (agy) — agy-hud statusline configuration & plugin
 .config/agy-hud/config.json
 .gemini/config/plugins/agy-hud
+
+# rclone — Google Drive montado em ~/GoogleDrive + backup diário do HD externo
+.config/systemd/user/rclone-gdrive.service
+.config/systemd/user/rclone-backup.service
+.config/systemd/user/rclone-backup.timer

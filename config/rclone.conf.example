@@ -1,0 +1,24 @@
+# Template do rclone para o Google Drive.
+#
+# NUNCA versione o rclone.conf real: ele guarda o refresh_token, que é
+# equivalente à senha da sua conta Google.
+#
+# Como preencher:
+#   1. Google Cloud Console → APIs & Services → Credentials
+#      → Create credentials → OAuth client ID → tipo "Desktop app"
+#   2. Cole o client_id e o client_secret abaixo.
+#   3. Rode scripts/setup-rclone.sh — ele copia este arquivo para
+#      ~/.config/rclone/rclone.conf, faz o login no navegador e sobe os serviços.
+#
+# Por que client próprio: o client compartilhado do rclone está sendo
+# desativado ao longo de 2026 e é rate-limited para todo mundo.
+# Com o seu, a cota de API é só sua.
+
+[gdrive]
+type = drive
+client_id = COLE_SEU_CLIENT_ID.apps.googleusercontent.com
+client_secret = COLE_SEU_CLIENT_SECRET
+scope = drive
+root_folder_id =
+token =
+team_drive =
