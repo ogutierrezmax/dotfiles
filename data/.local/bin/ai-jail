@@ -275,7 +275,7 @@ if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ]; then
 fi
 
 # ── Assemble and launch ───────────────────────────────────────
-echo "Jail Active: $PROJECT_DIR"
+[ -t 2 ] && [ -z "${AI_JAIL_QUIET:-}" ] && echo "Jail Active: $PROJECT_DIR" >&2
 
 OPENCODE_ENV=()
 if [ -z "${OPENCODE_CONFIG_DIR:-}" ]; then
