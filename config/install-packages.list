@@ -90,6 +90,9 @@ deb:google-chrome-stable|https://dl.google.com/linux/direct/google-chrome-stable
 deb:code|https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
 deb:discord|https://discord.com/api/download/stable?platform=linux&format=deb
 
+# --- GUI: KDE / integração ----------------------------------------------------
+apt:markdownpart  # Pré-visualização de arquivos Markdown no Kate
+
 # --- Flatpak ------------------------------------------------------------------------
 # Preencha com seus apps Flatpak (veja: flatpak list --app).
 # flatpak:com.spotify.Client
