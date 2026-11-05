@@ -46,3 +46,7 @@ __pycache__/
 data/.config/rclone/rclone.conf
 **/rclone.conf
 
+# Tauri 2 — target e build artifacts do chunk-injector-gui
+apps/chunk-injector-gui/src-tauri/target/
+apps/chunk-injector-gui/ui/app.js.map
+

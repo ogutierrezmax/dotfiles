@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dotfiles — Chunk Injector</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">💉</div>
+        <div class="header-titles">
+          <h1>Chunk Injector</h1>
+          <span class="header-subtitle">Gerenciamento & Monitoramento de Trechos Injetados</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="btn-toggle-timer" class="btn btn-secondary">
+          <span id="timer-status-badge" class="badge badge-muted">Timer: ...</span>
+        </button>
+        <button id="btn-refresh" class="btn btn-secondary" title="Recarregar status">🔄 Atualizar</button>
+        <button id="btn-inject-all" class="btn btn-primary" title="Injetar todos os chunks com problemas">⚡ Injetar Todos</button>
+        <button id="btn-add-chunk" class="btn btn-accent" title="Cadastrar novo chunk">➕ Novo Chunk</button>
+      </div>
+    </header>
+
+    <!-- Summary Bar -->
+    <section class="summary-bar">
+      <div class="stat-card">
+        <span class="stat-label">Total Monitorados</span>
+        <span id="sum-total" class="stat-value">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Íntegros (OK)</span>
+        <span id="sum-ok" class="stat-value text-success">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Divergências / Ausentes</span>
+        <span id="sum-issues" class="stat-value text-danger">0</span>
+      </div>
+      <div class="filter-controls">
+        <span class="filter-label">Filtro:</span>
+        <button id="filter-all" class="btn-tab active">Todos</button>
+        <button id="filter-issues" class="btn-tab">Apenas com Problemas</button>
+      </div>
+    </section>
+
+    <!-- Main Workspace Split -->
+    <main class="main-content">
+      <!-- Top: Chunks Table -->
+      <section class="table-container">
+        <table class="chunks-table">
+          <thead>
+            <tr>
+              <th style="width: 20%;">ID</th>
+              <th style="width: 10%;">Tipo</th>
+              <th style="width: 12%;">Status</th>
+              <th style="width: 25%;">Arquivo-Alvo</th>
+              <th style="width: 21%;">Descrição</th>
+              <th style="width: 12%; text-align: right;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="chunks-table-body">
+            <tr>
+              <td colspan="6" class="text-center text-muted">Carregando chunks...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Bottom: Diff Viewer -->
+      <section class="diff-container">
+        <div class="diff-header">
+          <span class="diff-title" id="diff-chunk-title">Selecione um chunk acima para inspecionar</span>
+          <div class="diff-header-actions" id="diff-header-actions"></div>
+        </div>
+        <div id="diff-viewer-panel" class="diff-body">
+          <div class="empty-state">Nenhum chunk selecionado</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-indicator" class="loading-overlay hidden">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal CRUD (Adicionar / Editar) -->
+    <div id="modal-chunk" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 id="modal-title">Novo Chunk</h2>
+          <button id="modal-close" class="modal-btn-close">&times;</button>
+        </div>
+        <form id="chunk-form">
+          <input type="hidden" id="input-original-id" />
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="input-id">ID do Chunk *</label>
+              <input type="text" id="input-id" class="form-control font-mono" placeholder="ex: agy-hud-statusline" required />
+              <small class="form-text">Identificador único (minúsculas, números, hífens ou sublinhados).</small>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="select-type">Tipo de Injeção *</label>
+                <select id="select-type" class="form-control">
+                  <option value="json-key">json-key (chave/árvore JSON via jq)</option>
+                  <option value="block">block (bloco com marcadores begin/end)</option>
+                  <option value="line">line (linha exata)</option>
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <label for="input-selector">Seletor / Prefixo</label>
+                <input type="text" id="input-selector" class="form-control font-mono" placeholder="ex: . ou #" value="." />
+                <small class="form-text">Para json-key use . (mescla o JSON com a chave); para block use o prefixo (#).</small>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="input-target">Arquivo-Alvo *</label>
+              <input type="text" id="input-target" class="form-control font-mono" placeholder="ex: ~/.gemini/antigravity-cli/settings.json" required />
+            </div>
+            <div class="form-group">
+              <label for="input-content">Conteúdo do Trecho a Injetar *</label>
+              <textarea id="input-content" class="form-control font-mono code-textarea" rows="7" placeholder="Digite ou cole aqui o conteúdo exato que deve ser injetado..." required></textarea>
+              <small class="form-text">Edite diretamente o trecho. Ao salvar, ele é gravado e versionado automaticamente em <code>config/chunks/&lt;id&gt;.json</code>.</small>
+            </div>
+            <div class="form-group">
+              <label for="input-description">Descrição</label>
+              <input type="text" id="input-description" class="form-control" placeholder="ex: Statusline agy-hud no Antigravity CLI" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="btn-cancel-modal" class="btn btn-secondary">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Chunk</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

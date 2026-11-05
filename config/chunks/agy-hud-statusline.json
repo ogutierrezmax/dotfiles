@@ -1,0 +1,13 @@
+{
+  "id": "agy-hud-statusline",
+  "type": "json-key",
+  "target": "~/.gemini/antigravity-cli/settings.json",
+  "selector": ".",
+  "description": "Statusline agy-hud no Antigravity CLI",
+  "payload": {
+    "statusLine": {
+      "type": "command",
+      "command": "~/.gemini/config/plugins/agy-hud/hooks/status-line.sh"
+    }
+  }
+}

@@ -1158,6 +1158,9 @@ dotfiles_menu_try_global_commands() {
     if dotfiles_menu_try_profiles "$trimmed"; then
         return 0
     fi
+    if dotfiles_menu_try_chunks "$trimmed"; then
+        return 0
+    fi
     if dotfiles_menu_try_install "$trimmed"; then
         return 0
     fi
@@ -1242,6 +1245,62 @@ dotfiles_menu_profiles() {
     "${repo_root}/scripts/install-opencode-profiles.sh"
     echo ""
     echo -e "${C_MARK_INST:-}✅ Perfis OpenCode atualizados.${R:-}"
+}
+
+# Reconhece o comando "chunks" (e "chunks doctor") no menu principal: injeta
+# os trechos declarados em config/chunks/*.json; com "doctor" roda o
+# diagnóstico read-only.
+# Retorna 0 se reconheceu; 1 se não reconheceu.
+dotfiles_menu_try_chunks() {
+    local trimmed=${1,,}
+    if [[ "$trimmed" == "chunks gui" || "$trimmed" == "chunks ui" || "$trimmed" == "chunks-gui" ]]; then
+        dotfiles_menu_chunks_gui
+        return 0
+    fi
+    if [[ "$trimmed" == "chunks" || "$trimmed" == "chunks inject" ]]; then
+        dotfiles_menu_chunks
+        return 0
+    fi
+    if [[ "$trimmed" == "chunks doctor" || "$trimmed" == "chunks --doctor" || "$trimmed" == "chunks check" ]]; then
+        dotfiles_menu_chunks_doctor
+        return 0
+    fi
+    return 1
+}
+
+dotfiles_menu_chunks_gui() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🖥️  Abrindo Chunk Injector GUI (Tauri 2)...${R:-}"
+    nohup "${repo_root}/data/.local/bin/chunk-injector-gui" >/dev/null 2>&1 &
+    echo -e "${C_MARK_INST:-}✅ Interface gráfica iniciada.${R:-}"
+}
+
+dotfiles_menu_chunks() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}💉 Injetando chunks de configuração (chunk-injector)${R:-}"
+    echo ""
+    "${repo_root}/scripts/chunk-injector.sh" inject
+    echo ""
+    echo -e "${C_MARK_INST:-}✅ Chunks aplicados.${R:-}"
+}
+
+dotfiles_menu_chunks_doctor() {
+    local repo_root rc=0
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🩺 Diagnóstico do Chunk Injector (read-only)${R:-}"
+    echo ""
+    "${repo_root}/scripts/chunk-injector.sh" doctor || rc=$?
+    echo ""
+    if ((rc == 0)); then
+        echo -e "${C_MARK_INST:-}✅ Todos os chunks estão íntegros.${R:-}"
+    else
+        echo -e "${C_MARK_NONE:-}⚠️  Chunk(s) ausente(s) ou divergente(s) — rode 'chunks' para restaurar.${R:-}"
+    fi
 }
 
 # Reconhece o comando "install" no menu principal: roda o install-dotfiles.sh

@@ -338,6 +338,7 @@ dotfiles_menu_render() {
     echo ""
     dotfiles_menu_print_command_help
     dotfiles_menu_render_alert
+    dotfiles_menu_print_chunk_injector_warnings
     dotfiles_menu_print_git_sync_warnings
     dotfiles_git_print_setup_banner
     DOTFILES_MENU_ALERT=""
@@ -371,6 +372,7 @@ dotfiles_menu_print_command_help() {
     printf '  %-26s  %s\n' "- rm <Número da linha>" "Remover um dotfile da lista"
     printf '  %-26s  %s\n' "- skills / skills doctor" "Reconstruir / diagnosticar bridge de skills (~/.agents/skills)"
     printf '  %-26s  %s\n' "- profiles" "Reconstruir symlinks dos perfis OpenCode"
+    printf '  %-26s  %s\n' "- chunks / doctor / gui" "Injetar / diagnosticar / abrir GUI (config/chunks/*.json)"
     printf '  %-26s  %s\n' "- 0 / v / Enter (vazio)" "Voltar ao Menu Principal"
     echo "${C_FILE_PATH:-}  Atalhos globais: packages (pkgs) │ install │ commit │ pull │ push │ git │ term${R:-}"
     echo "$_pad"
@@ -439,14 +441,34 @@ dotfiles_menu_root_render() {
     printf '  %-26s  %s\n' "- install" "Instalação completa (dotfiles + skills + perfis OpenCode)"
     printf '  %-26s  %s\n' "- skills / skills doctor" "Reconstruir / diagnosticar symlinks de skills (~/.agents/skills)"
     printf '  %-26s  %s\n' "- profiles" "Reconstruir symlinks dos perfis OpenCode"
+    printf '  %-26s  %s\n' "- chunks / doctor / gui" "Injetar / diagnosticar / abrir GUI (config/chunks/*.json)"
     printf '  %-26s  %s\n' "- commit" "Smart commit (AI audita e agrupa alterações)"
     printf '  %-26s  %s\n' "- pull / push" "Sincronizar commits com o repositório remoto"
     printf '  %-26s  %s\n' "- git" "Submenu Git / SSH / GitHub"
     printf '  %-26s  %s\n' "- term / terminal" "Abrir terminal neste repositório"
     printf '  %-26s  %s\n' "- Enter (vazio) / q" "Sair do menu"
     dotfiles_menu_render_alert
+    dotfiles_menu_print_chunk_injector_warnings
     dotfiles_menu_print_git_sync_warnings
     dotfiles_git_print_setup_banner
     DOTFILES_MENU_ALERT=""
     echo ""
+}
+
+# Exibe alerta no Menu Principal caso o cache do chunk-injector indique trechos ausentes.
+dotfiles_menu_print_chunk_injector_warnings() {
+    local alert_file="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles/chunk-injector-alert.txt"
+    [[ -s "$alert_file" ]] || return 0
+
+    local line id status target selector desc count=0
+    echo ""
+    echo "${C_MARK_WRONG:-}⚠️  Chunk Injector: trecho(s) ausente(s) ou alterado(s):${R:-}"
+    while IFS='|' read -r id status target selector desc; do
+        [[ -z "$id" || "$id" == \#* ]] && continue
+        count=$((count + 1))
+        echo "   ${C_MARK_NONE:-}• ${id}${R:-} (${status}): ${target} [${selector}] — ${desc}"
+    done <"$alert_file"
+    if ((count > 0)); then
+        echo "   ${C_FILE_PATH:-}→ Digite 'chunks' para restaurar, 'chunks doctor' para diagnosticar ou 'chunks gui' para abrir no desktop.${R:-}"
+    fi
 }

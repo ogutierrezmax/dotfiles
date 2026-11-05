@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chunk Injector
+Comment=Gerenciamento visual e diff de trechos injetados nos dotfiles
+Exec=/home/max/.local/bin/chunk-injector-gui
+Icon=dialog-scripts
+Terminal=false
+Categories=Development;Utility;System;
+Keywords=dotfiles;chunks;injector;tauri;gui;

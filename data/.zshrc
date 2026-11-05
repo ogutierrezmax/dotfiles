@@ -32,3 +32,6 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
 
 # logger automatizado no npm
 source ~/.zsh/pnpm-error-log.zsh
+
+# alerta de trechos ausentes monitorados pelo chunk-injector
+source ~/.zsh/chunk-injector.zsh

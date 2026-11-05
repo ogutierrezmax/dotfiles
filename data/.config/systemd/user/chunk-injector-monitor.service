@@ -1,0 +1,10 @@
+[Unit]
+Description=Dotfiles Chunk Injector: verifica se trechos injetados ainda estão presentes
+Documentation=https://github.com/ogutierrezmax/dotfiles
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/chunk-injector monitor
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

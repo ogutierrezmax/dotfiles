@@ -35,6 +35,10 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 # opencode-pf — CLI de perfis isolados do OpenCode (scripts/opencode-pf.sh)
 .local/bin/opencode-pf
 
+# chunk-injector — injeção e monitoramento de trechos em arquivos não-symlinkáveis (scripts/chunk-injector.sh)
+.local/bin/chunk-injector
+.local/bin/chunk-injector-gui
+
 # OpenCode — AI coding assistant CLI
 .config/opencode/opencode.jsonc
 .config/opencode/tui.json
@@ -44,6 +48,7 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 # jail-status — indicador 🟢/🔴/⚪ do sandbox ai-jail + comando /jail
 .config/opencode/plugins/jail-status
 .local/share/applications/opencode-home.desktop
+.local/share/applications/chunk-injector-gui.desktop
 .local/share/opencode/auth.json.example
 
 # PATH da sessão gráfica (systemd user environment.d) — cobre Dolphin e autostart
@@ -63,3 +68,7 @@ wezterm.lua
 .config/systemd/user/rclone-gdrive.service
 .config/systemd/user/rclone-backup.service
 .config/systemd/user/rclone-backup.timer
+
+# chunk-injector — monitoramento periódico (a cada 5 min) de trechos injetados
+.config/systemd/user/chunk-injector-monitor.service
+.config/systemd/user/chunk-injector-monitor.timer

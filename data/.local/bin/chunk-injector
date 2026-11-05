@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Launcher do Chunk Injector (scripts/chunk-injector.sh).
+# Instalado como symlink em ~/.local/bin/chunk-injector via config/dotfile-names.list.
+# Uso: chunk-injector [inject|doctor|monitor|help]
+set -euo pipefail
+
+REAL="$(readlink -f "${BASH_SOURCE[0]}")" || REAL="${BASH_SOURCE[0]}"
+ROOT="$(cd "$(dirname "$REAL")/../../.." && pwd)"
+exec bash "$ROOT/scripts/chunk-injector.sh" "$@"

@@ -1,0 +1,40 @@
+{
+  "description": "pemissões (allow, ask, deny) do agy CLI",
+  "id": "agy-cli-permissions",
+  "payload": {
+    "permissions": {
+      "allow": [
+        "command(stat)",
+        "command(cat)",
+        "command(grep)",
+        "command(tail)",
+        "command(ps)",
+        "command(regex:curl .*)",
+        "command(mkdir)",
+        "command(regex:curl .*)",
+        "command(regex:ls .*)",
+        "command(regex:find .*)",
+        "command(regex:git .*)",
+        "mcp(context7/resolve-library-id)",
+        "mcp(context7/query-docs)",
+        "command(head)",
+        "command(cut)",
+        "command(sleep)",
+        "mcp(context-mode/ctx_execute)"
+      ],
+      "ask": [
+        "command(mv)",
+        "command(cp)",
+        "command(rm -rf)"
+      ],
+      "deny": [
+        "command(sudo)",
+        "write_file(.git/)",
+        "write_file(/home/user/.ssh)"
+      ]
+    }
+  },
+  "selector": ".",
+  "target": "~/.gemini/antigravity-cli/settings.json",
+  "type": "json-key"
+}

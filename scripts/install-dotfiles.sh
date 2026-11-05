@@ -33,4 +33,10 @@ if [[ -x "${SCRIPT_DIR}/install-opencode-profiles.sh" ]]; then
     "${SCRIPT_DIR}/install-opencode-profiles.sh"
 fi
 
+# Chunk Injector → injeta trechos declarados em arquivos não-symlinkáveis
+# (config/chunks/*.json) e habilita o timer de monitoramento periódico.
+if [[ -x "${SCRIPT_DIR}/chunk-injector.sh" ]]; then
+    "${SCRIPT_DIR}/chunk-injector.sh" inject
+fi
+
 echo "Configuração concluída!"
