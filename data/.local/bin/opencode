@@ -5,6 +5,20 @@
 # Com a arquitetura de dois daemons independentes (Host na porta 49376 / Jail na porta 49380),
 # o --no-jail usa diretamente o daemon do host, preservando as vantagens da persistência
 # de conversas em segundo plano mesmo após fechar o terminal.
+#
+# DECISÃO ARQUITETURAL: Bypass automático de subcomandos de leitura (ex: models, --version, --help)
+# - Motivação / Cogitação:
+#   Eliminar overhead de montagem da sandbox bwrap/mise/nvm para consultas estáticas e evitar
+#   que banners de diagnóstico poluam streams de saída consumidos por parsers/ferramentas externas.
+# - Problemas que resolveria:
+#   Latência zero em chamadas frequentes de metadados e imunidade contra scripts que capturam
+#   stderr indevidamente junto com stdout (2>&1).
+# - Por que NÃO foi aplicada:
+#   1. Isolamento de ambiente/estado: a jail utiliza configuração, daemons e credenciais
+#      próprias (~/.config/opencode-jail, porta 49380). Consultar `opencode models` no host
+#      poderia refletir modelos/provedores autenticados diferentes dos disponíveis no jail.
+#   2. Higiene de streams: a poluição de stdout era um bug do ai-jail (que emitia diagnóstico
+#      em stdout em vez de stderr condicional a TTY). Corrigido na raiz em ai-jail:278.
 if [[ "${1:-}" == "--no-jail" ]]; then
     shift
     export AI_EXECUTION_MODE=host
