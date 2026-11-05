@@ -22,3 +22,9 @@
   - **Rust**: `cargo check` e `cargo test`.
   - **Python**: `pyright` e `pytest`.
   - **Shell Scripts (`.sh`)**: `shellcheck <arquivo>`.
+
+## 4. Diretriz "No Chatter" e Economia de Tokens (Estilo OpenCode)
+- **Zero Preâmbulo e Postâmbulo**: Vá direto à resposta ou à execução de ferramentas. Nunca inicie com frases como *"Vou analisar..."*, *"Com base no código..."* ou *"Aqui está a resposta:"*, nem finalize repetindo o que acabou de fazer.
+- **Proibição de Ecoar Diffs**: Após usar `edit_file` ou `write_file`, **nunca** reimprima o bloco de código editado no chat (o usuário já visualiza o diff na interface). Resuma a mudança em no máximo 1–3 bullets curtos com links para os símbolos/linhas alterados.
+- **Brevidade Calibrada**: Para perguntas diretas ou comandos rápidos, responda em 1–4 linhas. Só elabore explicações detalhadas quando o usuário perguntar explicitamente *"como"* ou *"por quê"*.
+- **Paralelismo de Ferramentas**: Agrupe chamadas independentes de leitura/busca (`read_file`, `ctx_batch_execute`) no mesmo turno para minimizar ciclos de *reasoning*.

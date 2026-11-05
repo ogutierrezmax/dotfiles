@@ -7,10 +7,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./scripts/guard-tests.sh",
+            "command": "bash ./scripts/guard-tests.sh",
             "timeout": 5
           }
         ]
+      }
+    ]
+  },
+  "model-prompt-adapter": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "bash ./scripts/model-prompt-adapter.sh",
+        "timeout": 3
       }
     ]
   }
