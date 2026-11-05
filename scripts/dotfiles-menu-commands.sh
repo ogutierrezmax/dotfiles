@@ -2,6 +2,7 @@
 # Comandos do menu interativo: add, rm, commit e instalação por estado.
 # SECURITY NOTE: Ensure these files are owned by your user and not world-writable.
 # Be cautious when adding new modules suggested by LLMs; always review the content.
+# shellcheck disable=SC1091,SC2016,SC2034,SC2076,SC2086,SC2124,SC2155,SC2181,SC2295
 
 # Logging — um arquivo por sessão de commit
 # Path: logs/commit-session-YYYY-MM-DD-HHMMSS.log
@@ -1137,29 +1138,42 @@ dotfiles_menu_try_packages() {
     return 1
 }
 
-# Submenu de instalação de programas (config/install-packages.list).
+# Abre a view interativa de programas (config/install-packages.list).
 dotfiles_menu_packages() {
-    local repo_root script choice
-    repo_root="$(dotfiles_repo_root)"
-    script="${repo_root}/scripts/install-packages.sh"
-    while true; do
-        echo ""
-        echo -e "${B:-}📦 Programas (config/install-packages.list)${R:-}"
-        echo "  1) Ver plano (dry-run)"
-        echo "  2) Instalar tudo (com confirmações)"
-        echo "  3) Instalar só apt"
-        echo "  4) Ver lista crua"
-        echo "  0) Voltar"
-        read -r -p "Opção: " choice || true
-        case "$choice" in
-            1) "$script" --dry-run ;;
-            2) "$script" --install ;;
-            3) "$script" --install apt ;;
-            4) "$script" --list ;;
-            0) return ;;
-            *) echo "Opção inválida." ;;
-        esac
-    done
+    dotfiles_menu_packages_view
+}
+
+# Dispatcher central de comandos globais do repositório (compartilhado entre
+# Menu Pai, view Dotfiles e view Packages).
+# Retorna 0 se tratou o comando; 1 caso contrário.
+dotfiles_menu_try_global_commands() {
+    local trimmed=$1
+
+    if dotfiles_menu_try_smart_commit "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_skills "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_profiles "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_install "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_push "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_pull "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_open_terminal "$trimmed"; then
+        return 0
+    fi
+    if dotfiles_menu_try_git_submenu "$trimmed"; then
+        return 0
+    fi
+    return 1
 }
 
 # Reconhece o comando "skills" (e "skills doctor") no menu principal: reconstrói

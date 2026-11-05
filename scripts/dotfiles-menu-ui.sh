@@ -87,11 +87,11 @@ dotfiles_term_colors_init() {
         C_GIT_SYNC_WARN="$(dotfiles_menu_ansi_fg_hex '#f59e0b')"         # aviso git vs remoto
         C_FILE_PATH="$(dotfiles_menu_ansi_fg_hex '#6b7280')"             # caminho acinzentado
     else
-        R= B=
-        C_MARK_INST= C_MARK_NONE= C_MARK_IMP= C_MARK_MISS= C_MARK_WRONG= C_MARK_BLOCK=
-        C_SOURCE_INST= C_SOURCE_NONE= C_SOURCE_IMP= C_SOURCE_MISS= C_SOURCE_WRONG= C_SOURCE_BLOCK=
-        C_LINK_STATUS_LINKED= C_LINK_STATUS_UNLINKED= C_LINK_STATUS_WRONG= C_LINK_STATUS_MODIFIED=
-        C_GIT_SYNC_WARN= C_FILE_PATH=
+        R="" B=""
+        C_MARK_INST="" C_MARK_NONE="" C_MARK_IMP="" C_MARK_MISS="" C_MARK_WRONG="" C_MARK_BLOCK=""
+        C_SOURCE_INST="" C_SOURCE_NONE="" C_SOURCE_IMP="" C_SOURCE_MISS="" C_SOURCE_WRONG="" C_SOURCE_BLOCK=""
+        C_LINK_STATUS_LINKED="" C_LINK_STATUS_UNLINKED="" C_LINK_STATUS_WRONG="" C_LINK_STATUS_MODIFIED=""
+        C_GIT_SYNC_WARN="" C_FILE_PATH=""
     fi
 }
 
@@ -355,7 +355,7 @@ dotfiles_menu_print_legend() {
     fi
 }
 
-# Instruções de add / rm / escolha de linha (alinhado ao prompt em dotfiles-menu.sh).
+# Instruções de add / rm / escolha de linha na view Dotfiles.
 dotfiles_menu_print_command_help() {
     local _w _pad
     dotfiles_menu_ui_load_config
@@ -364,20 +364,89 @@ dotfiles_menu_print_command_help() {
     _pad="${_pad// /─}"
 
     echo "$_pad"
-    echo "${B}Comandos${R}"
-    printf '  %-18s  %s\n' "- <Número da linha>         Ação da coluna action"
-    printf '  %-18s  %s\n' "- install-all                Instalar todos os dotfiles da lista"
-    printf '  %-18s  %s\n' "- install                    Instalação completa (dotfiles + skills + perfis)"
-    printf '  %-18s  %s\n' "- pkgs                      Instalar programas da lista curada"
-    printf '  %-18s  %s\n' "- skills                    Reconstruir symlinks de skills de IA (~/.agents/skills)"
-    printf '  %-18s  %s\n' "- skills doctor              Diagnóstico read-only do bridge (o que cada tool enxerga)"
-    printf '  %-18s  %s\n' "- commit                    Smart commit (AI agrupa alterações)"
-    printf '  %-18s  %s\n' "- pull                      Buscar e aplicar atualizações do repositório remoto"
-    printf '  %-18s  %s\n' "- push                      Enviar commits locais para o repositório remoto"
-    printf '  %-18s  %s\n' "- term / terminal             Abrir terminal neste repositório"
-    printf '  %-18s  %s\n' "- git                       Submenu git / SSH / GitHub"
-    printf '  %-18s  %s\n' "- add <nome>                Adicionar um novo dotfile"
-    printf '  %-18s  %s\n' "- rm <Número da linha>      Remover um dotfile da lista"
-    printf '  %-18s  %s\n' "- Enter (vazio)             Sai do menu."
+    echo "${B}Comandos (Dotfiles)${R}"
+    printf '  %-26s  %s\n' "- <Número da linha>" "Ação da coluna Action"
+    printf '  %-26s  %s\n' "- install-all" "Instalar todos os dotfiles da lista"
+    printf '  %-26s  %s\n' "- add <nome>" "Adicionar um novo dotfile a config/dotfile-names.list"
+    printf '  %-26s  %s\n' "- rm <Número da linha>" "Remover um dotfile da lista"
+    printf '  %-26s  %s\n' "- skills / skills doctor" "Reconstruir / diagnosticar bridge de skills (~/.agents/skills)"
+    printf '  %-26s  %s\n' "- profiles" "Reconstruir symlinks dos perfis OpenCode"
+    printf '  %-26s  %s\n' "- 0 / v / Enter (vazio)" "Voltar ao Menu Principal"
+    echo "${C_FILE_PATH:-}  Atalhos globais: packages (pkgs) │ install │ commit │ pull │ push │ git │ term${R:-}"
     echo "$_pad"
+}
+
+# Calcula contadores de resumo de config/dotfile-names.list:
+# Imprime: "<linkados> <total> <modificados> <pendentes>"
+dotfiles_dotfiles_summary_counts() {
+    local entry st
+    local linked=0 total=0 modified=0 pending=0
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        total=$((total + 1))
+        st="$(dotfiles_status_for_file "$entry")"
+        if [[ "$st" == "installed" ]]; then
+            linked=$((linked + 1))
+            if dotfiles_file_has_changes "$entry"; then
+                modified=$((modified + 1))
+            fi
+        else
+            pending=$((pending + 1))
+        fi
+    done < <(dotfiles_dotfile_names_entries 2>/dev/null || true)
+    printf '%d %d %d %d\n' "$linked" "$total" "$modified" "$pending"
+}
+
+# Renderiza o Menu Pai (Root Menu) com os filhos `dotfiles` e `packages` + comandos globais.
+dotfiles_menu_root_render() {
+    local df_linked=0 df_total=0 df_mod=0 df_pend=0
+    local pkg_inst=0 pkg_tot=0 pkg_miss=0 pkg_nomgr=0 pkg_extra=0
+    local df_badge pkg_badge
+
+    dotfiles_menu_ui_load_config
+    read -r df_linked df_total df_mod df_pend < <(dotfiles_dotfiles_summary_counts)
+    if declare -F dotfiles_pkg_summary_counts >/dev/null 2>&1; then
+        read -r pkg_inst pkg_tot pkg_miss pkg_nomgr pkg_extra < <(dotfiles_pkg_summary_counts)
+    fi
+
+    df_badge="${C_MARK_INST:-}${df_linked}/${df_total} linkados${R:-}"
+    if ((df_pend > 0)); then
+        df_badge+="  ${C_MARK_NONE:-}(${df_pend} pendente(s))${R:-}"
+    fi
+    if ((df_mod > 0)); then
+        df_badge+="  ${C_LINK_STATUS_MODIFIED:-}(${df_mod} modificado(s))${R:-}"
+    fi
+
+    pkg_badge="${C_MARK_INST:-}${pkg_inst}/${pkg_tot} instalados${R:-}"
+    if ((pkg_miss > 0)); then
+        pkg_badge+="  ${C_MARK_NONE:-}(${pkg_miss} faltando)${R:-}"
+    fi
+    if ((pkg_extra > 0)); then
+        pkg_badge+="  ${C_FILE_PATH:-}[+${pkg_extra} manuais/scripts]${R:-}"
+    fi
+
+    printf '\n\n\n\n\n\n\n\n\n\n'
+    dotfiles_menu_ui_sep_line
+    echo "${B}Dotfiles & Packages — Menu Principal (${HOME})${R}"
+    dotfiles_menu_ui_sep_line
+    echo "${B}Views (Submenus)${R}"
+    printf "  %s1)%s %-22s  %s  %s\n" "$B" "$R" "dotfiles (df)" "$df_badge" "${C_FILE_PATH:-}— Symlinks em config/dotfile-names.list${R:-}"
+    printf "  %s2)%s %-22s  %s  %s\n" "$B" "$R" "packages (pkgs)" "$pkg_badge" "${C_FILE_PATH:-}— Pacotes em config/install-packages.list${R:-}"
+    dotfiles_menu_ui_sep_line
+    echo "${B}Comandos do Repositório${R}"
+    printf '  %-26s  %s\n' "- 1 / dotfiles (df)" "Abrir view de Dotfiles (symlinks, add, rm, install-all)"
+    printf '  %-26s  %s\n' "- 2 / packages (pkgs)" "Abrir view de Packages (status de instalados, instalar, filtrar)"
+    printf '  %-26s  %s\n' "- install" "Instalação completa (dotfiles + skills + perfis OpenCode)"
+    printf '  %-26s  %s\n' "- skills / skills doctor" "Reconstruir / diagnosticar symlinks de skills (~/.agents/skills)"
+    printf '  %-26s  %s\n' "- profiles" "Reconstruir symlinks dos perfis OpenCode"
+    printf '  %-26s  %s\n' "- commit" "Smart commit (AI audita e agrupa alterações)"
+    printf '  %-26s  %s\n' "- pull / push" "Sincronizar commits com o repositório remoto"
+    printf '  %-26s  %s\n' "- git" "Submenu Git / SSH / GitHub"
+    printf '  %-26s  %s\n' "- term / terminal" "Abrir terminal neste repositório"
+    printf '  %-26s  %s\n' "- Enter (vazio) / q" "Sair do menu"
+    dotfiles_menu_render_alert
+    dotfiles_menu_print_git_sync_warnings
+    dotfiles_git_print_setup_banner
+    DOTFILES_MENU_ALERT=""
+    echo ""
 }

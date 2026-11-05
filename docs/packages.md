@@ -31,7 +31,12 @@ máquina nova:
 ./scripts/install-packages.sh --list
 ```
 
-No menu interativo, use o comando `pkgs`.
+No menu interativo (`./dotfiles-menu.sh`), escolha `2` (ou `packages` / `pkgs`) no Menu Principal, ou abra diretamente com `./dotfiles-menu.sh packages`.
+Na view de **Packages**, todos os programas são listados em tabela com o estado de instalação (`[+] Installed`, `[ ] Missing`, `[~] Script`, `[i] Manual`, `[-] No manager`), permitindo:
+- Digitar o `<Número da linha>` para instalar individualmente um pacote, executar um script ou ler uma instrução manual.
+- Filtrar por gerenciador (`apt`, `deb`, `flatpak`, `snap`, `brew`, `npm`, `pipx`, `script`, `manual`) ou por status (`missing`, `installed`, `all`).
+- Instalar todos os faltantes com `install-all`.
+- Adicionar (`add <mgr>:<valor>`) ou remover (`rm <Número>`) pacotes de `config/install-packages.list`.
 
 ## Formato da Lista
 

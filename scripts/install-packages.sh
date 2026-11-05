@@ -8,7 +8,7 @@ set -euo pipefail
 #   - Entradas "manual:" nunca executam nada; apenas imprimem instruções.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/dotfiles-lib.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/dotfiles-lib.sh"
 
 PACKAGES_FILE="$(dotfiles_repo_root)/config/install-packages.list"
@@ -18,12 +18,25 @@ MANAGERS=(apt deb flatpak snap brew npm pipx script manual)
 MODE="dry-run"
 FILTER=""
 
+dotfiles_pkg_list_path() {
+    echo "$(dotfiles_repo_root)/config/install-packages.list"
+}
+
+dotfiles_pkg_valid_manager() {
+    local target=$1 m
+    for m in "${MANAGERS[@]}"; do
+        [[ "$m" == "$target" ]] && return 0
+    done
+    return 1
+}
+
 # Lista as entradas de config/install-packages.list como "gerenciador<TAB>valor".
 # Ignora linhas vazias, comentários (#) e aparações.
 dotfiles_pkg_entries() {
-    local line manager value
-    if [[ ! -f "$PACKAGES_FILE" ]]; then
-        echo "Erro: ${PACKAGES_FILE} não encontrado." >&2
+    local line manager value pkg_file
+    pkg_file="$(dotfiles_pkg_list_path)"
+    if [[ ! -f "$pkg_file" ]]; then
+        echo "Erro: ${pkg_file} não encontrado." >&2
         return 1
     fi
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -33,13 +46,87 @@ dotfiles_pkg_entries() {
         line="${line#"${line%%[![:space:]]*}"}"
         line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" ]] && continue
+        [[ "$line" != *:* ]] && continue
         manager="${line%%:*}"
         value="${line#*:}"
         value="${value#"${value%%[![:space:]]*}"}"
         value="${value%"${value##*[![:space:]]}"}"
         [[ -z "$value" ]] && continue
         printf '%s\t%s\n' "$manager" "$value"
-    done <"$PACKAGES_FILE"
+    done <"$pkg_file"
+}
+
+# Acrescenta "gerenciador:valor" ao fim de config/install-packages.list (sem duplicar).
+dotfiles_pkg_add_entry() {
+    local manager=$1 value=$2 pkg_file m v last
+    pkg_file="$(dotfiles_pkg_list_path)"
+    if [[ ! -f "$pkg_file" ]]; then
+        echo "Erro: ${pkg_file} não encontrado." >&2
+        return 1
+    fi
+    if ! dotfiles_pkg_valid_manager "$manager"; then
+        echo "Erro: gerenciador inválido '${manager}'. Use um de: ${MANAGERS[*]}" >&2
+        return 1
+    fi
+    if [[ -z "${value// }" ]]; then
+        echo "Erro: o valor do pacote não pode ser vazio." >&2
+        return 1
+    fi
+    if [[ "$value" == *$'\n'* ]]; then
+        echo "Erro: o valor não pode conter quebras de linha." >&2
+        return 1
+    fi
+    while IFS=$'\t' read -r m v; do
+        if [[ "$m" == "$manager" && "$v" == "$value" ]]; then
+            echo "Erro: entrada já existe em config/install-packages.list: ${manager}:${value}" >&2
+            return 1
+        fi
+    done < <(dotfiles_pkg_entries)
+
+    if [[ -s "$pkg_file" ]]; then
+        last=$(tail -c1 "$pkg_file" 2>/dev/null || true)
+        if [[ -n "$last" && "$last" != $'\n' ]]; then
+            echo "" >>"$pkg_file"
+        fi
+    fi
+    printf '%s:%s\n' "$manager" "$value" >>"$pkg_file"
+}
+
+# Remove a primeira linha cujo gerenciador é $1 e valor é $2 de config/install-packages.list.
+dotfiles_pkg_remove_entry() {
+    local target_mgr=$1 target_val=$2 pkg_file line parsed m v tmp removed=0
+    pkg_file="$(dotfiles_pkg_list_path)"
+    if [[ ! -f "$pkg_file" ]]; then
+        echo "Erro: ${pkg_file} não encontrado." >&2
+        return 1
+    fi
+    tmp="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        m=""
+        v=""
+        if [[ -n "${line// }" ]] && [[ ! "$line" =~ ^[[:space:]]*# ]]; then
+            parsed="${line%%#*}"
+            parsed="${parsed#"${parsed%%[![:space:]]*}"}"
+            parsed="${parsed%"${parsed##*[![:space:]]}"}"
+            if [[ "$parsed" == *:* ]]; then
+                m="${parsed%%:*}"
+                v="${parsed#*:}"
+                v="${v#"${v%%[![:space:]]*}"}"
+                v="${v%"${v##*[![:space:]]}"}"
+            fi
+        fi
+        if [[ -n "$m" && "$m" == "$target_mgr" && "$v" == "$target_val" && "$removed" -eq 0 ]]; then
+            removed=1
+            continue
+        fi
+        printf '%s\n' "$line" >>"$tmp"
+    done <"$pkg_file"
+    if [[ "$removed" -eq 0 ]]; then
+        rm -f "$tmp"
+        echo "Erro: entrada não encontrada em config/install-packages.list: ${target_mgr}:${target_val}" >&2
+        return 1
+    fi
+    mv -- "$tmp" "$pkg_file"
 }
 
 # Entradas de um gerenciador (valores apenas).
@@ -288,7 +375,7 @@ Exemplos:
 EOF
 }
 
-main() {
+dotfiles_pkg_cli_main() {
     local arg m ok=0
     while (($#)); do
         arg="$1"
@@ -319,4 +406,6 @@ main() {
     esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    dotfiles_pkg_cli_main "$@"
+fi
