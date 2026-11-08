@@ -384,7 +384,7 @@ async function enqueueUploadFiles(sourcePaths) {
 // Directory Loader
 function itemsSignature(items) {
     return items
-        .map((i) => `${i.rel_path}|${i.is_dir}|${i.size}|${i.modified_str}|${i.location}|${i.sync_state}|${i.progress_percent}`)
+        .map((i) => `${i.rel_path}|${i.is_dir}|${i.size}|${i.modified_str}|${i.location}|${i.sync_state}|${i.progress_percent}|${i.status_note}`)
         .join('\n');
 }
 async function loadDirectory(relPath) {
@@ -429,8 +429,12 @@ function updateSummaryCounts() {
     for (const it of currentItems) {
         if (it.sync_state === 'aguardando')
             waiting++;
-        else if (it.sync_state === 'uploading')
+        else if (it.sync_state === 'uploading') {
             uploading++;
+            if (it.is_dir && it.status_note.toLowerCase().includes('aguardando')) {
+                waiting++;
+            }
+        }
         else if (it.sync_state === 'uploaded')
             uploaded++;
     }
@@ -528,7 +532,12 @@ function renderFilesTable() {
         return;
     const filtered = currentItems.filter((item) => {
         if (activeFilter !== 'all' && item.sync_state !== activeFilter) {
-            return false;
+            const hasWaitingChildren = activeFilter === 'aguardando' &&
+                item.is_dir &&
+                item.status_note.toLowerCase().includes('aguardando');
+            if (!hasWaitingChildren) {
+                return false;
+            }
         }
         if (activeLocFilter !== 'all' && item.location !== activeLocFilter) {
             return false;
@@ -574,10 +583,19 @@ function renderFilesTable() {
         const tdState = document.createElement('td');
         const badge = document.createElement('span');
         badge.className = `badge badge-${item.sync_state}`;
+        badge.title = item.status_note;
         badge.textContent = item.sync_state === 'aguardando' ? '⏳ Aguardando'
             : item.sync_state === 'uploading' ? `⬆️ Uploading ${item.progress_percent}%`
                 : '✅ Uploaded';
         tdState.appendChild(badge);
+        if (item.is_dir && item.sync_state === 'uploading' && item.status_note.toLowerCase().includes('aguardando')) {
+            const waitBadge = document.createElement('span');
+            waitBadge.className = 'badge badge-aguardando';
+            waitBadge.style.marginLeft = '4px';
+            waitBadge.title = item.status_note;
+            waitBadge.textContent = '⏳ Fila';
+            tdState.appendChild(waitBadge);
+        }
         if (item.sync_state === 'uploading') {
             const pCell = document.createElement('div');
             pCell.className = 'progress-cell mt-1';
@@ -1182,19 +1200,20 @@ function renderDrawerTransfers() {
 function renderActiveTransferList(container, list) {
     container.innerHTML = '';
     list.forEach((t) => {
+        const isWaiting = t.source.toLowerCase().includes('aguardando');
         const row = document.createElement('div');
         row.className = 'transfer-item';
         row.innerHTML = `
       <div class="transfer-info">
         <span class="transfer-name">${t.name}</span>
-        <span class="transfer-sub">${formatBytes(t.bytes)} / ${formatBytes(t.size)} &bull; ${formatSpeed(t.speed_avg)}</span>
+        <span class="transfer-sub">${t.source} &bull; ${formatBytes(t.bytes)} / ${formatBytes(t.size)}${isWaiting ? '' : ` &bull; ${formatSpeed(t.speed_avg)}`}</span>
       </div>
       <div class="transfer-progress-box">
         <div class="progress-mini-bar"><div class="progress-mini-fill" style="width: ${t.percentage}%;"></div></div>
         <span class="transfer-sub text-right">${t.percentage}% ${t.eta ? `(ETA: ${t.eta}s)` : ''}</span>
       </div>
       <div>
-        <span class="badge badge-uploading">UPLOADING</span>
+        <span class="badge ${isWaiting ? 'badge-aguardando' : 'badge-uploading'}">${isWaiting ? 'AGUARDANDO' : 'UPLOADING'}</span>
       </div>
     `;
         container.appendChild(row);

@@ -100,6 +100,7 @@ pub struct DashboardResponse {
 pub struct AppState {
     pub queue: Arc<Mutex<Vec<UploadQueueItem>>>,
     pub worker_active: Arc<AtomicBool>,
+    pub backup_remote_cache: Arc<Mutex<std::collections::HashMap<String, (u64, Vec<String>)>>>,
 }
 
 fn gdrive_root() -> PathBuf {
@@ -203,6 +204,168 @@ fn query_rc(port: u16, command: &str) -> Option<serde_json::Value> {
     }
 }
 
+fn query_rc_with_args(port: u16, command: &str, extra_args: &[&str]) -> Option<serde_json::Value> {
+    let addr = format!("--rc-addr=127.0.0.1:{}", port);
+    let mut args = vec!["rc", command, &addr, "--rc-no-auth"];
+    args.extend_from_slice(extra_args);
+    let output = Command::new("rclone").args(args).output().ok()?;
+    if output.status.success() {
+        serde_json::from_slice(&output.stdout).ok()
+    } else {
+        None
+    }
+}
+
+fn fetch_backup_remote_names(
+    sub_dir: &str,
+    cache: &Arc<Mutex<std::collections::HashMap<String, (u64, Vec<String>)>>>,
+) -> Option<Vec<String>> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    if let Ok(guard) = cache.lock() {
+        if let Some((ts, cached)) = guard.get(sub_dir) {
+            if now.saturating_sub(*ts) < 6 {
+                return Some(cached.clone());
+            }
+        }
+    }
+
+    let remote_arg = format!("remote={}", sub_dir.trim_matches('/'));
+    let val = query_rc_with_args(
+        5577,
+        "operations/list",
+        &["fs=gdrive:Backup-SanDisk-1TB", &remote_arg],
+    )
+    .or_else(|| {
+        query_rc_with_args(
+            5576,
+            "operations/list",
+            &["fs=gdrive:Backup-SanDisk-1TB", &remote_arg],
+        )
+    })?;
+
+    let arr = val.get("list")?.as_array()?;
+    let mut names: Vec<String> = arr
+        .iter()
+        .filter_map(|item| item.get("Name").and_then(|n| n.as_str()).map(String::from))
+        .collect();
+
+    if let Some(trans) = query_rc(5577, "core/transferred") {
+        if let Some(t_arr) = trans.get("transferred").and_then(|t| t.as_array()) {
+            let clean_sub = sub_dir.trim_matches('/');
+            for t in t_arr {
+                if let Some(t_name) = t.get("name").and_then(|n| n.as_str()) {
+                    let clean_t = t_name.trim_matches('/');
+                    let (p_dir, f_name) = match clean_t.rfind('/') {
+                        Some(idx) => (&clean_t[..idx], &clean_t[idx + 1..]),
+                        None => ("", clean_t),
+                    };
+                    if p_dir == clean_sub && !names.iter().any(|n| n == f_name) {
+                        names.push(f_name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    if let Ok(mut guard) = cache.lock() {
+        guard.insert(sub_dir.to_string(), (now, names.clone()));
+    }
+
+    Some(names)
+}
+
+pub fn resolve_backup_item_state(
+    sub_rel: &str,
+    file_name: &str,
+    is_dir: bool,
+    backup_transfers_rel: &[(String, u8)],
+    remote_names: Option<&[String]>,
+) -> (TransferState, FileLocation, u8, String) {
+    let exists_on_remote = remote_names
+        .map(|names| names.iter().any(|n| n == file_name))
+        .unwrap_or(true);
+
+    if !is_dir {
+        if let Some((_, pct)) = backup_transfers_rel.iter().find(|(n, _)| n == sub_rel) {
+            (
+                TransferState::Uploading,
+                FileLocation::Local,
+                *pct,
+                "Enviando para nuvem (:5577)...".to_string(),
+            )
+        } else if !exists_on_remote {
+            (
+                TransferState::Aguardando,
+                FileLocation::Local,
+                0,
+                "Aguardando início do upload (:5577)".to_string(),
+            )
+        } else {
+            (
+                TransferState::Uploaded,
+                FileLocation::Ambos,
+                100,
+                "Sincronizado".to_string(),
+            )
+        }
+    } else {
+        let prefix = format!("{}/", sub_rel);
+        let matching: Vec<u8> = backup_transfers_rel
+            .iter()
+            .filter(|(n, _)| n == sub_rel || n.starts_with(&prefix))
+            .map(|(_, p)| *p)
+            .collect();
+        if !matching.is_empty() {
+            let avg =
+                (matching.iter().map(|&p| p as u64).sum::<u64>() / matching.len() as u64) as u8;
+            (
+                TransferState::Uploading,
+                FileLocation::Local,
+                avg.max(1),
+                "Enviando arquivos internos (:5577)...".to_string(),
+            )
+        } else if !exists_on_remote {
+            (
+                TransferState::Aguardando,
+                FileLocation::Local,
+                0,
+                "Pasta aguardando início do upload (:5577)".to_string(),
+            )
+        } else {
+            (
+                TransferState::Uploaded,
+                FileLocation::Ambos,
+                100,
+                "Sincronizado".to_string(),
+            )
+        }
+    }
+}
+
+pub fn has_queued_entries_under(
+    clean_rel: &str,
+    queue: &[UploadQueueItem],
+    vfs_uploading: &[String],
+    vfs_queued: &[String],
+) -> bool {
+    let target = normalize_rel_path(clean_rel);
+    if target.is_empty() {
+        return true;
+    }
+    let prefix = format!("{}/", target);
+    queue.iter().any(|it| {
+        let d = normalize_rel_path(&it.target_rel_dir);
+        d == target || d.starts_with(&prefix)
+    }) || vfs_uploading.iter().chain(vfs_queued.iter()).any(|v| {
+        let c = normalize_rel_path(v);
+        c.starts_with(&prefix)
+    })
+}
+
 fn systemd_status(unit: &str) -> bool {
     let output = Command::new("systemctl")
         .args(["--user", "is-active", unit])
@@ -210,7 +373,7 @@ fn systemd_status(unit: &str) -> bool {
     match output {
         Ok(out) => {
             let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            s == "active"
+            s == "active" || s == "activating"
         }
         Err(_) => false,
     }
@@ -294,6 +457,23 @@ pub fn merge_queue_and_transfers(
                     existing.progress_percent = 50;
                 }
                 existing.status_note = "Enviando para nuvem (VFS)...".to_string();
+            } else if !file_name.is_empty() {
+                items.push(DriveItem {
+                    name: file_name.to_string(),
+                    rel_path: if clean_rel.is_empty() {
+                        file_name.to_string()
+                    } else {
+                        format!("{}/{}", clean_rel, file_name)
+                    },
+                    is_dir: false,
+                    size: 0,
+                    modified_ts: 0,
+                    modified_str: "-".to_string(),
+                    location: FileLocation::Local,
+                    sync_state: TransferState::Uploading,
+                    progress_percent: 50,
+                    status_note: "Enviando para nuvem (VFS)...".to_string(),
+                });
             }
         } else if let Some(child_dir) = child_segment(clean_rel, &clean_vfs) {
             if child_dir != file_name || !parent_dir.is_empty() {
@@ -304,6 +484,23 @@ pub fn merge_queue_and_transfers(
                         existing.progress_percent = 50;
                     }
                     existing.status_note = "Enviando arquivos internos (VFS)...".to_string();
+                } else {
+                    items.push(DriveItem {
+                        name: child_dir.to_string(),
+                        rel_path: if clean_rel.is_empty() {
+                            child_dir.to_string()
+                        } else {
+                            format!("{}/{}", clean_rel, child_dir)
+                        },
+                        is_dir: true,
+                        size: 0,
+                        modified_ts: 0,
+                        modified_str: "-".to_string(),
+                        location: FileLocation::Local,
+                        sync_state: TransferState::Uploading,
+                        progress_percent: 50,
+                        status_note: "Enviando arquivos internos (VFS)...".to_string(),
+                    });
                 }
             }
         }
@@ -323,6 +520,23 @@ pub fn merge_queue_and_transfers(
                     existing.progress_percent = 0;
                     existing.status_note = "Na fila de envio VFS".to_string();
                 }
+            } else if !file_name.is_empty() {
+                items.push(DriveItem {
+                    name: file_name.to_string(),
+                    rel_path: if clean_rel.is_empty() {
+                        file_name.to_string()
+                    } else {
+                        format!("{}/{}", clean_rel, file_name)
+                    },
+                    is_dir: false,
+                    size: 0,
+                    modified_ts: 0,
+                    modified_str: "-".to_string(),
+                    location: FileLocation::Local,
+                    sync_state: TransferState::Aguardando,
+                    progress_percent: 0,
+                    status_note: "Na fila de envio VFS".to_string(),
+                });
             }
         } else if let Some(child_dir) = child_segment(clean_rel, &clean_vfs) {
             if child_dir != file_name || !parent_dir.is_empty() {
@@ -333,6 +547,23 @@ pub fn merge_queue_and_transfers(
                         existing.progress_percent = 0;
                         existing.status_note = "Arquivos internos na fila VFS".to_string();
                     }
+                } else {
+                    items.push(DriveItem {
+                        name: child_dir.to_string(),
+                        rel_path: if clean_rel.is_empty() {
+                            child_dir.to_string()
+                        } else {
+                            format!("{}/{}", clean_rel, child_dir)
+                        },
+                        is_dir: true,
+                        size: 0,
+                        modified_ts: 0,
+                        modified_str: "-".to_string(),
+                        location: FileLocation::Local,
+                        sync_state: TransferState::Aguardando,
+                        progress_percent: 0,
+                        status_note: "Arquivos internos na fila VFS".to_string(),
+                    });
                 }
             }
         }
@@ -430,6 +661,10 @@ pub fn merge_queue_and_transfers(
         let any_waiting = group.iter().any(|i| i.state == TransferState::Aguardando);
         let any_uploaded = group.iter().any(|i| i.state == TransferState::Uploaded);
         let any_error = group.iter().any(|i| i.state == TransferState::Error);
+        let waiting_count = group
+            .iter()
+            .filter(|i| i.state == TransferState::Aguardando)
+            .count();
         let latest_ts = group.iter().map(|i| i.updated_ts).max().unwrap_or(0);
 
         let (sync_state, location, pct, note) = if any_uploading || (any_uploaded && any_waiting) {
@@ -438,18 +673,18 @@ pub fn merge_queue_and_transfers(
             } else {
                 50
             };
-            (
-                TransferState::Uploading,
-                FileLocation::Local,
-                p,
-                "Enviando arquivos da pasta...".to_string(),
-            )
+            let msg = if waiting_count > 0 {
+                format!("Enviando arquivos da pasta ({} aguardando)...", waiting_count)
+            } else {
+                "Enviando arquivos da pasta...".to_string()
+            };
+            (TransferState::Uploading, FileLocation::Local, p, msg)
         } else if any_waiting {
             (
                 TransferState::Aguardando,
                 FileLocation::Local,
                 0,
-                "Pasta na fila de upload".to_string(),
+                "Pasta na fila de upload (aguardando início)".to_string(),
             )
         } else if any_error {
             (
@@ -504,13 +739,6 @@ pub fn merge_queue_and_transfers(
 #[tauri::command]
 fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveItem>, String> {
     let dir_path = sanitize_rel_path(&rel_path)?;
-    if !dir_path.exists() {
-        return Err(format!("Diretório não encontrado: {}", dir_path.display()));
-    }
-
-    let entries = fs::read_dir(&dir_path)
-        .map_err(|e| format!("Erro ao ler diretório {}: {}", dir_path.display(), e))?;
-
     let clean_rel = normalize_rel_path(&rel_path);
     let in_backup_tree = is_protected_backup_path(&clean_rel);
 
@@ -551,6 +779,18 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
         }
     }
 
+    if !dir_path.exists() {
+        let has_virtual = if !in_backup_tree {
+            let q = state.queue.lock().unwrap();
+            has_queued_entries_under(&clean_rel, &q, &vfs_uploading, &vfs_queued)
+        } else {
+            false
+        };
+        if !has_virtual {
+            return Err(format!("Diretório não encontrado: {}", dir_path.display()));
+        }
+    }
+
     // Query 5577 Backup active transfers when at root or inside Backup-SanDisk-1TB
     let mut backup_transfers_rel: Vec<(String, u8)> = Vec::new();
     let backup_running = if clean_rel.is_empty() || in_backup_tree {
@@ -577,95 +817,104 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
         false
     };
 
+    let backup_remote_names = if in_backup_tree {
+        let sub_dir = clean_rel
+            .strip_prefix("Backup-SanDisk-1TB")
+            .unwrap_or("")
+            .trim_matches('/');
+        fetch_backup_remote_names(sub_dir, &state.backup_remote_cache)
+    } else {
+        None
+    };
+
     let mut items = Vec::new();
 
-    for entry_res in entries {
-        let entry = match entry_res {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        // Skip hidden FUSE metadata or excluded system folders on SanDisk SSD
-        if file_name.starts_with(".fuse_hidden")
-            || (in_backup_tree
-                && (file_name.ends_with("RECYCLE.BIN") || file_name == ".Trash-1000"))
-        {
-            continue;
-        }
+    if dir_path.exists() {
+        let entries = fs::read_dir(&dir_path)
+            .map_err(|e| format!("Erro ao ler diretório {}: {}", dir_path.display(), e))?;
 
-        let meta = entry.metadata().ok();
-        let is_dir = meta.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-        let size = if is_dir {
-            0
-        } else {
-            meta.as_ref().map(|m| m.len()).unwrap_or(0)
-        };
-
-        let mod_ts = meta
-            .as_ref()
-            .and_then(|m| m.modified().ok())
-            .and_then(|st| st.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-
-        let item_rel = if clean_rel.is_empty() {
-            file_name.clone()
-        } else {
-            format!("{}/{}", clean_rel, file_name)
-        };
-
-        let mut sync_state = TransferState::Uploaded;
-        let mut progress = 100;
-        let mut note = "Sincronizado".to_string();
-        let location = if in_backup_tree {
-            let sub_rel = item_rel
-                .strip_prefix("Backup-SanDisk-1TB/")
-                .unwrap_or(&file_name);
-            if !is_dir {
-                if let Some((_, pct)) = backup_transfers_rel.iter().find(|(n, _)| n == sub_rel) {
-                    sync_state = TransferState::Uploading;
-                    progress = *pct;
-                    note = "Enviando para nuvem (:5577)...".to_string();
-                    FileLocation::Local
-                } else {
-                    FileLocation::Ambos
-                }
-            } else {
-                let prefix = format!("{}/", sub_rel);
-                let matching: Vec<u8> = backup_transfers_rel
-                    .iter()
-                    .filter(|(n, _)| n == sub_rel || n.starts_with(&prefix))
-                    .map(|(_, p)| *p)
-                    .collect();
-                if !matching.is_empty() {
-                    let avg = (matching.iter().map(|&p| p as u64).sum::<u64>()
-                        / matching.len() as u64) as u8;
-                    sync_state = TransferState::Uploading;
-                    progress = avg.max(1);
-                    note = "Enviando arquivos internos (:5577)...".to_string();
-                }
-                FileLocation::Ambos
+        for entry_res in entries {
+            let entry = match entry_res {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            // Skip hidden FUSE metadata or excluded system folders on SanDisk SSD
+            if file_name.starts_with(".fuse_hidden")
+                || (in_backup_tree
+                    && (file_name.ends_with("RECYCLE.BIN") || file_name == ".Trash-1000"))
+            {
+                continue;
             }
-        } else if is_dir {
-            FileLocation::Ambos
-        } else if is_in_vfs_cache(&item_rel) {
-            FileLocation::Ambos
-        } else {
-            FileLocation::Nuvem
-        };
 
-        items.push(DriveItem {
-            name: file_name,
-            rel_path: item_rel,
-            is_dir,
-            size,
-            modified_ts: mod_ts,
-            modified_str: format_timestamp(mod_ts),
-            location,
-            sync_state,
-            progress_percent: progress,
-            status_note: note,
-        });
+            let meta = entry.metadata().ok();
+            let is_dir = meta.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+            let size = if is_dir {
+                0
+            } else {
+                meta.as_ref().map(|m| m.len()).unwrap_or(0)
+            };
+
+            let mod_ts = meta
+                .as_ref()
+                .and_then(|m| m.modified().ok())
+                .and_then(|st| st.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+
+            let item_rel = if clean_rel.is_empty() {
+                file_name.clone()
+            } else {
+                format!("{}/{}", clean_rel, file_name)
+            };
+
+            let (sync_state, location, progress, note) = if in_backup_tree {
+                let sub_rel = item_rel
+                    .strip_prefix("Backup-SanDisk-1TB/")
+                    .unwrap_or(&file_name);
+                resolve_backup_item_state(
+                    sub_rel,
+                    &file_name,
+                    is_dir,
+                    &backup_transfers_rel,
+                    backup_remote_names.as_deref(),
+                )
+            } else if is_dir {
+                (
+                    TransferState::Uploaded,
+                    FileLocation::Ambos,
+                    100,
+                    "Sincronizado".to_string(),
+                )
+            } else if is_in_vfs_cache(&item_rel) {
+                (
+                    TransferState::Uploaded,
+                    FileLocation::Ambos,
+                    100,
+                    "Sincronizado".to_string(),
+                )
+            } else {
+                (
+                    TransferState::Uploaded,
+                    FileLocation::Nuvem,
+                    100,
+                    "Sincronizado".to_string(),
+                )
+            };
+
+            items.push(DriveItem {
+                name: file_name,
+                rel_path: item_rel,
+                is_dir,
+                size,
+                modified_ts: mod_ts,
+                modified_str: format_timestamp(mod_ts),
+                location,
+                sync_state,
+                progress_percent: progress,
+                status_note: note,
+            });
+        }
     }
 
     // Project Backup-SanDisk-1TB inside ~/GoogleDrive root
@@ -733,10 +982,32 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
 }
 
 #[tauri::command]
-fn preview_file(rel_path: String) -> Result<PreviewResult, String> {
-    let path = sanitize_rel_path(&rel_path)?;
+fn preview_file(rel_path: String, state: State<AppState>) -> Result<PreviewResult, String> {
+    let mut path = sanitize_rel_path(&rel_path)?;
     if !path.exists() {
-        return Err("Arquivo não encontrado".to_string());
+        let clean_rel = normalize_rel_path(&rel_path);
+        let q = state.queue.lock().unwrap();
+        let queued_src = q.iter().find_map(|it| {
+            let dir = normalize_rel_path(&it.target_rel_dir);
+            let item_rel = if dir.is_empty() {
+                it.target_name.clone()
+            } else {
+                format!("{}/{}", dir, it.target_name)
+            };
+            if item_rel == clean_rel {
+                Some(PathBuf::from(&it.source_path))
+            } else {
+                None
+            }
+        });
+        if let Some(src_path) = queued_src {
+            if src_path.exists() {
+                path = src_path;
+            }
+        }
+        if !path.exists() {
+            return Err("Arquivo não encontrado".to_string());
+        }
     }
 
     let meta = fs::metadata(&path).map_err(|e| e.to_string())?;
@@ -1269,6 +1540,33 @@ fn get_transfer_dashboard(state: State<AppState>) -> Result<DashboardResponse, S
         }
     }
 
+    if let Some(vq) = query_rc(5576, "vfs/queue") {
+        if let Some(arr) = vq.get("queue").and_then(|q| q.as_array()) {
+            for q_item in arr {
+                let name = q_item.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                let is_uploading = q_item
+                    .get("uploading")
+                    .and_then(|u| u.as_bool())
+                    .unwrap_or(false);
+                let size = q_item.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
+                if !name.is_empty()
+                    && !is_uploading
+                    && !mount_transfers.iter().any(|m| m.name == name)
+                {
+                    mount_transfers.push(ActiveTransfer {
+                        name: name.to_string(),
+                        percentage: 0,
+                        bytes: 0,
+                        size,
+                        speed_avg: 0.0,
+                        eta: None,
+                        source: "Fila VFS (Aguardando)".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
     // Query 5577 Backup Stats
     let mut backup_transfers = Vec::new();
     let mut last_synced_files = Vec::new();
@@ -1286,6 +1584,33 @@ fn get_transfer_dashboard(state: State<AppState>) -> Result<DashboardResponse, S
                     source: "Backup SanDisk".to_string(),
                 });
             }
+        }
+
+        let total_transfers = stats
+            .get("totalTransfers")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let done_transfers = stats.get("transfers").and_then(|v| v.as_u64()).unwrap_or(0);
+        let active_len = backup_transfers.len() as u64;
+        if total_transfers > done_transfers + active_len {
+            let pending_count = total_transfers - done_transfers - active_len;
+            let total_bytes = stats
+                .get("totalBytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let done_bytes = stats.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+            backup_transfers.push(ActiveTransfer {
+                name: format!(
+                    "⏳ {} arquivo(s) na fila aguardando início do upload",
+                    pending_count
+                ),
+                percentage: 0,
+                bytes: 0,
+                size: total_bytes.saturating_sub(done_bytes),
+                speed_avg: 0.0,
+                eta: None,
+                source: "Fila Backup (Aguardando)".to_string(),
+            });
         }
     }
 
@@ -1348,6 +1673,7 @@ fn main() {
     let state = AppState {
         queue: Arc::new(Mutex::new(Vec::new())),
         worker_active: Arc::new(AtomicBool::new(false)),
+        backup_remote_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     tauri::Builder::default()
@@ -1482,6 +1808,90 @@ mod tests {
         merge_queue_and_transfers("", &mut items, &[], &vfs_uploading, &[]);
         assert_eq!(items[0].sync_state, TransferState::Uploading);
         assert_eq!(items[0].location, FileLocation::Local);
+    }
+
+    #[test]
+    fn test_vfs_queued_synthesizes_missing_files_and_folders() {
+        let mut items: Vec<DriveItem> = Vec::new();
+        let vfs_queued = vec![
+            "nota_pendente.txt".to_string(),
+            "Relatorios/2026/abril.pdf".to_string(),
+        ];
+        merge_queue_and_transfers("", &mut items, &[], &[], &vfs_queued);
+
+        let file_item = items.iter().find(|i| i.name == "nota_pendente.txt").expect("should synthesize queued VFS file");
+        assert!(!file_item.is_dir);
+        assert_eq!(file_item.sync_state, TransferState::Aguardando);
+        assert_eq!(file_item.location, FileLocation::Local);
+
+        let dir_item = items.iter().find(|i| i.name == "Relatorios").expect("should synthesize queued VFS parent folder");
+        assert!(dir_item.is_dir);
+        assert_eq!(dir_item.sync_state, TransferState::Aguardando);
+        assert_eq!(dir_item.location, FileLocation::Local);
+    }
+
+    #[test]
+    fn test_has_queued_entries_under_virtual_subfolder() {
+        let queue = vec![UploadQueueItem {
+            id: "1".into(),
+            source_path: "/tmp/Curso/Modulo1/aula.mp4".into(),
+            target_rel_dir: "Curso/Modulo1".into(),
+            target_name: "aula.mp4".into(),
+            size: 1024,
+            transferred_bytes: 0,
+            state: TransferState::Aguardando,
+            error_message: None,
+            created_ts: 1700000000,
+            updated_ts: 1700000000,
+            parent_folder: Some("Curso".into()),
+            rel_file_path: Some("Modulo1/aula.mp4".into()),
+        }];
+
+        assert!(super::has_queued_entries_under("Curso", &queue, &[], &[]));
+        assert!(super::has_queued_entries_under("Curso/Modulo1", &queue, &[], &[]));
+        assert!(!super::has_queued_entries_under("OutraPasta", &queue, &[], &[]));
+    }
+
+    #[test]
+    fn test_resolve_backup_item_state_shows_aguardando_when_not_on_remote() {
+        let active_transfers = vec![("Downloads/ativo.zip".to_string(), 45u8)];
+        let remote_names = vec!["ja_sincronizado.txt".to_string(), "PastaSincronizada".to_string()];
+
+        // 1. File not on remote and not transferring -> Aguardando + Local
+        let (st1, loc1, pct1, _) = super::resolve_backup_item_state(
+            "Downloads/aguardando.zip",
+            "aguardando.zip",
+            false,
+            &active_transfers,
+            Some(&remote_names),
+        );
+        assert_eq!(st1, TransferState::Aguardando);
+        assert_eq!(loc1, FileLocation::Local);
+        assert_eq!(pct1, 0);
+
+        // 2. File actively transferring -> Uploading + Local
+        let (st2, loc2, pct2, _) = super::resolve_backup_item_state(
+            "Downloads/ativo.zip",
+            "ativo.zip",
+            false,
+            &active_transfers,
+            Some(&remote_names),
+        );
+        assert_eq!(st2, TransferState::Uploading);
+        assert_eq!(loc2, FileLocation::Local);
+        assert_eq!(pct2, 45);
+
+        // 3. File already on remote -> Uploaded + Ambos
+        let (st3, loc3, pct3, _) = super::resolve_backup_item_state(
+            "Downloads/ja_sincronizado.txt",
+            "ja_sincronizado.txt",
+            false,
+            &active_transfers,
+            Some(&remote_names),
+        );
+        assert_eq!(st3, TransferState::Uploaded);
+        assert_eq!(loc3, FileLocation::Ambos);
+        assert_eq!(pct3, 100);
     }
 
     #[test]
