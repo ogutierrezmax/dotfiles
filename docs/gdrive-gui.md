@@ -30,6 +30,11 @@ A aplicação monitora e unifica três estados principais:
    - Arquivo sincronizado no diretório remoto do Google Drive.
    - Confirmado via `core/transferred` ou presença persistida no mount.
 
+### Unificação da Raiz (`~/GoogleDrive`) e Síntese de Pastas
+- **Raiz Unificada (`~/GoogleDrive`)**: A raiz do explorador (`rel_path == ""` ou `"GoogleDrive"`) lista diretamente o conteúdo de `~/GoogleDrive`, refletindo a mesma hierarquia da nuvem (`gdrive:`).
+- **Projeção de `Backup-SanDisk-1TB`**: Como o `rclone-gdrive.service` exclui `--exclude="/Backup-SanDisk-1TB/**"` do FUSE mount para não duplicar o VFS cache, o `gdrive-gui` projeta a pasta `Backup-SanDisk-1TB` diretamente na raiz de `~/GoogleDrive` (mapeando `/mnt/sandisk` como somente-leitura e agregando a telemetria ao vivo do `rclone-backup.service` na porta `:5577`).
+- **Síntese e Propagação de Pastas em Tempo Real**: Quando pastas ou subpastas são adicionadas à fila de upload (`state.queue`) ou estão em write-back no VFS (`:5576`), `list_directory` sintetiza os diretórios intermediários ainda não materializados no mount e propaga o estado agregado (`Uploading` > `Aguardando` > `Uploaded`) dos arquivos internos para as pastas pai, atualizando a tabela principal silenciosamente a cada ciclo de polling.
+
 ---
 
 ## 🚀 Como Executar

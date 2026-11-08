@@ -133,8 +133,8 @@ function setupEventListeners() {
     const modalFolder = document.getElementById('modal-folder');
     const inputFolderName = document.getElementById('input-folder-name');
     document.getElementById('btn-new-folder')?.addEventListener('click', () => {
-        if (currentRelPath === '') {
-            showToast('Entre em um diretório (ex: GoogleDrive) para criar novas pastas', 'info');
+        if (isProtectedBackupPath(currentRelPath)) {
+            showToast('Backup-SanDisk-1TB é gerenciado automaticamente pelo rclone-backup (somente leitura)', 'info');
             return;
         }
         inputFolderName.value = '';
@@ -382,12 +382,17 @@ async function enqueueUploadFiles(sourcePaths) {
     }
 }
 // Directory Loader
+function itemsSignature(items) {
+    return items
+        .map((i) => `${i.rel_path}|${i.is_dir}|${i.size}|${i.modified_str}|${i.location}|${i.sync_state}|${i.progress_percent}`)
+        .join('\n');
+}
 async function loadDirectory(relPath) {
     currentRelPath = relPath;
     renderBreadcrumbs();
     const tbody = document.getElementById('files-table-body');
     if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Carregando arquivos...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Carregando arquivos...</td></tr>';
     }
     try {
         currentItems = await invoke('list_directory', { relPath });
@@ -396,8 +401,24 @@ async function loadDirectory(relPath) {
     }
     catch (e) {
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erro: ${e}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erro: ${e}</td></tr>`;
         }
+    }
+}
+async function refreshCurrentDirectorySilent() {
+    const reqPath = currentRelPath;
+    try {
+        const items = await invoke('list_directory', { relPath: reqPath });
+        if (reqPath !== currentRelPath)
+            return;
+        if (itemsSignature(items) !== itemsSignature(currentItems)) {
+            currentItems = items;
+            updateSummaryCounts();
+            renderFilesTable();
+        }
+    }
+    catch {
+        // Ignore transient poll errors
     }
 }
 function updateSummaryCounts() {
@@ -438,16 +459,30 @@ function navigateUp() {
         loadDirectory(parent);
     }
 }
-function isRootItem(rel_path) {
+function isProtectedBackupPath(rel_path) {
     const clean = rel_path.trim().replace(/^\/+|\/+$/g, '');
-    return ['GoogleDrive', 'SanDisk-1TB'].includes(clean);
+    return (clean === 'Backup-SanDisk-1TB' ||
+        clean.startsWith('Backup-SanDisk-1TB/') ||
+        clean === 'SanDisk-1TB' ||
+        clean.startsWith('SanDisk-1TB/'));
 }
 function getRootIcon(name) {
-    if (name === 'GoogleDrive')
-        return '☁️';
-    if (name === 'SanDisk-1TB')
+    if (name === 'Backup-SanDisk-1TB' || name === 'SanDisk-1TB')
         return '💾';
     return '📁';
+}
+function getQueueFolderDrivePath(item) {
+    if (!item)
+        return '';
+    const dir = item.target_rel_dir.trim().replace(/^\/+|\/+$/g, '');
+    if (item.rel_file_path && item.rel_file_path.includes('/')) {
+        const relParent = item.rel_file_path.substring(0, item.rel_file_path.lastIndexOf('/'));
+        const suffix = `/${relParent}`;
+        if (dir.endsWith(suffix)) {
+            return dir.substring(0, dir.length - suffix.length);
+        }
+    }
+    return dir;
 }
 function renderBreadcrumbs() {
     const container = document.getElementById('breadcrumbs');
@@ -460,7 +495,7 @@ function renderBreadcrumbs() {
     container.innerHTML = '';
     const rootSpan = document.createElement('span');
     rootSpan.className = `crumb ${currentRelPath === '' ? 'active' : ''}`;
-    rootSpan.textContent = '🏠 Início (Locais)';
+    rootSpan.textContent = '~/GoogleDrive';
     rootSpan.addEventListener('click', () => {
         if (currentRelPath !== '')
             loadDirectory('');
@@ -512,13 +547,18 @@ function renderFilesTable() {
         const tr = document.createElement('tr');
         tr.className = `file-row ${selectedRelPath === item.rel_path ? 'selected' : ''}`;
         // Name & Icon
-        const isRoot = isRootItem(item.rel_path) && currentRelPath === '';
+        const isProtected = isProtectedBackupPath(item.rel_path);
         const tdName = document.createElement('td');
         const nameCell = document.createElement('div');
         nameCell.className = 'file-name-cell';
         const icon = document.createElement('span');
         icon.className = 'file-icon';
-        icon.textContent = isRoot ? getRootIcon(item.name) : item.is_dir ? '📁' : getFileIcon(item.name);
+        icon.textContent =
+            item.name === 'Backup-SanDisk-1TB' && currentRelPath === ''
+                ? getRootIcon(item.name)
+                : item.is_dir
+                    ? '📁'
+                    : getFileIcon(item.name);
         const label = document.createElement('span');
         label.textContent = item.name;
         nameCell.appendChild(icon);
@@ -566,13 +606,13 @@ function renderFilesTable() {
         const btnDelete = document.createElement('button');
         btnDelete.className = 'btn btn-xs btn-ghost text-danger';
         btnDelete.textContent = '🗑';
-        if (isRoot) {
+        if (isProtected) {
             btnRename.disabled = true;
             btnRename.style.opacity = '0.25';
-            btnRename.title = 'Pasta raiz do sistema (protegida)';
+            btnRename.title = 'Pasta sincronizada pelo rclone-backup (somente leitura)';
             btnDelete.disabled = true;
             btnDelete.style.opacity = '0.25';
-            btnDelete.title = 'Pasta raiz do sistema (protegida)';
+            btnDelete.title = 'Pasta sincronizada pelo rclone-backup (somente leitura)';
         }
         else {
             btnRename.title = 'Renomear';
@@ -739,7 +779,7 @@ function renderFolderQueueInspector() {
     const totalBytes = items.reduce((acc, it) => acc + it.size, 0);
     const transferredBytes = items.reduce((acc, it) => acc + it.transferred_bytes, 0);
     const aggregatePct = totalBytes > 0 ? Math.floor((transferredBytes / totalBytes) * 100) : uploadedCount === totalCount ? 100 : 0;
-    const destDir = items[0]?.target_rel_dir || '';
+    const destDir = getQueueFolderDrivePath(items[0]);
     body.innerHTML = `
     <div class="folder-queue-view">
       <div class="folder-queue-card">
@@ -984,6 +1024,7 @@ async function refreshDashboard() {
         if (selectedQueueFolder) {
             updateFolderQueueInspectorLive();
         }
+        await refreshCurrentDirectorySilent();
     }
     catch {
         // Ignore transient poll errors
@@ -1069,7 +1110,7 @@ function renderDrawerTransfers() {
                 e.stopPropagation();
                 const first = items[0];
                 if (first) {
-                    const target = first.target_rel_dir;
+                    const target = getQueueFolderDrivePath(first);
                     loadDirectory(target).catch(() => { });
                 }
             });

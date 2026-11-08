@@ -102,48 +102,46 @@ pub struct AppState {
     pub worker_active: Arc<AtomicBool>,
 }
 
-fn home_dir() -> PathBuf {
+fn gdrive_root() -> PathBuf {
     std::env::var("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/home/max"))
+        .join("GoogleDrive")
 }
 
-fn gdrive_root() -> PathBuf {
-    home_dir().join("GoogleDrive")
-}
-
-pub fn resolve_path(rel_path: &str) -> Result<PathBuf, String> {
+pub fn normalize_rel_path(rel_path: &str) -> String {
     let clean = rel_path.trim_matches('/');
-    if clean.contains("..") {
+    if clean == "GoogleDrive" {
+        String::new()
+    } else if let Some(sub) = clean.strip_prefix("GoogleDrive/") {
+        sub.trim_matches('/').to_string()
+    } else {
+        clean.to_string()
+    }
+}
+
+pub fn is_protected_backup_path(rel_path: &str) -> bool {
+    let clean = normalize_rel_path(rel_path);
+    clean == "Backup-SanDisk-1TB" || clean.starts_with("Backup-SanDisk-1TB/")
+}
+
+// Resolve paths inside ~/GoogleDrive, mapping Backup-SanDisk-1TB to /mnt/sandisk
+pub fn sanitize_rel_path(rel_path: &str) -> Result<PathBuf, String> {
+    let raw = rel_path.trim_matches('/');
+    if raw.contains("..") {
         return Err("Caminho inválido: tentativa de escape de diretório".to_string());
     }
-    if clean.is_empty() {
-        return Err("Raiz virtual de locais não possui caminho direto em disco".to_string());
-    }
-
-    if clean == "GoogleDrive" {
-        Ok(gdrive_root())
-    } else if let Some(sub) = clean.strip_prefix("GoogleDrive/") {
-        Ok(gdrive_root().join(sub))
-    } else if clean == "SanDisk-1TB" {
-        Ok(PathBuf::from("/mnt/sandisk"))
-    } else if let Some(sub) = clean.strip_prefix("SanDisk-1TB/") {
-        Ok(PathBuf::from("/mnt/sandisk").join(sub))
+    let clean = normalize_rel_path(raw);
+    let target = if clean.is_empty() {
+        gdrive_root()
+    } else if clean == "Backup-SanDisk-1TB" {
+        PathBuf::from("/mnt/sandisk")
+    } else if let Some(sub) = clean.strip_prefix("Backup-SanDisk-1TB/") {
+        PathBuf::from("/mnt/sandisk").join(sub)
     } else {
-        Ok(gdrive_root().join(clean))
-    }
-}
-
-pub fn is_root_dir(rel_path: &str) -> bool {
-    let clean = rel_path.trim_matches('/');
-    clean.is_empty()
-        || clean == "GoogleDrive"
-        || clean == "SanDisk-1TB"
-}
-
-// Ensure rel_path is strictly within ~/GoogleDrive (backward compat)
-pub fn sanitize_rel_path(rel_path: &str) -> Result<PathBuf, String> {
-    resolve_path(rel_path)
+        gdrive_root().join(clean)
+    };
+    Ok(target)
 }
 
 pub fn format_timestamp(ts: u64) -> String {
@@ -258,65 +256,254 @@ fn is_in_vfs_cache(rel_path: &str) -> bool {
     false
 }
 
+fn child_segment<'a>(clean_rel: &str, target_rel: &'a str) -> Option<&'a str> {
+    let t = target_rel.trim_matches('/');
+    if clean_rel.is_empty() {
+        if t.is_empty() {
+            None
+        } else {
+            t.split('/').next().filter(|s| !s.is_empty())
+        }
+    } else {
+        let prefix = format!("{}/", clean_rel);
+        t.strip_prefix(&prefix)
+            .and_then(|rest| rest.split('/').next())
+            .filter(|s| !s.is_empty())
+    }
+}
+
+pub fn merge_queue_and_transfers(
+    clean_rel: &str,
+    items: &mut Vec<DriveItem>,
+    queue: &[UploadQueueItem],
+    vfs_uploading: &[String],
+    vfs_queued: &[String],
+) {
+    // 1. Apply VFS queue paths (relative to ~/GoogleDrive) to files and parent folders
+    for vfs_rel in vfs_uploading {
+        let clean_vfs = normalize_rel_path(vfs_rel);
+        let (parent_dir, file_name) = match clean_vfs.rfind('/') {
+            Some(idx) => (&clean_vfs[..idx], &clean_vfs[idx + 1..]),
+            None => ("", clean_vfs.as_str()),
+        };
+        if parent_dir == clean_rel {
+            if let Some(existing) = items.iter_mut().find(|i| i.name == file_name) {
+                existing.sync_state = TransferState::Uploading;
+                existing.location = FileLocation::Local;
+                if existing.progress_percent == 100 || existing.progress_percent == 0 {
+                    existing.progress_percent = 50;
+                }
+                existing.status_note = "Enviando para nuvem (VFS)...".to_string();
+            }
+        } else if let Some(child_dir) = child_segment(clean_rel, &clean_vfs) {
+            if child_dir != file_name || !parent_dir.is_empty() {
+                if let Some(existing) = items.iter_mut().find(|i| i.is_dir && i.name == child_dir) {
+                    existing.sync_state = TransferState::Uploading;
+                    existing.location = FileLocation::Local;
+                    if existing.progress_percent == 100 || existing.progress_percent == 0 {
+                        existing.progress_percent = 50;
+                    }
+                    existing.status_note = "Enviando arquivos internos (VFS)...".to_string();
+                }
+            }
+        }
+    }
+
+    for vfs_rel in vfs_queued {
+        let clean_vfs = normalize_rel_path(vfs_rel);
+        let (parent_dir, file_name) = match clean_vfs.rfind('/') {
+            Some(idx) => (&clean_vfs[..idx], &clean_vfs[idx + 1..]),
+            None => ("", clean_vfs.as_str()),
+        };
+        if parent_dir == clean_rel {
+            if let Some(existing) = items.iter_mut().find(|i| i.name == file_name) {
+                if existing.sync_state != TransferState::Uploading {
+                    existing.sync_state = TransferState::Aguardando;
+                    existing.location = FileLocation::Local;
+                    existing.progress_percent = 0;
+                    existing.status_note = "Na fila de envio VFS".to_string();
+                }
+            }
+        } else if let Some(child_dir) = child_segment(clean_rel, &clean_vfs) {
+            if child_dir != file_name || !parent_dir.is_empty() {
+                if let Some(existing) = items.iter_mut().find(|i| i.is_dir && i.name == child_dir) {
+                    if existing.sync_state == TransferState::Uploaded {
+                        existing.sync_state = TransferState::Aguardando;
+                        existing.location = FileLocation::Local;
+                        existing.progress_percent = 0;
+                        existing.status_note = "Arquivos internos na fila VFS".to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Direct files in clean_rel from app upload queue
+    for it in queue.iter() {
+        let target_dir_clean = normalize_rel_path(&it.target_rel_dir);
+        if target_dir_clean == clean_rel {
+            let pct = if it.state == TransferState::Uploaded {
+                100
+            } else if it.size > 0 {
+                ((it.transferred_bytes * 100) / it.size).min(99) as u8
+            } else if it.state == TransferState::Uploading {
+                50
+            } else {
+                0
+            };
+
+            if let Some(existing) = items.iter_mut().find(|i| i.name == it.target_name) {
+                if it.state == TransferState::Uploaded {
+                    if existing.sync_state == TransferState::Uploaded {
+                        existing.location = FileLocation::Ambos;
+                        existing.progress_percent = 100;
+                    }
+                } else {
+                    existing.location = FileLocation::Local;
+                    existing.sync_state = it.state.clone();
+                    existing.progress_percent = pct;
+                    existing.status_note = "Na fila de upload local".to_string();
+                }
+            } else {
+                let is_done = it.state == TransferState::Uploaded;
+                items.push(DriveItem {
+                    name: it.target_name.clone(),
+                    rel_path: if clean_rel.is_empty() {
+                        it.target_name.clone()
+                    } else {
+                        format!("{}/{}", clean_rel, it.target_name)
+                    },
+                    is_dir: false,
+                    size: it.size,
+                    modified_ts: it.updated_ts,
+                    modified_str: format_timestamp(it.updated_ts),
+                    location: if is_done { FileLocation::Ambos } else { FileLocation::Local },
+                    sync_state: it.state.clone(),
+                    progress_percent: pct,
+                    status_note: if is_done {
+                        "Sincronizado".to_string()
+                    } else {
+                        "Na fila de upload local".to_string()
+                    },
+                });
+            }
+        }
+    }
+
+    // 3. Synthesize and aggregate child folders from app upload queue
+    let mut child_folders: Vec<String> = Vec::new();
+    for it in queue.iter() {
+        let norm_target = normalize_rel_path(&it.target_rel_dir);
+        if let Some(seg) = child_segment(clean_rel, &norm_target) {
+            if !child_folders.iter().any(|c| c == seg) {
+                child_folders.push(seg.to_string());
+            }
+        }
+    }
+
+    for folder_name in child_folders {
+        let group: Vec<&UploadQueueItem> = queue
+            .iter()
+            .filter(|it| {
+                let norm_target = normalize_rel_path(&it.target_rel_dir);
+                child_segment(clean_rel, &norm_target) == Some(folder_name.as_str())
+            })
+            .collect();
+
+        if group.is_empty() {
+            continue;
+        }
+
+        let total_bytes: u64 = group.iter().map(|i| i.size).sum();
+        let trans_bytes: u64 = group
+            .iter()
+            .map(|i| {
+                if i.state == TransferState::Uploaded {
+                    i.size
+                } else {
+                    i.transferred_bytes
+                }
+            })
+            .sum();
+
+        let any_uploading = group.iter().any(|i| i.state == TransferState::Uploading);
+        let any_waiting = group.iter().any(|i| i.state == TransferState::Aguardando);
+        let any_uploaded = group.iter().any(|i| i.state == TransferState::Uploaded);
+        let any_error = group.iter().any(|i| i.state == TransferState::Error);
+        let latest_ts = group.iter().map(|i| i.updated_ts).max().unwrap_or(0);
+
+        let (sync_state, location, pct, note) = if any_uploading || (any_uploaded && any_waiting) {
+            let p = if total_bytes > 0 {
+                ((trans_bytes * 100) / total_bytes).min(99) as u8
+            } else {
+                50
+            };
+            (
+                TransferState::Uploading,
+                FileLocation::Local,
+                p,
+                "Enviando arquivos da pasta...".to_string(),
+            )
+        } else if any_waiting {
+            (
+                TransferState::Aguardando,
+                FileLocation::Local,
+                0,
+                "Pasta na fila de upload".to_string(),
+            )
+        } else if any_error {
+            (
+                TransferState::Error,
+                FileLocation::Local,
+                0,
+                "Erro em arquivos da pasta".to_string(),
+            )
+        } else {
+            (
+                TransferState::Uploaded,
+                FileLocation::Ambos,
+                100,
+                "Sincronizado".to_string(),
+            )
+        };
+
+        let folder_rel = if clean_rel.is_empty() {
+            folder_name.clone()
+        } else {
+            format!("{}/{}", clean_rel, folder_name)
+        };
+
+        if let Some(existing) = items.iter_mut().find(|i| i.name == folder_name) {
+            if sync_state != TransferState::Uploaded {
+                existing.sync_state = sync_state;
+                existing.location = location;
+                existing.progress_percent = pct;
+                existing.status_note = note;
+            }
+        } else {
+            items.push(DriveItem {
+                name: folder_name,
+                rel_path: folder_rel,
+                is_dir: true,
+                size: 0,
+                modified_ts: latest_ts,
+                modified_str: format_timestamp(latest_ts),
+                location,
+                sync_state,
+                progress_percent: pct,
+                status_note: note,
+            });
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // TAURI COMMANDS
 // ----------------------------------------------------------------------------
 
 #[tauri::command]
 fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveItem>, String> {
-    let clean_rel = rel_path.trim_matches('/').to_string();
-
-    if clean_rel.is_empty() {
-        let home = home_dir();
-        let backup_running = systemd_status("rclone-backup.service");
-        let roots_info = [
-            (
-                "GoogleDrive",
-                "GoogleDrive",
-                home.join("GoogleDrive"),
-                FileLocation::Ambos,
-                TransferState::Uploaded,
-                100,
-                "FUSE Mount do Google Drive (~/GoogleDrive)",
-            ),
-            (
-                "SanDisk-1TB",
-                "SanDisk-1TB",
-                PathBuf::from("/mnt/sandisk"),
-                FileLocation::Ambos,
-                if backup_running { TransferState::Uploading } else { TransferState::Uploaded },
-                if backup_running { 50 } else { 100 },
-                if backup_running { "SSD Externo 1TB (Backup em andamento...)" } else { "SSD Externo 1TB (/mnt/sandisk - Sincronizado)" },
-            ),
-        ];
-
-        let mut items = Vec::new();
-        for (name, rel, path, loc, state, progress, note) in roots_info {
-            let meta = fs::metadata(&path).ok();
-            let mod_ts = meta
-                .as_ref()
-                .and_then(|m| m.modified().ok())
-                .and_then(|st| st.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-
-            items.push(DriveItem {
-                name: name.to_string(),
-                rel_path: rel.to_string(),
-                is_dir: true,
-                size: 0,
-                modified_ts: mod_ts,
-                modified_str: format_timestamp(mod_ts),
-                location: loc,
-                sync_state: state,
-                progress_percent: progress,
-                status_note: note.to_string(),
-            });
-        }
-        return Ok(items);
-    }
-
-    let dir_path = resolve_path(&rel_path)?;
+    let dir_path = sanitize_rel_path(&rel_path)?;
     if !dir_path.exists() {
         return Err(format!("Diretório não encontrado: {}", dir_path.display()));
     }
@@ -324,27 +511,71 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
     let entries = fs::read_dir(&dir_path)
         .map_err(|e| format!("Erro ao ler diretório {}: {}", dir_path.display(), e))?;
 
-    // Query VFS queue on 5576 to cross-reference items in queue
-    let vfs_queue_val = query_rc(5576, "vfs/queue");
-    let mut queued_names: Vec<String> = Vec::new();
-    let mut uploading_names: Vec<String> = Vec::new();
+    let clean_rel = normalize_rel_path(&rel_path);
+    let in_backup_tree = is_protected_backup_path(&clean_rel);
 
-    if let Some(val) = vfs_queue_val {
-        if let Some(arr) = val.get("queue").and_then(|q| q.as_array()) {
-            for q_item in arr {
-                let name = q_item.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                let is_uploading = q_item.get("uploading").and_then(|u| u.as_bool()).unwrap_or(false);
-                if !name.is_empty() {
-                    let base_name = Path::new(name).file_name().and_then(|f| f.to_str()).unwrap_or(name);
-                    if is_uploading {
-                        uploading_names.push(base_name.to_string());
-                    } else {
-                        queued_names.push(base_name.to_string());
+    // Query VFS queue on 5576 (full relative paths inside ~/GoogleDrive)
+    let mut vfs_queued: Vec<String> = Vec::new();
+    let mut vfs_uploading: Vec<String> = Vec::new();
+
+    if !in_backup_tree {
+        if let Some(val) = query_rc(5576, "vfs/queue") {
+            if let Some(arr) = val.get("queue").and_then(|q| q.as_array()) {
+                for q_item in arr {
+                    let name = q_item.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    let is_uploading = q_item
+                        .get("uploading")
+                        .and_then(|u| u.as_bool())
+                        .unwrap_or(false);
+                    if !name.is_empty() {
+                        if is_uploading {
+                            vfs_uploading.push(name.trim_matches('/').to_string());
+                        } else {
+                            vfs_queued.push(name.trim_matches('/').to_string());
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(stats) = query_rc(5576, "core/stats") {
+            if let Some(arr) = stats.get("transferring").and_then(|t| t.as_array()) {
+                for t in arr {
+                    if let Some(name) = t.get("name").and_then(|n| n.as_str()) {
+                        let clean_name = name.trim_matches('/').to_string();
+                        if !clean_name.is_empty() && !vfs_uploading.contains(&clean_name) {
+                            vfs_uploading.push(clean_name);
+                        }
                     }
                 }
             }
         }
     }
+
+    // Query 5577 Backup active transfers when at root or inside Backup-SanDisk-1TB
+    let mut backup_transfers_rel: Vec<(String, u8)> = Vec::new();
+    let backup_running = if clean_rel.is_empty() || in_backup_tree {
+        if let Some(stats) = query_rc(5577, "core/stats") {
+            if let Some(arr) = stats.get("transferring").and_then(|t| t.as_array()) {
+                for t in arr {
+                    let name = t
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("")
+                        .trim_matches('/')
+                        .to_string();
+                    let pct = t.get("percentage").and_then(|p| p.as_u64()).unwrap_or(50) as u8;
+                    if !name.is_empty() {
+                        backup_transfers_rel.push((name, pct));
+                    }
+                }
+            }
+            true
+        } else {
+            systemd_status("rclone-backup.service")
+        }
+    } else {
+        false
+    };
 
     let mut items = Vec::new();
 
@@ -354,14 +585,21 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
             Err(_) => continue,
         };
         let file_name = entry.file_name().to_string_lossy().to_string();
-        // Skip hidden or system-internal metadata
-        if file_name.starts_with(".fuse_hidden") {
+        // Skip hidden FUSE metadata or excluded system folders on SanDisk SSD
+        if file_name.starts_with(".fuse_hidden")
+            || (in_backup_tree
+                && (file_name.ends_with("RECYCLE.BIN") || file_name == ".Trash-1000"))
+        {
             continue;
         }
 
         let meta = entry.metadata().ok();
         let is_dir = meta.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-        let size = if is_dir { 0 } else { meta.as_ref().map(|m| m.len()).unwrap_or(0) };
+        let size = if is_dir {
+            0
+        } else {
+            meta.as_ref().map(|m| m.len()).unwrap_or(0)
+        };
 
         let mod_ts = meta
             .as_ref()
@@ -370,38 +608,50 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        let item_rel = format!("{}/{}", clean_rel, file_name);
+        let item_rel = if clean_rel.is_empty() {
+            file_name.clone()
+        } else {
+            format!("{}/{}", clean_rel, file_name)
+        };
 
         let mut sync_state = TransferState::Uploaded;
         let mut progress = 100;
         let mut note = "Sincronizado".to_string();
-        let location = if is_dir {
-            if clean_rel.starts_with("GoogleDrive") || clean_rel.starts_with("SanDisk-1TB") {
-                FileLocation::Ambos
+        let location = if in_backup_tree {
+            let sub_rel = item_rel
+                .strip_prefix("Backup-SanDisk-1TB/")
+                .unwrap_or(&file_name);
+            if !is_dir {
+                if let Some((_, pct)) = backup_transfers_rel.iter().find(|(n, _)| n == sub_rel) {
+                    sync_state = TransferState::Uploading;
+                    progress = *pct;
+                    note = "Enviando para nuvem (:5577)...".to_string();
+                    FileLocation::Local
+                } else {
+                    FileLocation::Ambos
+                }
             } else {
-                FileLocation::Local
-            }
-        } else if uploading_names.iter().any(|n| n == &file_name) {
-            sync_state = TransferState::Uploading;
-            progress = 50;
-            note = "Enviando para nuvem...".to_string();
-            FileLocation::Local
-        } else if queued_names.iter().any(|n| n == &file_name) {
-            sync_state = TransferState::Aguardando;
-            progress = 0;
-            note = "Na fila de envio VFS".to_string();
-            FileLocation::Local
-        } else if clean_rel.starts_with("GoogleDrive") {
-            let sub = item_rel.strip_prefix("GoogleDrive/").unwrap_or(&file_name);
-            if is_in_vfs_cache(sub) {
+                let prefix = format!("{}/", sub_rel);
+                let matching: Vec<u8> = backup_transfers_rel
+                    .iter()
+                    .filter(|(n, _)| n == sub_rel || n.starts_with(&prefix))
+                    .map(|(_, p)| *p)
+                    .collect();
+                if !matching.is_empty() {
+                    let avg = (matching.iter().map(|&p| p as u64).sum::<u64>()
+                        / matching.len() as u64) as u8;
+                    sync_state = TransferState::Uploading;
+                    progress = avg.max(1);
+                    note = "Enviando arquivos internos (:5577)...".to_string();
+                }
                 FileLocation::Ambos
-            } else {
-                FileLocation::Nuvem
             }
-        } else if clean_rel.starts_with("SanDisk-1TB") {
+        } else if is_dir {
+            FileLocation::Ambos
+        } else if is_in_vfs_cache(&item_rel) {
             FileLocation::Ambos
         } else {
-            FileLocation::Local
+            FileLocation::Nuvem
         };
 
         items.push(DriveItem {
@@ -418,47 +668,58 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
         });
     }
 
-    // Merge items from app upload queue
-    {
-        let q = state.queue.lock().unwrap();
-        for it in q.iter() {
-            let target_dir_clean = it.target_rel_dir.trim_matches('/');
-            if target_dir_clean == clean_rel {
-                if let Some(existing) = items.iter_mut().find(|i| i.name == it.target_name) {
-                    if it.state == TransferState::Uploaded {
-                        existing.location = FileLocation::Ambos;
-                        existing.sync_state = TransferState::Uploaded;
-                        existing.progress_percent = 100;
-                    } else {
-                        existing.location = FileLocation::Local;
-                        existing.sync_state = it.state.clone();
-                        existing.progress_percent = if it.size > 0 {
-                            ((it.transferred_bytes * 100) / it.size).min(99) as u8
-                        } else {
-                            50
-                        };
-                    }
-                } else if it.state != TransferState::Uploaded {
-                    let pct = if it.size > 0 {
-                        ((it.transferred_bytes * 100) / it.size).min(99) as u8
-                    } else {
-                        0
-                    };
-                    items.push(DriveItem {
-                        name: it.target_name.clone(),
-                        rel_path: format!("{}/{}", clean_rel, it.target_name),
-                        is_dir: false,
-                        size: it.size,
-                        modified_ts: it.created_ts,
-                        modified_str: format_timestamp(it.created_ts),
-                        location: FileLocation::Local,
-                        sync_state: it.state.clone(),
-                        progress_percent: pct,
-                        status_note: "Na fila de upload local".to_string(),
-                    });
-                }
-            }
+    // Project Backup-SanDisk-1TB inside ~/GoogleDrive root
+    if clean_rel.is_empty() && !items.iter().any(|i| i.name == "Backup-SanDisk-1TB") {
+        let sandisk_path = Path::new("/mnt/sandisk");
+        if sandisk_path.exists() || backup_running {
+            let mod_ts = fs::metadata(sandisk_path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|st| st.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+
+            let (b_state, b_pct, b_note) = if !backup_transfers_rel.is_empty() {
+                let avg = (backup_transfers_rel.iter().map(|(_, p)| *p as u64).sum::<u64>()
+                    / backup_transfers_rel.len() as u64) as u8;
+                (
+                    TransferState::Uploading,
+                    avg.max(1),
+                    "Enviando backup do SSD SanDisk 1TB (:5577)...".to_string(),
+                )
+            } else if backup_running {
+                (
+                    TransferState::Uploading,
+                    50,
+                    "Sincronizando SSD SanDisk 1TB (:5577)...".to_string(),
+                )
+            } else {
+                (
+                    TransferState::Uploaded,
+                    100,
+                    "Backup do SSD SanDisk 1TB no Google Drive".to_string(),
+                )
+            };
+
+            items.push(DriveItem {
+                name: "Backup-SanDisk-1TB".to_string(),
+                rel_path: "Backup-SanDisk-1TB".to_string(),
+                is_dir: true,
+                size: 0,
+                modified_ts: mod_ts,
+                modified_str: format_timestamp(mod_ts),
+                location: FileLocation::Ambos,
+                sync_state: b_state,
+                progress_percent: b_pct,
+                status_note: b_note,
+            });
         }
+    }
+
+    // Merge items and synthesized folders from app upload queue and VFS queue
+    if !in_backup_tree {
+        let q = state.queue.lock().unwrap();
+        merge_queue_and_transfers(&clean_rel, &mut items, &q, &vfs_uploading, &vfs_queued);
     }
 
     // Sort: directories first, then alphabetical by name
@@ -473,23 +734,7 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
 
 #[tauri::command]
 fn preview_file(rel_path: String) -> Result<PreviewResult, String> {
-    let clean = rel_path.trim_matches('/');
-    if clean.is_empty() {
-        return Ok(PreviewResult {
-            name: "Início (Locais & Drives)".to_string(),
-            rel_path: String::new(),
-            is_dir: true,
-            size: 0,
-            modified_str: "-".to_string(),
-            mime_guess: "inode/directory".to_string(),
-            is_text: false,
-            is_image: false,
-            content: "Visão raiz agregada de unidades locais e montagem em nuvem.".to_string(),
-            truncated: false,
-        });
-    }
-
-    let path = resolve_path(&rel_path)?;
+    let path = sanitize_rel_path(&rel_path)?;
     if !path.exists() {
         return Err("Arquivo não encontrado".to_string());
     }
@@ -514,7 +759,7 @@ fn preview_file(rel_path: String) -> Result<PreviewResult, String> {
     let mut truncated = false;
 
     if is_dir {
-        content = format!("Diretório: {}", path.display());
+        content = format!("Diretório do Google Drive ({})", path.display());
     } else if is_text {
         // Read text up to 256KB
         const MAX_BYTES: u64 = 256 * 1024;
@@ -587,15 +832,14 @@ mod base64_light {
 
 #[tauri::command]
 fn create_folder(rel_path: String, folder_name: String) -> Result<(), String> {
+    if is_protected_backup_path(&rel_path) {
+        return Err("Pasta gerenciada pelo rclone-backup (somente leitura)".to_string());
+    }
     let clean_name = folder_name.trim();
     if clean_name.is_empty() || clean_name.contains('/') || clean_name.contains("..") {
         return Err("Nome de pasta inválido".to_string());
     }
-    let clean_rel = rel_path.trim_matches('/');
-    if clean_rel.is_empty() {
-        return Err("Não é permitido criar pastas na raiz de Locais. Entre em uma pasta primeiro (ex: GoogleDrive).".to_string());
-    }
-    let parent = resolve_path(&rel_path)?;
+    let parent = sanitize_rel_path(&rel_path)?;
     let target = parent.join(clean_name);
     fs::create_dir_all(&target).map_err(|e| format!("Erro ao criar pasta: {}", e))?;
     Ok(())
@@ -603,14 +847,17 @@ fn create_folder(rel_path: String, folder_name: String) -> Result<(), String> {
 
 #[tauri::command]
 fn rename_entry(rel_path: String, new_name: String) -> Result<(), String> {
+    if is_protected_backup_path(&rel_path) {
+        return Err("Não é permitido renomear itens do Backup-SanDisk-1TB".to_string());
+    }
     let clean_new = new_name.trim();
     if clean_new.is_empty() || clean_new.contains('/') || clean_new.contains("..") {
         return Err("Novo nome inválido".to_string());
     }
-    if is_root_dir(&rel_path) {
-        return Err("Não é permitido renomear pastas raiz do sistema".to_string());
+    let source = sanitize_rel_path(&rel_path)?;
+    if source == gdrive_root() {
+        return Err("Não é permitido renomear a raiz do Google Drive".to_string());
     }
-    let source = resolve_path(&rel_path)?;
     let parent = source.parent().ok_or("Diretório pai inválido")?;
     let target = parent.join(clean_new);
     fs::rename(&source, &target).map_err(|e| format!("Erro ao renomear: {}", e))?;
@@ -619,10 +866,13 @@ fn rename_entry(rel_path: String, new_name: String) -> Result<(), String> {
 
 #[tauri::command]
 fn delete_entry(rel_path: String) -> Result<(), String> {
-    if is_root_dir(&rel_path) {
-        return Err("Não é permitido excluir pastas raiz do sistema".to_string());
+    if is_protected_backup_path(&rel_path) {
+        return Err("Não é permitido excluir itens do Backup-SanDisk-1TB".to_string());
     }
-    let target = resolve_path(&rel_path)?;
+    let target = sanitize_rel_path(&rel_path)?;
+    if target == gdrive_root() {
+        return Err("Não é permitido excluir a raiz do Google Drive".to_string());
+    }
     if !target.exists() {
         return Err("Item não encontrado".to_string());
     }
@@ -636,13 +886,7 @@ fn delete_entry(rel_path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn open_in_system(rel_path: String, reveal: bool) -> Result<(), String> {
-    let clean = rel_path.trim_matches('/');
-    let target = if clean.is_empty() {
-        home_dir()
-    } else {
-        resolve_path(&rel_path)?
-    };
-
+    let target = sanitize_rel_path(&rel_path)?;
     if !target.exists() {
         return Err("Caminho não encontrado".to_string());
     }
@@ -687,12 +931,11 @@ fn enqueue_uploads(
     target_rel_dir: String,
     state: State<AppState>,
 ) -> Result<Vec<UploadQueueItem>, String> {
-    let effective_target = if target_rel_dir.trim_matches('/').is_empty() {
-        "GoogleDrive".to_string()
-    } else {
-        target_rel_dir.clone()
-    };
-    let target_dir = resolve_path(&effective_target)?;
+    if is_protected_backup_path(&target_rel_dir) {
+        return Err("Destino Backup-SanDisk-1TB é gerenciado automaticamente pelo rclone-backup".to_string());
+    }
+    let clean_target = normalize_rel_path(&target_rel_dir);
+    let target_dir = sanitize_rel_path(&clean_target)?;
     if !target_dir.exists() {
         fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     }
@@ -717,15 +960,19 @@ fn enqueue_uploads(
                 .map(|f| f.to_string_lossy().to_string())
                 .unwrap_or_else(|| "pasta".to_string());
 
+            let folder_target_rel = if clean_target.is_empty() {
+                folder_name.clone()
+            } else {
+                format!("{}/{}", clean_target, folder_name)
+            };
+            if let Ok(d) = sanitize_rel_path(&folder_target_rel) {
+                let _ = fs::create_dir_all(&d);
+            }
+
             let mut files = Vec::new();
             collect_folder_files(&src_path, &src_path, &mut files);
 
-            if files.is_empty() {
-                let empty_target = format!("{}/{}", effective_target.trim_matches('/'), folder_name);
-                if let Ok(d) = resolve_path(&empty_target) {
-                    let _ = fs::create_dir_all(&d);
-                }
-            } else {
+            if !files.is_empty() {
                 for (file_path, rel_sub, f_size) in files {
                     let file_name = file_path
                         .file_name()
@@ -737,10 +984,16 @@ fn enqueue_uploads(
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or_default();
 
-                    let item_target_rel = if rel_parent.is_empty() {
-                        format!("{}/{}", effective_target.trim_matches('/'), folder_name)
+                    let item_target_rel = if clean_target.is_empty() {
+                        if rel_parent.is_empty() {
+                            folder_name.clone()
+                        } else {
+                            format!("{}/{}", folder_name, rel_parent)
+                        }
+                    } else if rel_parent.is_empty() {
+                        format!("{}/{}", clean_target, folder_name)
                     } else {
-                        format!("{}/{}/{}", effective_target.trim_matches('/'), folder_name, rel_parent)
+                        format!("{}/{}/{}", clean_target, folder_name, rel_parent)
                     };
 
                     let id = format!("{}_{}_{}", now, file_name, queue_guard.len());
@@ -774,7 +1027,7 @@ fn enqueue_uploads(
             let item = UploadQueueItem {
                 id,
                 source_path: src_str,
-                target_rel_dir: effective_target.clone(),
+                target_rel_dir: clean_target.clone(),
                 target_name: name,
                 size,
                 transferred_bytes: 0,
@@ -1119,18 +1372,116 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{base64_light, chrono_light, guess_mime, home_dir, resolve_path, PathBuf};
+    use super::{
+        base64_light, chrono_light, gdrive_root, guess_mime, is_protected_backup_path,
+        merge_queue_and_transfers, normalize_rel_path, sanitize_rel_path, DriveItem, FileLocation,
+        TransferState, UploadQueueItem,
+    };
+    use std::path::PathBuf;
 
     #[test]
-    fn test_resolve_path() {
-        let home = home_dir();
-        assert_eq!(resolve_path("GoogleDrive").unwrap(), home.join("GoogleDrive"));
-        assert_eq!(resolve_path("GoogleDrive/Docs").unwrap(), home.join("GoogleDrive/Docs"));
-        assert_eq!(resolve_path("SanDisk-1TB").unwrap(), PathBuf::from("/mnt/sandisk"));
-        assert_eq!(resolve_path("SanDisk-1TB/Backup").unwrap(), PathBuf::from("/mnt/sandisk/Backup"));
-        assert!(resolve_path("../etc/passwd").is_err());
-        assert!(resolve_path("GoogleDrive/../../root").is_err());
-        assert!(resolve_path("").is_err());
+    fn test_sanitize_rel_path() {
+        let root = gdrive_root();
+        assert_eq!(sanitize_rel_path("").unwrap(), root);
+        assert_eq!(sanitize_rel_path("/").unwrap(), root);
+        assert_eq!(sanitize_rel_path("GoogleDrive").unwrap(), root);
+        assert_eq!(sanitize_rel_path("GoogleDrive/Docs").unwrap(), root.join("Docs"));
+        assert_eq!(sanitize_rel_path("Docs").unwrap(), root.join("Docs"));
+        assert_eq!(sanitize_rel_path("/Docs/Pessoais/").unwrap(), root.join("Docs/Pessoais"));
+        assert_eq!(
+            sanitize_rel_path("Backup-SanDisk-1TB").unwrap(),
+            PathBuf::from("/mnt/sandisk")
+        );
+        assert_eq!(
+            sanitize_rel_path("Backup-SanDisk-1TB/Downloads").unwrap(),
+            PathBuf::from("/mnt/sandisk/Downloads")
+        );
+        assert_eq!(normalize_rel_path("GoogleDrive/Pasta"), "Pasta");
+        assert!(is_protected_backup_path("Backup-SanDisk-1TB"));
+        assert!(is_protected_backup_path("/Backup-SanDisk-1TB/Downloads"));
+        assert!(!is_protected_backup_path("Docs"));
+        assert!(sanitize_rel_path("../etc/passwd").is_err());
+        assert!(sanitize_rel_path("Docs/../../root").is_err());
+    }
+
+    #[test]
+    fn test_merge_queue_synthesizes_folders_and_files() {
+        let queue = vec![
+            UploadQueueItem {
+                id: "1".into(),
+                source_path: "/tmp/ProjetoX/src/main.rs".into(),
+                target_rel_dir: "ProjetoX/src".into(),
+                target_name: "main.rs".into(),
+                size: 1000,
+                transferred_bytes: 500,
+                state: TransferState::Uploading,
+                error_message: None,
+                created_ts: 1700000000,
+                updated_ts: 1700000005,
+                parent_folder: Some("ProjetoX".into()),
+                rel_file_path: Some("src/main.rs".into()),
+            },
+            UploadQueueItem {
+                id: "2".into(),
+                source_path: "/tmp/ProjetoX/README.md".into(),
+                target_rel_dir: "ProjetoX".into(),
+                target_name: "README.md".into(),
+                size: 500,
+                transferred_bytes: 0,
+                state: TransferState::Aguardando,
+                error_message: None,
+                created_ts: 1700000000,
+                updated_ts: 1700000000,
+                parent_folder: Some("ProjetoX".into()),
+                rel_file_path: Some("README.md".into()),
+            },
+        ];
+
+        // 1. At root (""): should synthesize folder "ProjetoX" as Uploading (500/1500 = 33%)
+        let mut root_items: Vec<DriveItem> = Vec::new();
+        merge_queue_and_transfers("", &mut root_items, &queue, &[], &[]);
+        assert_eq!(root_items.len(), 1);
+        assert_eq!(root_items[0].name, "ProjetoX");
+        assert_eq!(root_items[0].rel_path, "ProjetoX");
+        assert!(root_items[0].is_dir);
+        assert_eq!(root_items[0].sync_state, TransferState::Uploading);
+        assert_eq!(root_items[0].location, FileLocation::Local);
+        assert_eq!(root_items[0].progress_percent, 33);
+
+        // 2. Inside "ProjetoX": should synthesize subfolder "src" and file "README.md"
+        let mut proj_items: Vec<DriveItem> = Vec::new();
+        merge_queue_and_transfers("ProjetoX", &mut proj_items, &queue, &[], &[]);
+        assert_eq!(proj_items.len(), 2);
+        let src_dir = proj_items.iter().find(|i| i.name == "src").unwrap();
+        assert!(src_dir.is_dir);
+        assert_eq!(src_dir.rel_path, "ProjetoX/src");
+        assert_eq!(src_dir.sync_state, TransferState::Uploading);
+
+        let readme = proj_items.iter().find(|i| i.name == "README.md").unwrap();
+        assert!(!readme.is_dir);
+        assert_eq!(readme.rel_path, "ProjetoX/README.md");
+        assert_eq!(readme.sync_state, TransferState::Aguardando);
+    }
+
+    #[test]
+    fn test_merge_vfs_propagates_to_existing_folder() {
+        let mut items = vec![DriveItem {
+            name: "Videos".into(),
+            rel_path: "Videos".into(),
+            is_dir: true,
+            size: 0,
+            modified_ts: 1700000000,
+            modified_str: "-".into(),
+            location: FileLocation::Ambos,
+            sync_state: TransferState::Uploaded,
+            progress_percent: 100,
+            status_note: "Sincronizado".into(),
+        }];
+
+        let vfs_uploading = vec!["Videos/aula1.mp4".to_string()];
+        merge_queue_and_transfers("", &mut items, &[], &vfs_uploading, &[]);
+        assert_eq!(items[0].sync_state, TransferState::Uploading);
+        assert_eq!(items[0].location, FileLocation::Local);
     }
 
     #[test]
