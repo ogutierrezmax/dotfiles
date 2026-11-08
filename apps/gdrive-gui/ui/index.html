@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Drive Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">☁️</div>
+        <div class="header-titles">
+          <h1>Google Drive</h1>
+          <span class="header-subtitle">~/GoogleDrive &bull; VFS &bull; Backup SSD</span>
+        </div>
+      </div>
+      <div class="header-services">
+        <div id="service-mount-status" class="service-chip" title="Serviço rclone-gdrive.service (porta 5576)">
+          <span class="chip-dot"></span> Mount: <span class="chip-val">...</span>
+        </div>
+        <div id="service-backup-status" class="service-chip" title="Serviço rclone-backup.service (porta 5577)">
+          <span class="chip-dot"></span> Backup: <span class="chip-val">...</span>
+        </div>
+        <div class="vfs-meter" title="Uso do cache em disco VFS (máx 8 GB)">
+          <span class="meter-label">VFS Cache: <span id="vfs-cache-text">0 MB</span></span>
+          <div class="meter-bar"><div id="vfs-cache-progress" class="meter-fill" style="width: 0%;"></div></div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-upload" class="btn btn-primary" title="Enviar arquivos para a pasta atual">📤 Enviar</button>
+        <button id="btn-new-folder" class="btn btn-secondary" title="Criar nova pasta">📁 Nova Pasta</button>
+        <button id="btn-open-dolphin" class="btn btn-secondary" title="Abrir pasta atual no Dolphin">🐬 Dolphin</button>
+        <button id="btn-refresh" class="btn btn-secondary" title="Atualizar dados">🔄</button>
+      </div>
+    </header>
+
+    <!-- KPI / States Summary Bar -->
+    <section class="summary-bar">
+      <div class="filter-pills">
+        <button class="pill-btn active" data-filter="all" id="pill-all">
+          <span class="pill-title">Todos</span>
+          <span id="sum-total" class="pill-badge">0</span>
+        </button>
+        <button class="pill-btn" data-filter="aguardando" id="pill-waiting">
+          <span class="pill-dot dot-warning"></span>
+          <span class="pill-title">Aguardando</span>
+          <span id="sum-waiting" class="pill-badge badge-warning">0</span>
+        </button>
+        <button class="pill-btn" data-filter="uploading" id="pill-uploading">
+          <span class="pill-dot dot-info"></span>
+          <span class="pill-title">Enviando</span>
+          <span id="sum-uploading" class="pill-badge badge-info">0</span>
+        </button>
+        <button class="pill-btn" data-filter="uploaded" id="pill-uploaded">
+          <span class="pill-dot dot-success"></span>
+          <span class="pill-title">Sincronizados</span>
+          <span id="sum-uploaded" class="pill-badge badge-success">0</span>
+        </button>
+      </div>
+      <div class="filter-pills loc-pills">
+        <button class="pill-btn btn-loc-pill active" data-loc="all">Todas Presenças</button>
+        <button class="pill-btn btn-loc-pill" data-loc="nuvem">☁️ Nuvem</button>
+        <button class="pill-btn btn-loc-pill" data-loc="local">💻 Local</button>
+        <button class="pill-btn btn-loc-pill" data-loc="ambos">🔄 Ambos</button>
+      </div>
+      <div class="summary-hint">
+        <span class="text-muted text-xs">Clique para inspecionar &bull; Duplo-clique para abrir</span>
+      </div>
+    </section>
+
+    <!-- Navigation Breadcrumbs & Search -->
+    <section class="nav-bar">
+      <button id="btn-nav-up" class="btn btn-secondary btn-nav-up" title="Subir um nível (Alt+Up)" disabled>⬆️ Subir</button>
+      <div id="breadcrumbs" class="breadcrumbs">
+        <span class="crumb active" data-path="">🏠 Início (Locais)</span>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Buscar neste diretório..." />
+      </div>
+    </section>
+
+    <!-- Main Workspace Split: Left Explorer, Right Inspector -->
+    <main class="main-content">
+      <!-- File Explorer Pane -->
+      <section class="explorer-pane" id="drop-zone">
+        <div class="drop-overlay hidden" id="drop-overlay">
+          <div class="drop-message">
+            <span>📥 Solte os arquivos aqui para upload</span>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="files-table">
+            <thead>
+              <tr>
+                <th style="width: 34%;">Nome</th>
+                <th style="width: 14%;">Presença</th>
+                <th style="width: 18%;">Sincronização</th>
+                <th style="width: 10%;">Tamanho</th>
+                <th style="width: 14%;">Modificado</th>
+                <th style="width: 10%; text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="files-table-body">
+              <tr>
+                <td colspan="5" class="text-center text-muted">Carregando arquivos...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Resizer Horizontal (Largura Preview) -->
+      <div class="resizer-col" id="resizer-preview" title="Arraste para redimensionar a largura"></div>
+
+      <!-- Inspector / Preview Pane -->
+      <section class="preview-pane" id="preview-pane">
+        <div class="preview-header">
+          <span class="preview-title" id="preview-title">Detalhes do Arquivo</span>
+          <div class="preview-header-actions">
+            <button id="btn-preview-open" class="btn btn-xs btn-secondary" title="Abrir com aplicativo padrão">Abrir</button>
+            <button id="btn-preview-close" class="btn btn-xs btn-ghost" title="Fechar preview">&times;</button>
+          </div>
+        </div>
+        <div class="preview-body" id="preview-body">
+          <div class="empty-state">Selecione um arquivo para visualizar metadados e conteúdo</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Resizer Vertical (Altura da Fila) -->
+    <div class="resizer-row" id="resizer-drawer" title="Arraste para redimensionar a altura da fila"></div>
+
+    <!-- Bottom Queue & Transfers Drawer -->
+    <section class="transfers-drawer" id="transfers-drawer">
+      <div class="drawer-header" id="drawer-toggle">
+        <div class="drawer-header-left">
+          <span class="drawer-toggle-icon">▲</span>
+          <span class="drawer-title">Fila & Transferências ao Vivo</span>
+          <span id="drawer-badge" class="badge badge-muted">0 ativas</span>
+        </div>
+        <div class="drawer-header-right">
+          <button id="btn-clear-completed" class="btn btn-xs btn-secondary" title="Limpar itens já enviados">Limpar Concluídos</button>
+        </div>
+      </div>
+      <div class="drawer-content" id="drawer-content">
+        <div class="drawer-tabs">
+          <button class="drawer-tab active" data-tab="app">Fila Local (<span id="count-app-queue">0</span>)</button>
+          <button class="drawer-tab" data-tab="vfs">Sincronização Nuvem (<span id="count-vfs-queue">0</span>)</button>
+          <button class="drawer-tab" data-tab="backup">Backup SSD SanDisk (<span id="count-backup-queue">0</span>)</button>
+        </div>
+        <div class="drawer-tab-pane" id="pane-transfers-list">
+          <div class="text-muted text-center p-3">Nenhuma transferência em andamento.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modals -->
+    <!-- New Folder Modal -->
+    <div id="modal-folder" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2>Nova Pasta</h2>
+          <button class="modal-btn-close" id="modal-folder-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="input-folder-name">Nome da Pasta</label>
+            <input type="text" id="input-folder-name" class="form-control" placeholder="ex: Documentos 2026" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-folder-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="btn-folder-confirm">Criar Pasta</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div id="modal-rename" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2>Renomear Item</h2>
+          <button class="modal-btn-close" id="modal-rename-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="input-rename-rel" />
+          <div class="form-group">
+            <label for="input-rename-name">Novo Nome</label>
+            <input type="text" id="input-rename-name" class="form-control" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-rename-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="btn-rename-confirm">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

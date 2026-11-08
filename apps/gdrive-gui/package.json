@@ -1,0 +1,10 @@
+{
+  "name": "gdrive-gui",
+  "version": "0.1.0",
+  "description": "Google Drive GUI em Tauri 2 para visualização e gerenciamento de arquivos com fila de upload",
+  "private": true,
+  "scripts": {
+    "build:ui": "tsc",
+    "check": "tsc --noEmit"
+  }
+}

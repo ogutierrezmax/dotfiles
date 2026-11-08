@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Google Drive Manager
+Comment=Visualização e gerenciamento de arquivos no Google Drive com fila de upload
+Exec=/home/max/.local/bin/gdrive-gui
+Icon=folder-gdrive
+Terminal=false
+Categories=Network;FileTransfer;Utility;System;
+Keywords=google;drive;gdrive;rclone;backup;tauri;gui;

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Launcher da Interface Gráfica em Tauri 2 do Google Drive Manager.
+# Instalado como symlink em ~/.local/bin/gdrive-gui via config/dotfile-names.list.
+#
+# Uso:
+#   gdrive-gui          # Abre a interface gráfica (compila na primeira vez)
+#   gdrive-gui --build  # Força recompilação release
+#   gdrive-gui --dev    # Roda em modo debug
+set -euo pipefail
+
+REAL="$(readlink -f "${BASH_SOURCE[0]}")" || REAL="${BASH_SOURCE[0]}"
+ROOT="$(cd "$(dirname "$REAL")/../../.." && pwd)"
+APP_DIR="${ROOT}/apps/gdrive-gui"
+SRC_TAURI="${APP_DIR}/src-tauri"
+RELEASE_BIN="${SRC_TAURI}/target/release/gdrive-gui"
+DEBUG_BIN="${SRC_TAURI}/target/debug/gdrive-gui"
+
+# Garante que o frontend JS esteja atualizado
+if [[ ! -f "${APP_DIR}/ui/app.js" ]] || [[ "${APP_DIR}/src/app.ts" -nt "${APP_DIR}/ui/app.js" ]]; then
+    if command -v tsc >/dev/null 2>&1; then
+        echo "Compilando frontend TypeScript..."
+        tsc -p "${APP_DIR}/tsconfig.json"
+    fi
+fi
+
+if [[ "${1:-}" == "--build" ]]; then
+    echo "Compilando Google Drive GUI (release)..."
+    cargo build --release --manifest-path "${SRC_TAURI}/Cargo.toml"
+    echo "Concluído: ${RELEASE_BIN}"
+    exit 0
+fi
+
+if [[ "${1:-}" == "--dev" ]]; then
+    if [[ ! -f "$DEBUG_BIN" ]] || [[ "${SRC_TAURI}/src/main.rs" -nt "$DEBUG_BIN" ]]; then
+        cargo build --manifest-path "${SRC_TAURI}/Cargo.toml"
+    fi
+    exec "$DEBUG_BIN" "$@"
+fi
+
+# Compila ou recompila o binário release se estiver ausente ou se algum arquivo de frontend/backend for mais recente
+if [[ ! -f "$RELEASE_BIN" ]] || \
+   [[ "${APP_DIR}/ui/app.js" -nt "$RELEASE_BIN" ]] || \
+   [[ "${APP_DIR}/ui/index.html" -nt "$RELEASE_BIN" ]] || \
+   [[ "${APP_DIR}/ui/styles.css" -nt "$RELEASE_BIN" ]] || \
+   [[ "${SRC_TAURI}/src/main.rs" -nt "$RELEASE_BIN" ]]; then
+    echo "Atualização detectada no Google Drive GUI. Compilando binário Tauri 2 (release)..."
+    cargo build --release --manifest-path "${SRC_TAURI}/Cargo.toml"
+fi
+
+exec "$RELEASE_BIN" "$@"

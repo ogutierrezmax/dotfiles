@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Google Drive Manager",
+  "version": "0.1.0",
+  "identifier": "com.ogutierrez.dotfiles.gdrive-gui",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Google Drive Manager",
+        "width": 1240,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 580,
+        "resizable": true,
+        "fullscreen": false,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.png"]
+  }
+}

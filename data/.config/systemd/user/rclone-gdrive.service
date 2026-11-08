@@ -16,7 +16,10 @@ ExecStart=/usr/bin/rclone mount gdrive: %h/GoogleDrive \
   --dir-cache-time 1000h \
   --poll-interval 15s \
   --drive-export-formats docx,xlsx,pptx,pdf,svg \
-  --exclude="/Backup-SanDisk-1TB/**"
+  --exclude="/Backup-SanDisk-1TB/**" \
+  --rc \
+  --rc-addr=127.0.0.1:5576 \
+  --rc-no-auth
 ExecStop=/usr/bin/fusermount3 -u %h/GoogleDrive
 Restart=on-failure
 RestartSec=10
