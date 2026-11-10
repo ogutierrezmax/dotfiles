@@ -32,6 +32,7 @@ function formatDate(iso) {
 }
 class SkillsApp {
     data = null;
+    loadError = null;
     filter = { type: 'all' };
     search = '';
     sort = 'name';
@@ -114,12 +115,18 @@ class SkillsApp {
     async refresh() {
         try {
             this.data = await this.invoke('list_skills');
+            this.loadError = null;
             this.$('repo-path').textContent = this.data.skillsDir;
             this.$('repo-path').title = this.data.repoRoot;
             this.renderAll();
         }
         catch (err) {
-            this.toast(`Erro ao carregar: ${String(err)}`, true);
+            this.loadError = String(err);
+            this.data = null;
+            this.$('repo-path').textContent = 'Falha ao carregar o acervo';
+            this.$('repo-path').title = this.loadError;
+            this.renderAll();
+            this.toast(`Erro ao carregar: ${this.loadError}`, true);
         }
     }
     renderAll() {
@@ -325,6 +332,22 @@ class SkillsApp {
     }
     renderGrid() {
         const grid = this.$('grid');
+        if (!this.data) {
+            this.$('count').textContent = '—';
+            this.$('bulk-bar').classList.add('hidden');
+            grid.innerHTML = `<div class="empty">
+        <div class="banner bad" style="text-align:left;max-width:720px;margin:0 auto">
+          <strong>Não foi possível carregar o acervo.</strong><br />
+          ${escapeHtml(this.loadError ?? 'Erro desconhecido.')}
+          <div class="field-hint" style="margin-top:8px">
+            Verifique se <code>data/.agents/skills</code> existe no repositório e se o app foi
+            aberto pelo launcher <code>~/.local/bin/skills-gui</code> (que exporta
+            <code>DOTFILES_REPO_ROOT</code>).
+          </div>
+        </div>
+      </div>`;
+            return;
+        }
         const skills = this.visibleSkills();
         this.$('count').textContent = `${skills.length} / ${this.data?.skills.length ?? 0}`;
         const bulk = this.$('bulk-bar');

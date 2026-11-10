@@ -127,7 +127,13 @@ struct ScriptResult {
 // Localização do repositório e caminhos
 // ---------------------------------------------------------------------------
 
+/// Um repositório de dotfiles válido precisa do acervo de skills em
+/// `data/.agents/skills` — sem esse marcador, `apps/skills-gui` (que também tem
+/// `catalog/`) seria confundido com a raiz ao subir a partir de `target/release`.
 fn looks_like_repo(p: &Path) -> bool {
+    if !p.join("data").join(".agents").join("skills").is_dir() {
+        return false;
+    }
     p.join("apps").join("skills-gui").join("catalog").exists()
         || (p.join("config").join("agent-skills-bridge.list").exists()
             && p.join("scripts").join("install-agent-skills-bridge.sh").exists())
@@ -162,6 +168,14 @@ fn find_repo_root() -> PathBuf {
             if !cur.pop() {
                 break;
             }
+        }
+    }
+
+    // Último recurso: instalação padrão dos dotfiles em ~/dotfiles.
+    if let Ok(home) = std::env::var("HOME") {
+        let candidate = PathBuf::from(home).join("dotfiles");
+        if looks_like_repo(&candidate) {
+            return candidate;
         }
     }
 
@@ -366,7 +380,13 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
     let catalog = read_catalog(&catalog_file);
 
     let mut items: Vec<SkillItem> = Vec::new();
-    let entries = fs::read_dir(&center).map_err(|e| format!("ler acervo {}: {e}", center.display()))?;
+    let entries = fs::read_dir(&center).map_err(|e| {
+        format!(
+            "ler acervo {}: {e} (repo detectado: {})",
+            center.display(),
+            root.display()
+        )
+    })?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -718,6 +738,34 @@ fn open_path(path: String) -> Result<(), String> {
 }
 
 fn main() {
+    // Diagnóstico sem abrir a janela: skills-gui --print-repo
+    if std::env::args().any(|a| a == "--print-repo") {
+        let root = find_repo_root();
+        println!("repo_root={}", root.display());
+        println!("skills_dir={}", skills_dir(&root).display());
+        println!("catalog={}", catalog_path(&root).display());
+        return;
+    }
+
+    // Diagnóstico sem abrir a janela: skills-gui --print-skills
+    if std::env::args().any(|a| a == "--print-skills") {
+        let root = find_repo_root();
+        match load_skills(&root) {
+            Ok(data) => {
+                println!("skills={}", data.skills.len());
+                println!("categories={}", data.categories.len());
+                for skill in &data.skills {
+                    println!("{}\t{}", skill.name, skill.category.as_deref().unwrap_or("-"));
+                }
+            }
+            Err(err) => {
+                eprintln!("erro: {err}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             list_skills,

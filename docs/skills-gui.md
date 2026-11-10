@@ -179,12 +179,27 @@ scripts/flatten-agent-skills.sh --check
 # Bridge filtrado pelo catálogo (exit 1 se houver drift)
 scripts/install-agent-skills-bridge.sh --doctor --from-catalog
 
+# Diagnóstico sem abrir a janela (útil quando a grade aparece vazia)
+apps/skills-gui/src-tauri/target/release/skills-gui --print-repo
+apps/skills-gui/src-tauri/target/release/skills-gui --print-skills
+
 # Typecheck do frontend
 tsc -p apps/skills-gui/tsconfig.json
 
 # Build do binário
 skills-gui --build
 ```
+
+### Resolução do repositório
+
+O backend procura a raiz nesta ordem: `DOTFILES_REPO_ROOT` (exportado pelo launcher) → diretório
+atual e seus pais → diretório do executável e seus pais → `~/dotfiles`. Um diretório só é aceito se
+tiver `data/.agents/skills` **e** um dos marcadores do repo (`apps/skills-gui/catalog` ou
+`config/agent-skills-bridge.list` + `scripts/install-agent-skills-bridge.sh`) — sem essa checagem,
+`apps/skills-gui` (que também tem `catalog/`) seria confundido com a raiz.
+
+Se a grade aparecer vazia, o app mostra um painel com o caminho tentado; `--print-repo` imprime
+`repo_root`, `skills_dir` e `catalog` sem abrir a janela.
 
 ---
 
