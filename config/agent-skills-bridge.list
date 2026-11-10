@@ -1,25 +1,26 @@
 # Mapeamento de skills por ferramenta de IA (usado por scripts/install-agent-skills-bridge.sh).
 #
+# O acervo ~/.agents/skills é FLAT (82 skills, 1 nível). A organização vive no
+# catálogo apps/skills-gui/catalog/skills-catalog.json (categoria/tags/tools).
+#
 # Formato: <ferramenta>|<spec>
 #   <ferramenta>  chave da tabela TOOL_DIRS no script
 #                 (claude|devin|antigravity|copilot|cursor|gemini).
 #   <spec>        pode ser:
-#     - "*"                        → todas as "leaf skills" de topo (dir com SKILL.md direto)
-#     - "**"                       → TODAS as skills em qualquer profundidade, achatadas por
-#                                    basename (bundle/sub-skill passa a ter nome próprio)
-#     - "<nome>"                   → skill leaf, ex.: context7-mcp
-#     - "<bundle>/<nome>"          → sub-skill dentro de um bundle, ex.: tech-domain-skills/tauri-gmail-oauth
+#     - "*"                        → todas as skills de topo (dir com SKILL.md direto)
+#     - "**"                       → todas as skills em qualquer profundidade, achatadas por
+#                                    basename (hoje equivale a "*"; mantido por compatibilidade)
+#     - "<nome>"                   → skill específica, ex.: context7-mcp
+#     - "@manifest"                → gera/atualiza o manifest skills.json da ferramenta
 #
 # POR QUE "**": Claude, Devin, Copilot, Antigravity, Cursor e Gemini escaneiam UM
-# NÍVEL (procura <root>/<skill>/SKILL.md). O acervo tem 11 leaves no topo e 68
-# sub-skills dentro de bundles (dotfiles-skills/, tech-domain-skills/, ...) que
-# essas ferramentas NUNCA enxergam. Só o OpenCode lê recursivamente. O "**"
-# achata as 79 no nível 1 sem duplicar nenhum arquivo (são symlinks).
+# NÍVEL (procura <root>/<skill>/SKILL.md). Com o acervo flat, todas as 82 skills
+# já estão nesse nível — o "**" segue como o spec canônico do bridge completo.
 #
 # NÃO precisa de entrada aqui (leem ~/.agents/skills nativamente, sem bridge):
-#   OpenCode e Codex — compartilham ~/.agents/skills e leem bundles.
-#   VS Code/Copilot e o Copilot CLI leem ~/.agents/skills TAMBÉM, mas só as leaves
-#   (1 nível) — daí a entrada explícita em ~/.copilot/skills abaixo.
+#   OpenCode e Codex — compartilham ~/.agents/skills (leitura recursiva).
+#   VS Code/Copilot e o Copilot CLI leem ~/.agents/skills TAMBÉM, mas só as de
+#   topo (1 nível) — daí a entrada explícita em ~/.copilot/skills abaixo.
 
 # Claude Code — só lê ~/.claude/skills → bridge completo
 claude|**
@@ -38,6 +39,6 @@ antigravity|@manifest
 # (o core também lê ~/.agents/skills, mas só as 11 leaves por causa do 1 nível).
 copilot|**
 
-# Cursor — já lê ~/.agents/skills nativamente; espelho explícito de sub-skills
-# de bundle já usadas (opcional).
-cursor|tech-domain-skills/tauri-gmail-oauth
+# Cursor — já lê ~/.agents/skills nativamente; espelho explícito de uma skill
+# específica já usada (opcional).
+cursor|tauri-gmail-oauth

@@ -1,0 +1,662 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "ai-config",
+      "label": "AI Config",
+      "order": 10
+    },
+    {
+      "id": "ai-ecosystem",
+      "label": "AI Ecosystem",
+      "order": 20
+    },
+    {
+      "id": "code-quality",
+      "label": "Code Quality",
+      "order": 30
+    },
+    {
+      "id": "curso",
+      "label": "Curso",
+      "order": 40
+    },
+    {
+      "id": "cursor-ide",
+      "label": "Cursor IDE",
+      "order": 50
+    },
+    {
+      "id": "debugging",
+      "label": "Debugging",
+      "order": 60
+    },
+    {
+      "id": "devops",
+      "label": "DevOps",
+      "order": 70
+    },
+    {
+      "id": "dotfiles",
+      "label": "Dotfiles",
+      "order": 80
+    },
+    {
+      "id": "implementation",
+      "label": "Implementation",
+      "order": 90
+    },
+    {
+      "id": "k-flow",
+      "label": "K-Flow",
+      "order": 100
+    },
+    {
+      "id": "k1-refinement",
+      "label": "K1 Refinement",
+      "order": 110
+    },
+    {
+      "id": "product",
+      "label": "Product",
+      "order": 120
+    },
+    {
+      "id": "tech-domain",
+      "label": "Tech Domain",
+      "order": 130
+    },
+    {
+      "id": "testing",
+      "label": "Testing",
+      "order": 140
+    },
+    {
+      "id": "uncategorized",
+      "label": "Uncategorized",
+      "order": 150
+    },
+    {
+      "id": "utilities",
+      "label": "Utilities",
+      "order": 160
+    }
+  ],
+  "skills": {
+    "agents-md": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "command-creator": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "create-hook": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "create-rule": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "create-shortcut-installer": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "create-skill": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "create-subagent": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "find-skills": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "migrate-to-skills": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "skill-creator": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "ai-ecosystem-sync": {
+      "category": "ai-ecosystem",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "ai-jail-security-layer-mapper": {
+      "category": "ai-ecosystem",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "eslint-fix-all": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "find-technical-debt": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "install-prettier": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "quality-tool-checker": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "sonar-ai-refactor": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "validate-skill-format": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "context7-mcp": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "context-mode": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "analytical-canvas": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "statusline": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "update-cli-config": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "update-cursor-settings": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "curso-absoluto": {
+      "category": "curso",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "curso-na-pratica": {
+      "category": "curso",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "bug-investigation-report": {
+      "category": "debugging",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "systematic-debugging": {
+      "category": "debugging",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "deploy-checklist": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "documentation-expert": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "git-commit": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "git-commit-v2": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "pr-maintenance": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "dotfiles-add-program": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "dotfiles-config-integrator": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "_dotfiles-config-researcher": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "_dotfiles-doc-writer": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "dotfiles-manager": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "dotfiles-secure-commit": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "_knowledge-manager": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "_llm-config-guardian": {
+      "category": "dotfiles",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "error-log-analyzer": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "gemini-api-dev": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "gemini-interactions-api": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "gemini-live-api-dev": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "gemini-omni-flash-api": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "implementation-planner": {
+      "category": "implementation",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "step-artifact-builder": {
+      "category": "implementation",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "subagent-driven-development": {
+      "category": "implementation",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "inbox-task-creator": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "acceptance-criteria": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "backlog-refinement": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "clarification": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "epic-vs-story": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "feature-classification": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "user-story": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "epic-analyzer": {
+      "category": "k-flow",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "optimize-prompt": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "create-product-stage": {
+      "category": "product",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "refine-product-stage": {
+      "category": "product",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "prompt-engineer": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "prompt-optimizer": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "factorio-modding": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "fastapi": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "supabase-postgres-best-practices": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "supabase": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "tauri-deep-link-linux": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "tauri-gmail-oauth": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "typescript-vite-references": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "test-driven-development": {
+      "category": "testing",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "unit-test-specialist": {
+      "category": "testing",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "ub-mode": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "ub-workflow": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "arch-map": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "literal-shell-executor": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "pattern-generalizer": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "pinokio": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "seamless-integration": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "succinct-text": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "top-down-planner": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "ui-prompt-optimizer": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    },
+    "vitest": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": ""
+    }
+  },
+  "updatedAt": "2026-11-10T18:48:11Z"
+}

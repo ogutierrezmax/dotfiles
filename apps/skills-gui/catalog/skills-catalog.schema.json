@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "skills-catalog.schema.json",
+  "title": "Agent Skills Catalog",
+  "description": "Metadados de organização das skills do acervo ~/.agents/skills. Substitui o agrupamento por diretórios (bundles) por categoria/tags/ferramentas.",
+  "type": "object",
+  "required": ["version", "categories", "skills"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "categories": {
+      "type": "array",
+      "description": "Categorias exibidas na interface. A categoria virtual 'uncategorized' não precisa existir aqui.",
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "order": {
+            "type": "integer"
+          },
+          "color": {
+            "type": "string",
+            "description": "Cor opcional em formato CSS (ex.: #8b5cf6)."
+          }
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "description": "Chave = nome do diretório da skill em ~/.agents/skills (id estável).",
+      "additionalProperties": {
+        "$ref": "#/definitions/skillEntry"
+      }
+    }
+  },
+  "definitions": {
+    "skillEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "type": ["string", "null"],
+          "description": "id de uma entrada em categories; null = 'uncategorized'."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "tools": {
+          "type": ["array", "null"],
+          "description": "Ferramentas que recebem o symlink via bridge. null = todas.",
+          "items": {
+            "type": "string",
+            "enum": ["claude", "devin", "antigravity", "copilot", "cursor", "gemini"]
+          },
+          "uniqueItems": true
+        },
+        "favorite": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}
