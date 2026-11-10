@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Skills GUI
+Comment=Organização, saúde e bridge do acervo de agent skills
+Exec=/home/max/.local/bin/skills-gui
+Icon=applications-development
+Terminal=false
+Categories=Development;Utility;
+Keywords=dotfiles;skills;agents;tauri;gui;

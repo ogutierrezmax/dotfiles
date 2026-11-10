@@ -42,6 +42,9 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 # gdrive-gui — interface desktop Tauri 2 para o Google Drive
 .local/bin/gdrive-gui
 
+# skills-gui — interface desktop Tauri 2 para o acervo de agent skills
+.local/bin/skills-gui
+
 # OpenCode — AI coding assistant CLI
 .config/opencode/opencode.jsonc
 .config/opencode/tui.json
@@ -53,6 +56,7 @@ kde-plasma/.config/plasma-org.kde.plasma.desktop-appletsrc
 .local/share/applications/opencode-home.desktop
 .local/share/applications/chunk-injector-gui.desktop
 .local/share/applications/gdrive-gui.desktop
+.local/share/applications/skills-gui.desktop
 .local/share/opencode/auth.json.example
 
 # PATH da sessão gráfica (systemd user environment.d) — cobre Dolphin e autostart

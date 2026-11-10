@@ -50,3 +50,7 @@ data/.config/rclone/rclone.conf
 apps/chunk-injector-gui/src-tauri/target/
 apps/chunk-injector-gui/ui/app.js.map
 
+# Tauri 2 — target e build artifacts do skills-gui
+apps/skills-gui/src-tauri/target/
+apps/skills-gui/ui/app.js.map
+

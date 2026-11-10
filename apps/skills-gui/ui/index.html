@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dotfiles — Skills</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">🧩</div>
+        <div class="header-titles">
+          <h1>Skills</h1>
+          <span class="header-subtitle" id="repo-path">Acervo de agent skills</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-refresh" class="btn" title="Recarregar acervo e catálogo">↻ Recarregar</button>
+        <button id="btn-health" class="btn" title="Checar estrutura e cobertura do catálogo">🩺 Saúde</button>
+        <button id="btn-bridge-doctor" class="btn" title="Diagnóstico read-only do bridge de symlinks">🔎 Bridge doctor</button>
+        <button id="btn-bridge-apply" class="btn btn-accent" title="Reconstruir symlinks das ferramentas de IA">🔗 Aplicar bridge</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <span class="search-icon">⌕</span>
+            <input id="search" type="search" placeholder="Buscar por nome, descrição, tag…" autocomplete="off" />
+          </div>
+          <div class="bulk-bar hidden" id="bulk-bar">
+            <span id="bulk-count">0 selecionadas</span>
+            <select id="bulk-category" title="Mover selecionadas para…"></select>
+            <button id="bulk-apply" class="btn btn-small">Mover</button>
+            <button id="bulk-clear" class="btn btn-small btn-ghost">Limpar</button>
+          </div>
+          <div class="toolbar-right">
+            <span class="count" id="count"></span>
+            <select id="sort" title="Ordenar">
+              <option value="name">Nome A→Z</option>
+              <option value="recent">Mais recentes</option>
+              <option value="category">Categoria</option>
+              <option value="files">Mais arquivos</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="backdrop hidden" id="drawer-backdrop"></div>
+  <aside class="drawer hidden" id="drawer"></aside>
+
+  <div class="modal-backdrop hidden" id="modal">
+    <div class="modal" id="modal-body"></div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

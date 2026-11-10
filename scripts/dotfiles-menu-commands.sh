@@ -1185,8 +1185,16 @@ dotfiles_menu_try_global_commands() {
 # Retorna 0 se reconheceu; 1 se não reconheceu.
 dotfiles_menu_try_skills() {
     local trimmed=${1,,}
+    if [[ "$trimmed" == "skills gui" || "$trimmed" == "skills ui" || "$trimmed" == "skills-gui" ]]; then
+        dotfiles_menu_skills_gui
+        return 0
+    fi
     if [[ "$trimmed" == "skills" ]]; then
         dotfiles_menu_skills
+        return 0
+    fi
+    if [[ "$trimmed" == "skills check" || "$trimmed" == "skills flatten" ]]; then
+        dotfiles_menu_skills_check
         return 0
     fi
     if [[ "$trimmed" == "skills doctor" || "$trimmed" == "skills --doctor" ]]; then
@@ -1196,13 +1204,39 @@ dotfiles_menu_try_skills() {
     return 1
 }
 
+# Abre o Skills GUI (Tauri 2): organização por categoria/tags, saúde e bridge.
+dotfiles_menu_skills_gui() {
+    local repo_root
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🖥️  Abrindo Skills GUI (Tauri 2)...${R:-}"
+    nohup "${repo_root}/data/.local/bin/skills-gui" >/dev/null 2>&1 &
+    echo -e "${C_MARK_INST:-}✅ Interface gráfica iniciada.${R:-}"
+}
+
+# Diagnóstico da estrutura flat do acervo e da cobertura do catálogo.
+dotfiles_menu_skills_check() {
+    local repo_root rc=0
+    repo_root="$(dotfiles_repo_root)"
+    echo ""
+    echo -e "${B:-}🧱 Checando estrutura flat e catálogo de skills${R:-}"
+    echo ""
+    "${repo_root}/scripts/flatten-agent-skills.sh" --check || rc=$?
+    echo ""
+    if ((rc == 0)); then
+        echo -e "${C_MARK_INST:-}✅ Estrutura e catálogo em dia.${R:-}"
+    else
+        echo -e "${C_MARK_NONE:-}⚠️  Pendências detectadas — veja os itens acima.${R:-}"
+    fi
+}
+
 dotfiles_menu_skills() {
     local repo_root
     repo_root="$(dotfiles_repo_root)"
     echo ""
     echo -e "${B:-}🧩 Reconstruindo symlinks de skills (agent-skills-bridge)${R:-}"
     echo ""
-    "${repo_root}/scripts/install-agent-skills-bridge.sh"
+    "${repo_root}/scripts/install-agent-skills-bridge.sh" --from-catalog
     echo ""
     echo -e "${C_MARK_INST:-}✅ Bridge de skills atualizado.${R:-}"
 }
@@ -1215,7 +1249,7 @@ dotfiles_menu_skills_doctor() {
     echo ""
     echo -e "${B:-}🩺 Diagnóstico do bridge de skills (read-only)${R:-}"
     echo ""
-    "${repo_root}/scripts/install-agent-skills-bridge.sh" --doctor || rc=$?
+    "${repo_root}/scripts/install-agent-skills-bridge.sh" --doctor --from-catalog || rc=$?
     echo ""
     if ((rc == 0)); then
         echo -e "${C_MARK_INST:-}✅ Bridge de skills íntegro.${R:-}"

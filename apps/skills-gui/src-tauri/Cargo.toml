@@ -1,0 +1,21 @@
+[package]
+name = "skills-gui"
+version = "0.1.0"
+description = "Gerenciador desktop do acervo de skills dos dotfiles (Tauri 2)"
+authors = ["Max Gutierrez"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
