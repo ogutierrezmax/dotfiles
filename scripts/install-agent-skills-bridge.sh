@@ -6,18 +6,23 @@
 #
 # Configuração: config/agent-skills-bridge.list
 #   formato: <ferramenta>|<spec>  onde spec é:
-#     "*"           → todas as "leaf skills" de topo (dir com SKILL.md direto)
+#     "*"           → todas as skills de topo (dir com SKILL.md direto)
 #     "**"          → TODAS as skills em qualquer profundidade, achatadas por
-#                     basename (o dir da skill vira o nome da skill)
+#                     basename (hoje equivale a "*": o acervo é flat)
 #     "@manifest"   → gera/atualiza o manifest <TOOL_MANIFEST[tool]> (Antigravity)
-#     "<nome>"      → skill leaf, ex.: context7-mcp
-#     "<bundle>/<nome>" → sub-skill dentro de um bundle
+#     "<nome>"      → skill específica, ex.: context7-mcp
+#
+# Catálogo (opcional): --from-catalog
+#   Lê apps/skills-gui/catalog/skills-catalog.json e restringe "*"/"**" às skills
+#   cujo campo `tools` seja null (todas) ou inclua a ferramenta. Links gerenciados
+#   fora do conjunto permitido são removidos. Specs explícitas vencem o catálogo.
 #
 # Modos de execução:
-#   (padrão)    aplica as mudanças (bootstrap e re-convergência)
-#   --dry-run   imprime o que faria, sem escrever nada em $HOME
-#   --doctor    diagnóstico read-only: o que cada tool enxerga + drift
-#               (exit 1 se houver drift — X/X visíveis, sem órfão, manifest em dia)
+#   (padrão)         aplica as mudanças (bootstrap e re-convergência)
+#   --dry-run        imprime o que faria, sem escrever nada em $HOME
+#   --doctor         diagnóstico read-only: o que cada tool enxerga + drift
+#                    (exit 1 se houver drift — X/X visíveis, sem órfão, manifest em dia)
+#   --from-catalog   combina com qualquer modo acima (filtro por ferramenta)
 #
 # SECURITY NOTE (guardrails para humanos e agentes de IA):
 #  - Declarativo + idempotente: o estado desejado vem do acervo + deste config;
@@ -64,7 +69,11 @@ SPEC_ALL="**"
 SPEC_MANIFEST="@manifest"
 
 CONFIG_FILE="$(dotfiles_repo_root)/config/agent-skills-bridge.list"
+CATALOG_FILE="$(dotfiles_repo_root)/apps/skills-gui/catalog/skills-catalog.json"
 CENTER="$HOME/.agents/skills"
+
+# 1 = filtra "*"/"**" pelo campo tools do catálogo (--from-catalog).
+USE_CATALOG=0
 
 # Profundidade máxima (a partir de $CENTER) em que um SKILL.md conta como skill:
 # CENTER/<leaf>/SKILL.md = 1 e CENTER/<bundle>/<skill>/SKILL.md = 2.
@@ -84,11 +93,15 @@ BRIDGE_N_ALIAS=0
 BRIDGE_N_MANIFEST=0
 BRIDGE_N_COLLISION=0
 BRIDGE_N_NAMEWARN=0
+BRIDGE_N_EXCLUDED=0
 BRIDGE_N_ERROR=0
 BRIDGE_DRIFT=0
 
 # Linhas do resumo por tool/root: tool|root|esperado|visiveis|status
 BRIDGE_ROWS=()
+# Nomes esperados por tool/dir (chave "<tool>|<dir>", valor newline-separated).
+# Usado pelo --from-catalog para remover links que saíram do conjunto permitido.
+declare -A BRIDGE_EXPECTED=()
 # Avisos não fatais (higiene de nome, colisão de basename, manifest ausente...).
 BRIDGE_WARNINGS=()
 # Resultado da descoberta (preenchido por bridge_discover):
@@ -237,6 +250,88 @@ bridge_resolve_src() {
         return 0
     fi
     return 1
+}
+
+# ---------------------------------------------------------------------------
+# Catálogo de metadados (--from-catalog)
+# ---------------------------------------------------------------------------
+
+bridge_catalog_enabled() {
+    ((USE_CATALOG == 1))
+}
+
+# Valida o catálogo antes de qualquer escrita. Nunca segue com catálogo inválido.
+bridge_catalog_validate() {
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "Erro: --from-catalog exige jq." >&2
+        return 1
+    fi
+    if [[ ! -f "$CATALOG_FILE" ]]; then
+        echo "Erro: catálogo não encontrado: ${CATALOG_FILE}" >&2
+        return 1
+    fi
+    if ! jq empty "$CATALOG_FILE" >/dev/null 2>&1; then
+        echo "Erro: catálogo não é JSON válido: ${CATALOG_FILE}" >&2
+        return 1
+    fi
+    local unknown
+    unknown="$(jq -r '
+        ["claude","devin","antigravity","copilot","cursor","gemini"] as $known
+        | [.skills[]?.tools // [] | .[]] | unique
+        | map(select(. as $t | $known | index($t) | not)) | .[]
+    ' "$CATALOG_FILE")"
+    if [[ -n "$unknown" ]]; then
+        while IFS= read -r tool; do
+            [[ -z "$tool" ]] && continue
+            bridge_warn "catálogo: ferramenta desconhecida em tools: '${tool}' (ignorada)"
+        done <<<"$unknown"
+    fi
+    return 0
+}
+
+# Skills do catálogo permitidas para a ferramenta (tools null = todas).
+bridge_catalog_allowed() {
+    local tool=$1
+    jq -r --arg t "$tool" '
+        .skills | to_entries[]
+        | select(.value.tools == null or (.value.tools | index($t)))
+        | .key
+    ' "$CATALOG_FILE" | sort
+}
+
+# Remove links gerenciados que apontam para o acervo mas não estão no conjunto
+# esperado para <tool>/<dir>. Só roda com --from-catalog (catálogo é autoridade).
+bridge_prune_unexpected() {
+    local tool=$1 dir=$2
+    [[ -d "$dir" ]] || return 0
+    local expected="${BRIDGE_EXPECTED["${tool}|${dir}"]:-}"
+    local entry base target abs center_real
+    center_real="$(realpath "$CENTER")"
+    for entry in "$dir"/*; do
+        [[ -L "$entry" ]] || continue
+        base="$(basename "$entry")"
+        if printf '%s\n' "$expected" | grep -Fxq -- "$base"; then
+            continue
+        fi
+        target="$(readlink "$entry")"
+        if [[ "$target" == /* ]]; then
+            abs="$target"
+        else
+            abs="$(dirname "$entry")/$target"
+        fi
+        abs="$(realpath -m "$abs" 2>/dev/null || true)"
+        case "$abs" in
+            "$CENTER"/* | "$center_real"/*) ;;
+            *) continue ;;
+        esac
+        echo "  $(bridge_label 'Fora do catálogo'): ${entry}"
+        bridge_drift
+        if bridge_is_apply; then
+            rm -- "$entry"
+        fi
+        BRIDGE_N_EXCLUDED=$((BRIDGE_N_EXCLUDED + 1))
+    done
+    return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -464,35 +559,45 @@ bridge_tool() {
 
         local expected=0 visible status
         pairs=()
-        if [[ "$spec" == "$SPEC_LEAVES" ]]; then
-            while IFS= read -r skill; do
-                [[ -z "$skill" ]] && continue
-                expected=$((expected + 1))
-                echo "→ ${tool} [$(basename "$dir")] ${skill}"
-                bridge_ensure_link "$dir/$skill" "$CENTER/$skill" || true
-            done < <(bridge_leaves)
-        elif [[ "$spec" == "$SPEC_ALL" ]]; then
-            while IFS= read -r line; do
-                [[ -z "$line" ]] && continue
-                pairs+=("$line")
-            done < <(bridge_all)
+        if [[ "$spec" == "$SPEC_LEAVES" || "$spec" == "$SPEC_ALL" ]]; then
+            if bridge_catalog_enabled; then
+                while IFS= read -r skill; do
+                    [[ -z "$skill" ]] && continue
+                    pairs+=("${skill}"$'\t'"${skill}")
+                done < <(bridge_catalog_allowed "$tool")
+            elif [[ "$spec" == "$SPEC_LEAVES" ]]; then
+                while IFS= read -r skill; do
+                    [[ -z "$skill" ]] && continue
+                    pairs+=("${skill}"$'\t'"${skill}")
+                done < <(bridge_leaves)
+            else
+                while IFS= read -r line; do
+                    [[ -z "$line" ]] && continue
+                    pairs+=("$line")
+                done < <(bridge_all)
+            fi
             for line in "${pairs[@]}"; do
                 skill="${line%%$'\t'*}"
                 rel="${line#*$'\t'}"
                 expected=$((expected + 1))
+                BRIDGE_EXPECTED["${tool}|${dir}"]+="${skill}"$'\n'
                 echo "→ ${tool} [$(basename "$dir")] ${skill} ← ${rel}"
                 bridge_ensure_link "$dir/$skill" "$CENTER/$rel" || true
             done
         else
-            # Spec explícita: resolve dentro do acervo (pode ser bundle/sub-skill).
+            # Spec explícita: vence o catálogo (override manual consciente).
             if src="$(bridge_resolve_src "$spec")"; then
                 skill="$(basename "$src")"
                 expected=1
+                BRIDGE_EXPECTED["${tool}|${dir}"]+="${skill}"$'\n'
                 echo "→ ${tool} [$(basename "$dir")] ${spec} (src=${src})"
                 bridge_ensure_link "$dir/$skill" "$src" || true
             else
                 echo "  AVISO: skill não encontrada no acervo: ${spec}" >&2
             fi
+        fi
+        if bridge_catalog_enabled; then
+            bridge_prune_unexpected "$tool" "$dir"
         fi
         bridge_cleanup_orphans "$dir"
 
@@ -527,6 +632,7 @@ bridge_report() {
   convertidos (bkp):  ${BRIDGE_N_CONVERT}
   alias normalizados: ${BRIDGE_N_ALIAS}
   órfãos removidos:   ${BRIDGE_N_ORPHAN}
+  fora do catálogo:   ${BRIDGE_N_EXCLUDED}
   manifest gerado:    ${BRIDGE_N_MANIFEST}
   colisões basename:  ${BRIDGE_N_COLLISION}
   nomes fora padrão:  ${BRIDGE_N_NAMEWARN}
@@ -566,11 +672,12 @@ bridge_hygiene() {
 
 bridge_usage() {
     cat <<EOF
-Uso: $(basename "$0") [--doctor | --dry-run | --help]
+Uso: $(basename "$0") [--doctor | --dry-run] [--from-catalog] [--help]
 
-  (padrão)    aplica as mudanças declaradas em config/agent-skills-bridge.list
-  --dry-run   mostra o que faria, sem escrever nada em \$HOME
-  --doctor    diagnóstico read-only (o que cada tool enxerga + drift); exit 1 se houver drift
+  (padrão)        aplica as mudanças declaradas em config/agent-skills-bridge.list
+  --dry-run       mostra o que faria, sem escrever nada em \$HOME
+  --doctor        diagnóstico read-only (o que cada tool enxerga + drift); exit 1 se houver drift
+  --from-catalog  restringe "*"/"**" ao campo tools do catálogo do skills-gui
 EOF
 }
 
@@ -586,6 +693,9 @@ bridge_main() {
             --dry-run | -n)
                 MODE=dry-run
                 mode_flag="--dry-run (nada é escrito)"
+                ;;
+            --from-catalog)
+                USE_CATALOG=1
                 ;;
             -h | --help)
                 bridge_usage
@@ -609,6 +719,9 @@ bridge_main() {
         echo "Erro: configuração não encontrada: ${CONFIG_FILE}" >&2
         return 1
     fi
+    if bridge_catalog_enabled; then
+        bridge_catalog_validate || return 1
+    fi
 
     # Descoberta única do acervo (lê o disco 1x; usada por todas as tools).
     bridge_discover
@@ -620,6 +733,9 @@ bridge_main() {
     fi
     echo "Config: ${CONFIG_FILE}"
     echo "Acervo: ${#BRIDGE_SKILLS[@]} skills em $(bridge_leaves | wc -l) leaves + $(bridge_bundles | wc -l) bundles"
+    if bridge_catalog_enabled; then
+        echo "Catálogo: ${CATALOG_FILE} (--from-catalog: tools filtram o bridge)"
+    fi
     echo ""
 
     bridge_hygiene

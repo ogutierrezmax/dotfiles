@@ -2,6 +2,8 @@
 #
 # O acervo ~/.agents/skills é FLAT (82 skills, 1 nível). A organização vive no
 # catálogo apps/skills-gui/catalog/skills-catalog.json (categoria/tags/tools).
+# Com --from-catalog o campo tools do catálogo filtra "*"/"**" por ferramenta
+# (é a flag usada pelo skills-gui e pelo comando 'skills' do menu).
 #
 # Formato: <ferramenta>|<spec>
 #   <ferramenta>  chave da tabela TOOL_DIRS no script
@@ -36,9 +38,12 @@ antigravity|**
 antigravity|@manifest
 
 # Copilot — ~/.copilot/skills é a raiz pessoal do core do VS Code e do Copilot CLI
-# (o core também lê ~/.agents/skills, mas só as 11 leaves por causa do 1 nível).
+# (o core também lê ~/.agents/skills, mas só as de topo — 1 nível).
 copilot|**
 
-# Cursor — já lê ~/.agents/skills nativamente; espelho explícito de uma skill
-# específica já usada (opcional).
-cursor|tauri-gmail-oauth
+# Cursor — lê ~/.agents/skills nativamente, mas o espelho garante o conjunto
+# completo e permite o filtro por tools do catálogo (--from-catalog).
+cursor|**
+
+# Gemini CLI — raiz ~/.gemini/skills; espelho completo para o mesmo filtro.
+gemini|**

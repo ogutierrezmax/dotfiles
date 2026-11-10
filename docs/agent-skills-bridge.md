@@ -61,11 +61,32 @@ devin|**
 antigravity|**
 antigravity|@manifest
 copilot|**
-cursor|tauri-gmail-oauth
+cursor|**
+gemini|**
 ```
 
 O mapa de ferramentas → diretórios fica no próprio script (`TOOL_DIRS`, separados por `:`), porque depende do
 `$HOME` de cada máquina.
+
+### 🏷️ Filtro por ferramenta: `--from-catalog`
+
+O campo `tools` do catálogo (`apps/skills-gui/catalog/skills-catalog.json`) define **em quais ferramentas** a
+skill é exposta via symlink. Com `--from-catalog`:
+
+- specs `*`/`**` passam a valer só para as skills cujo `tools` seja `null` (todas) ou inclua a ferramenta;
+- links gerenciados que saíram do conjunto permitido são **removidos** (só symlinks que apontam para o acervo);
+- specs explícitas (`<nome>`) vencem o catálogo — override manual consciente;
+- sem a flag, o comportamento é o antigo (todas as skills).
+
+```bash
+scripts/install-agent-skills-bridge.sh --from-catalog            # aplica filtrado
+scripts/install-agent-skills-bridge.sh --doctor --from-catalog   # diagnóstico filtrado
+```
+
+> [!IMPORTANT]
+> `tools` controla **apenas a exposição via bridge**. Ferramentas que leem `~/.agents/skills` nativamente
+> (OpenCode, Codex, Cursor, Copilot) continuam enxergando todas as skills — a UI do `skills-gui` rotula isso
+> como "exposição via bridge" para não prometer o que o symlink não controla.
 
 ## 📄 Manifest do Antigravity (`skills.json`)
 
@@ -74,8 +95,7 @@ O spec `@manifest` gera `~/.gemini/config/skills.json`:
 ```json
 {
   "entries": [
-    { "path": "~/.agents/skills" },
-    { "path": "~/.agents/skills/ai-config-skills" }
+    { "path": "~/.agents/skills" }
   ]
 }
 ```
@@ -93,13 +113,16 @@ O spec `@manifest` gera `~/.gemini/config/skills.json`:
 
 ```bash
 # Sob demanda (menu)
-dotfiles-menu.sh   # digite: skills        → reconstrói
+dotfiles-menu.sh   # digite: skills        → reconstrói (com --from-catalog)
 dotfiles-menu.sh   # digite: skills doctor → diagnóstico read-only
+dotfiles-menu.sh   # digite: skills check  → checa estrutura flat + catálogo
+dotfiles-menu.sh   # digite: skills gui    → abre o Skills GUI (Tauri 2)
 
 # Direto
-scripts/install-agent-skills-bridge.sh              # aplica
-scripts/install-agent-skills-bridge.sh --dry-run    # mostra o que faria
-scripts/install-agent-skills-bridge.sh --doctor     # read-only, exit 1 se houver drift
+scripts/install-agent-skills-bridge.sh                    # aplica (todas as skills)
+scripts/install-agent-skills-bridge.sh --from-catalog     # aplica filtrado pelo catálogo
+scripts/install-agent-skills-bridge.sh --dry-run          # mostra o que faria
+scripts/install-agent-skills-bridge.sh --doctor           # read-only, exit 1 se houver drift
 ```
 
 **Automação em máquina nova**: `scripts/install-dotfiles.sh` chama o bridge automaticamente após linkar os dotfiles
@@ -138,6 +161,8 @@ copilot      ~/.copilot/skills                                82        82  ok
   **nunca** são tocadas.
 - Colisão de basename entre skills → **as duas** skills são ignoradas com aviso (o script nunca escolhe por conta).
 - Nomes fora de `^[a-z0-9][a-z0-9._-]*$` (prefixo `_`) são apenas **avisados** — nunca renomeados.
+- `--from-catalog` só remove symlinks **gerenciados** (que apontam para dentro do acervo) fora do conjunto
+  permitido; nunca toca em diretórios reais nem em links de terceiros.
 
 ## ⚠️ Sintomas conhecidos
 
@@ -150,9 +175,11 @@ copilot      ~/.copilot/skills                                82        82  ok
 
 ## 📁 Arquivos envolvidos
 - `config/agent-skills-bridge.list`: escopo das ferramentas (o que bridar).
-- `scripts/install-agent-skills-bridge.sh`: lógica do bridge (idempotente, com backup e salvaguardas) + `--doctor`.
+- `scripts/install-agent-skills-bridge.sh`: lógica do bridge (idempotente, com backup e salvaguardas) + `--doctor` + `--from-catalog`.
+- `apps/skills-gui/catalog/skills-catalog.json`: metadados (categoria/tags/tools) que filtram o bridge.
+- `apps/skills-gui/`: interface desktop para editar o catálogo e aplicar o bridge.
 - `scripts/install-dotfiles.sh`: dispara o bridge ao final da instalação.
-- `dotfiles-menu.sh` + `scripts/dotfiles-menu-commands.sh` + `scripts/dotfiles-menu-ui.sh`: comandos `skills` e `skills doctor`.
+- `dotfiles-menu.sh` + `scripts/dotfiles-menu-commands.sh` + `scripts/dotfiles-menu-ui.sh`: comandos `skills`, `skills doctor`, `skills check` e `skills gui`.
 - `data/.agents/skills/`: o acervo central versionado (fonte única).
 
 ## 🧪 Validação
