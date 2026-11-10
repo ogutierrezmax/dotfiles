@@ -115,6 +115,10 @@ class SkillsApp {
   private sort: 'name' | 'recent' | 'category' | 'files' = 'name';
   private selected = new Set<string>();
   private activeSkill: string | null = null;
+  private activeSkillDetail: SkillDetail | null = null;
+  private drawerMode: 'view' | 'edit' = 'view';
+  private drawerContent = '';
+  private originalDrawerContent = '';
   private toastTimer: number | null = null;
 
   // -------------------------------------------------------------------------
@@ -151,13 +155,34 @@ class SkillsApp {
     return el;
   }
 
-  private toast(message: string, error = false): void {
+  private toast(
+    message: string,
+    error = false,
+    action?: { label: string; onClick: () => void },
+  ): void {
     const el = this.$('toast');
-    el.textContent = message;
+    el.innerHTML = '';
     el.classList.toggle('error', error);
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
+    el.appendChild(textSpan);
+
+    if (action) {
+      const actionLink = document.createElement('a');
+      actionLink.className = 'toast-action';
+      actionLink.textContent = action.label;
+      actionLink.href = '#';
+      actionLink.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        action.onClick();
+      });
+      el.appendChild(actionLink);
+    }
+
     el.classList.remove('hidden');
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => el.classList.add('hidden'), 2600);
+    this.toastTimer = window.setTimeout(() => el.classList.add('hidden'), action ? 5000 : 2800);
   }
 
   // -------------------------------------------------------------------------
@@ -174,6 +199,7 @@ class SkillsApp {
     this.$('btn-health').addEventListener('click', () => void this.showHealth());
     this.$('btn-bridge-doctor').addEventListener('click', () => void this.runBridge('doctor'));
     this.$('btn-bridge-apply').addEventListener('click', () => void this.runBridge('apply'));
+    this.$('btn-new-skill').addEventListener('click', () => this.openCreateSkillModal());
 
     const search = this.$('search') as HTMLInputElement;
     search.addEventListener('input', () => {
@@ -197,9 +223,27 @@ class SkillsApp {
       if (ev.target === this.$('modal')) this.closeModal();
     });
     document.addEventListener('keydown', (ev) => {
+      if ((ev.altKey || ev.ctrlKey) && (ev.key === 'n' || ev.key === 'N')) {
+        ev.preventDefault();
+        this.openCreateSkillModal();
+        return;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && (ev.key === 's' || ev.key === 'S')) {
+        if (this.activeSkill && this.drawerMode === 'edit') {
+          ev.preventDefault();
+          void this.saveDrawerContent();
+          return;
+        }
+      }
       if (ev.key === 'Escape') {
-        this.closeModal();
-        this.closeDrawer();
+        if (!this.$('modal').classList.contains('hidden')) {
+          this.closeModal();
+          return;
+        }
+        if (!this.$('drawer').classList.contains('hidden')) {
+          this.closeDrawer();
+          return;
+        }
       }
     });
   }
@@ -610,6 +654,10 @@ class SkillsApp {
     try {
       const detail = await this.invoke<SkillDetail>('get_skill', { name });
       this.activeSkill = name;
+      this.activeSkillDetail = detail;
+      this.drawerMode = 'view';
+      this.drawerContent = detail.content;
+      this.originalDrawerContent = detail.content;
       this.renderDrawer(detail);
       this.$('drawer').classList.remove('hidden');
       this.$('drawer-backdrop').classList.remove('hidden');
@@ -618,10 +666,26 @@ class SkillsApp {
     }
   }
 
-  private closeDrawer(): void {
+  private isContentDirty(): boolean {
+    const editor = document.getElementById('skill-content-editor') as HTMLTextAreaElement | null;
+    const currentVal = editor && this.drawerMode === 'edit' ? editor.value : this.drawerContent;
+    return currentVal !== this.originalDrawerContent;
+  }
+
+  private closeDrawer(force = false): boolean {
+    if (!force && this.activeSkill && this.isContentDirty()) {
+      if (!window.confirm('Há alterações não salvas no SKILL.md. Deseja realmente fechar?')) {
+        return false;
+      }
+    }
     this.activeSkill = null;
+    this.activeSkillDetail = null;
+    this.drawerMode = 'view';
+    this.drawerContent = '';
+    this.originalDrawerContent = '';
     this.$('drawer').classList.add('hidden');
     this.$('drawer-backdrop').classList.add('hidden');
+    return true;
   }
 
   private renderDrawer(detail: SkillDetail): void {
@@ -681,15 +745,20 @@ class SkillsApp {
             detail.notes,
           )}</textarea>
         </div>
-        <div class="field">
-          <label>SKILL.md</label>
-          <div class="preview">${escapeHtml(detail.content)}</div>
+        <div class="field" id="skill-content-container"></div>
+        <div class="danger-zone">
+          <div class="danger-zone-title">⚠️ Zona de Perigo</div>
+          <div class="danger-zone-desc">
+            Exclui permanentemente a pasta <code>data/.agents/skills/${escapeHtml(
+              detail.name,
+            )}</code> do disco e remove sua entrada do catálogo.
+          </div>
+          <button class="btn btn-danger" id="drawer-delete-skill" style="align-self: flex-start;">Excluir Skill</button>
         </div>
       </div>
       <div class="drawer-footer">
-        <button class="btn btn-danger" id="drawer-delete-skill" title="Remove a skill do catálogo (não apaga arquivos)">Remover do catálogo</button>
-        <button class="btn" id="drawer-cancel">Cancelar</button>
-        <button class="btn btn-accent" id="drawer-save">Salvar</button>
+        <button class="btn" id="drawer-cancel">Fechar</button>
+        <button class="btn btn-accent" id="drawer-save">Salvar Metadados</button>
       </div>
     `;
 
@@ -700,7 +769,7 @@ class SkillsApp {
       void this.openPath(`${detail.path}/SKILL.md`),
     );
     this.$('drawer-save').addEventListener('click', () => void this.saveDrawer(detail));
-    this.$('drawer-delete-skill').addEventListener('click', () => void this.removeFromCatalog(detail));
+    this.$('drawer-delete-skill').addEventListener('click', () => this.openDeleteSkillModal(detail));
 
     this.$('d-tools')
       .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
@@ -709,6 +778,115 @@ class SkillsApp {
           input.closest('.tool-toggle')?.classList.toggle('on', input.checked);
         });
       });
+
+    this.renderSkillContentSection(detail);
+  }
+
+  private renderSkillContentSection(detail: SkillDetail): void {
+    const container = document.getElementById('skill-content-container');
+    if (!container) return;
+
+    const isDirty = this.drawerContent !== this.originalDrawerContent;
+
+    container.innerHTML = `
+      <div class="tab-bar">
+        <button class="tab-btn ${this.drawerMode === 'view' ? 'active' : ''}" id="tab-view">👁️ Visualizar</button>
+        <button class="tab-btn ${this.drawerMode === 'edit' ? 'active' : ''}" id="tab-edit">✏️ Editar</button>
+      </div>
+      ${
+        this.drawerMode === 'view'
+          ? `<div class="preview">${escapeHtml(this.drawerContent)}</div>`
+          : `
+          <div class="editor-header">
+            <span class="editor-shortcuts">Ctrl+S para salvar</span>
+            <span id="editor-dirty-indicator" class="modified-badge ${isDirty ? '' : 'hidden'}">● Modificado</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="btn btn-small" id="btn-open-editor" title="Abrir SKILL.md no editor padrão">↗ Abrir no Editor</button>
+              <button class="btn btn-small btn-accent" id="btn-save-content">💾 Salvar SKILL.md</button>
+            </div>
+          </div>
+          <textarea class="editor-textarea" id="skill-content-editor" spellcheck="false">${escapeHtml(
+            this.drawerContent,
+          )}</textarea>
+        `
+      }
+    `;
+
+    const tabView = document.getElementById('tab-view');
+    const tabEdit = document.getElementById('tab-edit');
+
+    tabView?.addEventListener('click', () => {
+      if (this.drawerMode === 'edit') {
+        const editor = document.getElementById('skill-content-editor') as HTMLTextAreaElement | null;
+        if (editor) this.drawerContent = editor.value;
+      }
+      this.drawerMode = 'view';
+      this.renderSkillContentSection(detail);
+    });
+
+    tabEdit?.addEventListener('click', () => {
+      this.drawerMode = 'edit';
+      this.renderSkillContentSection(detail);
+      const editor = document.getElementById('skill-content-editor') as HTMLTextAreaElement | null;
+      editor?.focus();
+    });
+
+    if (this.drawerMode === 'edit') {
+      const editor = document.getElementById('skill-content-editor') as HTMLTextAreaElement | null;
+      const saveBtn = document.getElementById('btn-save-content') as HTMLButtonElement | null;
+      const openEditorBtn = document.getElementById('btn-open-editor') as HTMLButtonElement | null;
+
+      saveBtn?.addEventListener('click', () => void this.saveDrawerContent());
+      openEditorBtn?.addEventListener('click', () => {
+        void this.openPath(`${detail.path}/SKILL.md`);
+      });
+
+      editor?.addEventListener('input', () => {
+        this.drawerContent = editor.value;
+        const dirty = this.drawerContent !== this.originalDrawerContent;
+        document.getElementById('editor-dirty-indicator')?.classList.toggle('hidden', !dirty);
+      });
+
+      editor?.addEventListener('keydown', (ev) => {
+        if ((ev.ctrlKey || ev.metaKey) && (ev.key === 's' || ev.key === 'S')) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          void this.saveDrawerContent();
+        }
+      });
+    }
+  }
+
+  private async saveDrawerContent(): Promise<void> {
+    if (!this.activeSkillDetail) return;
+    const editor = document.getElementById('skill-content-editor') as HTMLTextAreaElement | null;
+    const content = editor ? editor.value : this.drawerContent;
+    const saveBtn = document.getElementById('btn-save-content') as HTMLButtonElement | null;
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvando...';
+    }
+
+    try {
+      await this.invoke('save_skill_content', {
+        name: this.activeSkillDetail.name,
+        content,
+      });
+      this.drawerContent = content;
+      this.originalDrawerContent = content;
+      this.activeSkillDetail.content = content;
+      const dirtyEl = document.getElementById('editor-dirty-indicator');
+      if (dirtyEl) dirtyEl.classList.add('hidden');
+      this.toast('Instruções salvas no arquivo SKILL.md.');
+    } catch (err) {
+      this.toast(`Erro ao salvar SKILL.md: ${String(err)}`, true);
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Salvar SKILL.md';
+      }
+    }
   }
 
   private async saveDrawer(detail: SkillDetail): Promise<void> {
@@ -726,6 +904,18 @@ class SkillsApp {
       .filter(Boolean);
 
     try {
+      const editor = document.getElementById('skill-content-editor') as HTMLTextAreaElement | null;
+      const currentContent = editor && this.drawerMode === 'edit' ? editor.value : this.drawerContent;
+      if (currentContent !== this.originalDrawerContent) {
+        await this.invoke('save_skill_content', {
+          name: detail.name,
+          content: currentContent,
+        });
+        this.originalDrawerContent = currentContent;
+        this.drawerContent = currentContent;
+        detail.content = currentContent;
+      }
+
       await this.invoke('save_skill_meta', {
         name: detail.name,
         category,
@@ -734,7 +924,7 @@ class SkillsApp {
         favorite: detail.favorite,
         notes,
       });
-      this.closeDrawer();
+      this.closeDrawer(true);
       await this.refresh();
       this.toast('Metadados salvos.');
     } catch (err) {
@@ -742,27 +932,275 @@ class SkillsApp {
     }
   }
 
-  private async removeFromCatalog(detail: SkillDetail): Promise<void> {
-    const ok = await this.confirmDialog(
-      `Remover "${detail.displayName}" do catálogo? A pasta da skill não é apagada; apenas os metadados saem do catálogo.`,
+  private openDeleteSkillModal(detail: SkillDetail): void {
+    const body = `
+      <div class="banner bad">
+        <strong>Esta ação é irreversível.</strong><br />
+        A pasta <code>data/.agents/skills/${escapeHtml(
+          detail.name,
+        )}</code> será excluída permanentemente do disco, sua entrada será removida do catálogo e seus symlinks do bridge serão desvinculados.
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label for="delete-confirm-input">Para confirmar a exclusão, digite <code>${escapeHtml(
+          detail.name,
+        )}</code> abaixo:</label>
+        <input id="delete-confirm-input" type="text" class="input-slug" placeholder="${escapeHtml(
+          detail.name,
+        )}" autocomplete="off" />
+      </div>
+    `;
+
+    this.showModal(
+      '⚠️ Zona de Perigo: Excluir Skill',
+      body,
+      [
+        { label: 'Cancelar', action: () => this.closeModal() },
+        {
+          label: 'Excluir Definitivamente',
+          danger: true,
+          id: 'btn-confirm-delete',
+          disabled: true,
+          action: () => void this.deleteSkillSubmit(detail.name),
+        },
+      ],
+      true,
+      'modal-delete',
     );
-    if (!ok) return;
+
+    const input = document.getElementById('delete-confirm-input') as HTMLInputElement | null;
+    const confirmBtn = document.getElementById('btn-confirm-delete') as HTMLButtonElement | null;
+    if (!input || !confirmBtn) return;
+
+    input.focus();
+    input.addEventListener('input', () => {
+      confirmBtn.disabled = input.value.trim() !== detail.name;
+    });
+
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !confirmBtn.disabled) {
+        ev.preventDefault();
+        void this.deleteSkillSubmit(detail.name);
+      }
+    });
+  }
+
+  private async deleteSkillSubmit(name: string): Promise<void> {
+    const confirmBtn = document.getElementById('btn-confirm-delete') as HTMLButtonElement | null;
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Excluindo...';
+    }
+
     try {
-      // Não há comando de remoção de metadados: zerar categoria/tags/notas é o
-      // equivalente seguro. A entrada permanece para a saúde continuar verde.
-      await this.invoke('save_skill_meta', {
-        name: detail.name,
-        category: null,
-        tags: [],
-        tools: null,
-        favorite: false,
-        notes: '',
-      });
-      this.closeDrawer();
+      await this.invoke('delete_skill', { name });
+      this.closeModal();
+      this.closeDrawer(true);
       await this.refresh();
-      this.toast('Metadados resetados.');
+      this.toast(`Skill '${name}' excluída com sucesso.`, false, {
+        label: '[🔗 Sincronizar Bridge]',
+        onClick: () => void this.runBridge('apply'),
+      });
     } catch (err) {
-      this.toast(`Erro ao resetar: ${String(err)}`, true);
+      this.toast(`Erro ao excluir skill: ${String(err)}`, true);
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Excluir Definitivamente';
+      }
+    }
+  }
+
+  private openCreateSkillModal(): void {
+    const initialCat = this.filter.type === 'category' ? this.filter.value : '';
+    const catOptions = [
+      '<option value="">Sem categoria</option>',
+      ...(this.data?.categories ?? []).map(
+        (c) =>
+          `<option value="${escapeHtml(c.id)}" ${
+            c.id === initialCat ? 'selected' : ''
+          }>${escapeHtml(c.label)}</option>`,
+      ),
+    ].join('');
+
+    const toolsHtml = TOOLS.map(
+      (t) => `<label class="tool-toggle on">
+        <input type="checkbox" data-create-tool="${t}" checked />
+        ${escapeHtml(TOOL_LABELS[t])}
+      </label>`,
+    ).join('');
+
+    const body = `
+      <div class="field">
+        <label for="new-skill-name">Nome da Skill (slug)</label>
+        <input id="new-skill-name" type="text" class="input-slug" placeholder="ex.: docker-expert" autocomplete="off" />
+        <div id="slug-feedback" class="slug-feedback"></div>
+        <span class="field-hint">Apenas letras minúsculas, números, '.', '_' e '-'. Espaços são convertidos em hífen.</span>
+      </div>
+      <div class="field">
+        <label for="new-skill-desc">Descrição</label>
+        <textarea id="new-skill-desc" placeholder="Resumo claro do que este agente especialista faz..."></textarea>
+      </div>
+      <div class="field">
+        <label for="new-skill-category">Categoria</label>
+        <select id="new-skill-category">
+          ${catOptions}
+        </select>
+      </div>
+      <div class="field">
+        <label>Exposição via bridge</label>
+        <div class="tools-grid" id="new-skill-tools">${toolsHtml}</div>
+        <span class="field-hint">Todas as ferramentas marcadas por padrão.</span>
+      </div>
+      <div class="field">
+        <label for="new-skill-template">Template Inicial</label>
+        <select id="new-skill-template">
+          <option value="standard">Padrão (Overview + Instructions)</option>
+          <option value="empty">Vazio (Apenas frontmatter YAML)</option>
+        </select>
+      </div>
+    `;
+
+    this.showModal(
+      '🧩 Criar Nova Skill',
+      body,
+      [
+        { label: 'Cancelar', action: () => this.closeModal() },
+        {
+          label: 'Criar Skill',
+          accent: true,
+          id: 'btn-submit-create',
+          disabled: true,
+          action: () => void this.createSkillSubmit(),
+        },
+      ],
+      false,
+      'modal-create',
+    );
+
+    const nameInput = document.getElementById('new-skill-name') as HTMLInputElement | null;
+    const feedback = document.getElementById('slug-feedback');
+    const submitBtn = document.getElementById('btn-submit-create') as HTMLButtonElement | null;
+    const toolsContainer = document.getElementById('new-skill-tools');
+
+    if (!nameInput || !feedback || !submitBtn || !toolsContainer) return;
+
+    toolsContainer.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        input.closest('.tool-toggle')?.classList.toggle('on', input.checked);
+      });
+    });
+
+    const validateSlug = (): boolean => {
+      let val = nameInput.value;
+      const transformed = val.toLowerCase().replace(/\s+/g, '-');
+      if (transformed !== val) {
+        nameInput.value = transformed;
+        val = transformed;
+      }
+      val = val.trim();
+
+      if (!val) {
+        nameInput.classList.remove('valid', 'invalid');
+        feedback.className = 'slug-feedback';
+        feedback.textContent = '';
+        submitBtn.disabled = true;
+        return false;
+      }
+
+      const slugRegex = /^[a-z0-9][a-z0-9._-]*$/;
+      if (!slugRegex.test(val) || val.includes('..')) {
+        nameInput.classList.add('invalid');
+        nameInput.classList.remove('valid');
+        feedback.className = 'slug-feedback invalid';
+        feedback.textContent = 'Use apenas a-z, 0-9, "-", "_" e "." iniciando com letra ou número.';
+        submitBtn.disabled = true;
+        return false;
+      }
+
+      const exists = this.data?.skills.some((s) => s.name === val);
+      if (exists) {
+        nameInput.classList.add('invalid');
+        nameInput.classList.remove('valid');
+        feedback.className = 'slug-feedback invalid';
+        feedback.textContent = 'Nome já em uso no acervo de skills.';
+        submitBtn.disabled = true;
+        return false;
+      }
+
+      nameInput.classList.remove('invalid');
+      nameInput.classList.add('valid');
+      feedback.className = 'slug-feedback valid';
+      feedback.textContent = '✓ Nome disponível.';
+      submitBtn.disabled = false;
+      return true;
+    };
+
+    nameInput.addEventListener('input', validateSlug);
+    nameInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        if (validateSlug()) {
+          void this.createSkillSubmit();
+        }
+      }
+    });
+
+    nameInput.focus();
+  }
+
+  private async createSkillSubmit(): Promise<void> {
+    const nameInput = document.getElementById('new-skill-name') as HTMLInputElement | null;
+    const descInput = document.getElementById('new-skill-desc') as HTMLTextAreaElement | null;
+    const catInput = document.getElementById('new-skill-category') as HTMLSelectElement | null;
+    const templateInput = document.getElementById('new-skill-template') as HTMLSelectElement | null;
+    const submitBtn = document.getElementById('btn-submit-create') as HTMLButtonElement | null;
+
+    if (!nameInput || !descInput || !catInput || !templateInput) return;
+
+    const name = nameInput.value.trim();
+    const description = descInput.value.trim();
+    const category = catInput.value || null;
+    const template = templateInput.value;
+
+    const checkedTools = [
+      ...document.querySelectorAll<HTMLInputElement>('#new-skill-tools input[type="checkbox"]:checked'),
+    ].map((i) => i.dataset.createTool ?? '');
+    const tools = checkedTools.length === TOOLS.length ? null : checkedTools;
+
+    const modalEl = this.$('modal-body');
+    const formElements = modalEl.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement
+    >('input, textarea, select, button');
+
+    formElements.forEach((el) => {
+      el.disabled = true;
+    });
+    if (submitBtn) {
+      submitBtn.textContent = 'Criando...';
+    }
+
+    try {
+      await this.invoke('create_skill', {
+        name,
+        description,
+        category,
+        tools,
+        template,
+      });
+      this.closeModal();
+      await this.refresh();
+      await this.openDrawer(name);
+      this.toast(`Skill '${name}' criada com sucesso.`, false, {
+        label: '[🔗 Aplicar bridge]',
+        onClick: () => void this.runBridge('apply'),
+      });
+    } catch (err) {
+      this.toast(`Erro ao criar skill: ${String(err)}`, true);
+      formElements.forEach((el) => {
+        el.disabled = false;
+      });
+      if (submitBtn) {
+        submitBtn.textContent = 'Criar Skill';
+      }
     }
   }
 
@@ -968,18 +1406,34 @@ class SkillsApp {
   private showModal(
     title: string,
     bodyHtml: string,
-    buttons: { label: string; accent?: boolean; action: () => void }[],
+    buttons: {
+      label: string;
+      accent?: boolean;
+      danger?: boolean;
+      id?: string;
+      disabled?: boolean;
+      action: () => void;
+    }[],
+    isDanger = false,
+    customClass?: string,
   ): void {
+    const modalEl = this.$('modal-body');
+    modalEl.setAttribute('role', 'dialog');
+    modalEl.setAttribute('aria-modal', 'true');
+    modalEl.classList.toggle('modal-danger', isDanger);
+    if (customClass) {
+      modalEl.classList.add(customClass);
+    }
     const footer = buttons
       .map(
         (b, i) =>
-          `<button class="btn ${b.accent ? 'btn-accent' : ''}" data-modal-btn="${i}">${escapeHtml(
-            b.label,
-          )}</button>`,
+          `<button class="btn ${b.accent ? 'btn-accent' : ''} ${b.danger ? 'btn-danger-solid' : ''}" ${
+            b.id ? `id="${b.id}"` : ''
+          } ${b.disabled ? 'disabled' : ''} data-modal-btn="${i}">${escapeHtml(b.label)}</button>`,
       )
       .join('');
 
-    this.$('modal-body').innerHTML = `
+    modalEl.innerHTML = `
       <div class="modal-header">
         <h2>${escapeHtml(title)}</h2>
         <button class="btn-icon" id="modal-close">✕</button>
@@ -991,7 +1445,7 @@ class SkillsApp {
     this.$('modal').classList.remove('hidden');
     this.$('modal-close').addEventListener('click', () => this.closeModal());
     buttons.forEach((b, i) => {
-      this.$('modal-body')
+      modalEl
         .querySelector<HTMLElement>(`[data-modal-btn="${i}"]`)
         ?.addEventListener('click', b.action);
     });
@@ -999,6 +1453,7 @@ class SkillsApp {
 
   private closeModal(): void {
     this.$('modal').classList.add('hidden');
+    this.$('modal-body').classList.remove('modal-danger', 'modal-create', 'modal-delete');
     this.$('modal-body').innerHTML = '';
   }
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
   <title>Dotfiles — Skills</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -28,6 +29,7 @@
       <aside class="sidebar" id="sidebar"></aside>
       <main class="main">
         <div class="toolbar">
+          <button id="btn-new-skill" class="btn btn-accent" title="Criar nova skill (Alt+N)">+ Nova Skill</button>
           <div class="search-wrap">
             <span class="search-icon">⌕</span>
             <input id="search" type="search" placeholder="Buscar por nome, descrição, tag…" autocomplete="off" />
@@ -57,7 +59,7 @@
   <aside class="drawer hidden" id="drawer"></aside>
 
   <div class="modal-backdrop hidden" id="modal">
-    <div class="modal" id="modal-body"></div>
+    <div class="modal" id="modal-body" role="dialog" aria-modal="true"></div>
   </div>
 
   <div class="toast hidden" id="toast"></div>

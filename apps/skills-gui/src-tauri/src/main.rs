@@ -441,16 +441,50 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
     })
 }
 
+fn is_valid_skill_slug(name: &str) -> bool {
+    if name.is_empty()
+        || name.contains("..")
+        || name.contains('/')
+        || name.contains('\\')
+        || name.ends_with('.')
+        || name.ends_with(' ')
+    {
+        return false;
+    }
+    let mut chars = name.chars();
+    let first = match chars.next() {
+        Some(c) => c,
+        None => return false,
+    };
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() && first != '_' {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-')
+}
+
 fn valid_skill_dir(root: &Path, name: &str) -> Result<PathBuf, String> {
-    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+    if !is_valid_skill_slug(name) {
         return Err(format!("nome de skill inválido: {name}"));
     }
-    let path = skills_dir(root).join(name);
-    if path.join("SKILL.md").is_file() {
-        Ok(path)
-    } else {
-        Err(format!("skill não encontrada: {name}"))
+    let center = skills_dir(root);
+    let path = center.join(name);
+    if !path.join("SKILL.md").is_file() {
+        return Err(format!("skill não encontrada: {name}"));
     }
+
+    // Validação estrita de caminho canônico para impedir path traversal
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|e| format!("caminho inválido: {e}"))?;
+    let canonical_center = center
+        .canonicalize()
+        .map_err(|e| format!("acervo inválido: {e}"))?;
+
+    if !canonical_path.starts_with(&canonical_center) || canonical_path == canonical_center {
+        return Err("caminho fora do acervo de skills".to_string());
+    }
+
+    Ok(path)
 }
 
 // ---------------------------------------------------------------------------
@@ -737,6 +771,155 @@ fn open_path(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn create_skill(
+    name: String,
+    description: String,
+    category: Option<String>,
+    tools: Option<Vec<String>>,
+    template: Option<String>,
+) -> Result<(), String> {
+    let name = name.trim().to_string();
+    if !is_valid_skill_slug(&name) {
+        return Err(format!(
+            "nome de skill inválido: '{name}'. Use apenas letras minúsculas, números, '.', '_' e '-'."
+        ));
+    }
+
+    let root = find_repo_root();
+    let center = skills_dir(&root);
+    let target = center.join(&name);
+
+    if target.parent() != Some(&center) {
+        return Err("tentativa de path traversal detectada".to_string());
+    }
+
+    if target.exists() {
+        return Err(format!("skill já existe no acervo: {name}"));
+    }
+
+    let file = catalog_path(&root);
+    let mut catalog = read_catalog(&file);
+    if catalog.skills.contains_key(&name) {
+        return Err(format!("skill já existe no catálogo: {name}"));
+    }
+
+    // Criar diretório físico da nova skill
+    fs::create_dir_all(&target).map_err(|e| format!("criar diretório da skill: {e}"))?;
+
+    // Gerar conteúdo inicial do SKILL.md de forma segura para YAML
+    let desc = description.trim();
+    let desc_single_line = desc
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let yaml_desc = serde_json::to_string(&desc_single_line).unwrap_or_else(|_| "\"\"".to_string());
+
+    let content = match template.as_deref() {
+        Some("empty") => {
+            format!("---\nname: {name}\ndescription: {yaml_desc}\n---\n\n# {name}\n")
+        }
+        _ => {
+            let desc_body = if desc_single_line.is_empty() {
+                String::new()
+            } else {
+                format!("{desc_single_line}\n\n")
+            };
+            format!(
+                "---\nname: {name}\ndescription: {yaml_desc}\n---\n\n# {name}\n\n{desc_body}## Overview\n\nDescreva aqui a finalidade desta skill.\n\n## Instructions\n\nInstruções para o agente...\n"
+            )
+        }
+    };
+
+    let skill_md = target.join("SKILL.md");
+    fs::write(&skill_md, content).map_err(|e| format!("gravar SKILL.md: {e}"))?;
+
+    // Inserir no catálogo
+    let cat_id = category.filter(|c| !c.is_empty() && c != "uncategorized");
+    let entry = catalog.skills.entry(name.clone()).or_default();
+    entry.category = cat_id;
+    entry.tags = Vec::new();
+    entry.tools = tools;
+    entry.favorite = false;
+    entry.notes = String::new();
+    entry.updated_at = Some(now_iso());
+
+    catalog.updated_at = Some(now_iso());
+    write_catalog(&file, &catalog)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn save_skill_content(name: String, content: String) -> Result<(), String> {
+    let root = find_repo_root();
+    let dir = valid_skill_dir(&root, &name)?;
+    let skill_md = dir.join("SKILL.md");
+
+    fs::write(&skill_md, content).map_err(|e| format!("gravar SKILL.md: {e}"))?;
+
+    // Atualiza updated_at no catálogo garantindo que a entrada exista
+    let file = catalog_path(&root);
+    let mut catalog = read_catalog(&file);
+    let entry = catalog.skills.entry(name).or_default();
+    entry.updated_at = Some(now_iso());
+    catalog.updated_at = Some(now_iso());
+    write_catalog(&file, &catalog)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_skill(name: String) -> Result<(), String> {
+    let name = name.trim().to_string();
+    if !is_valid_skill_slug(&name) {
+        return Err(format!("nome de skill inválido: {name}"));
+    }
+
+    let root = find_repo_root();
+    let center = skills_dir(&root);
+    let target = center.join(&name);
+
+    let sym_meta = fs::symlink_metadata(&target)
+        .map_err(|e| format!("ler metadados da skill {name}: {e}"))?;
+
+    if sym_meta.file_type().is_symlink() {
+        fs::remove_file(&target)
+            .map_err(|e| format!("remover symlink da skill {name}: {e}"))?;
+    } else {
+        if !target.is_dir() {
+            return Err(format!("diretório da skill não encontrado: {name}"));
+        }
+
+        // Validação estrita de caminho canônico antes da deleção física
+        let canonical_target = target
+            .canonicalize()
+            .map_err(|e| format!("resolver caminho da skill: {e}"))?;
+        let canonical_center = center
+            .canonicalize()
+            .map_err(|e| format!("resolver acervo de skills: {e}"))?;
+
+        if !canonical_target.starts_with(&canonical_center) || canonical_target == canonical_center {
+            return Err("tentativa de excluir diretório fora do acervo de skills".to_string());
+        }
+
+        // Remover fisicamente o diretório
+        fs::remove_dir_all(&canonical_target)
+            .map_err(|e| format!("excluir diretório da skill {name}: {e}"))?;
+    }
+
+    // Remover do catálogo
+    let file = catalog_path(&root);
+    let mut catalog = read_catalog(&file);
+    catalog.skills.remove(&name);
+    catalog.updated_at = Some(now_iso());
+    write_catalog(&file, &catalog)?;
+
+    Ok(())
+}
+
 fn main() {
     // Diagnóstico sem abrir a janela: skills-gui --print-repo
     if std::env::args().any(|a| a == "--print-repo") {
@@ -776,8 +959,52 @@ fn main() {
             health_report,
             run_check,
             run_bridge,
-            open_path
+            open_path,
+            create_skill,
+            save_skill_content,
+            delete_skill
         ])
         .run(tauri::generate_context!())
         .expect("erro ao executar o Skills GUI");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_skill_slug() {
+        assert!(is_valid_skill_slug("my-skill"));
+        assert!(is_valid_skill_slug("git_commit"));
+        assert!(is_valid_skill_slug("skill.v2"));
+        assert!(is_valid_skill_slug("docker-expert-123"));
+        assert!(is_valid_skill_slug("123-skill"));
+        assert!(is_valid_skill_slug("a"));
+        assert!(is_valid_skill_slug("_knowledge-manager"));
+        assert!(is_valid_skill_slug("_dotfiles-config-researcher"));
+
+        // Casos inválidos e tentativas de path traversal
+        assert!(!is_valid_skill_slug(""));
+        assert!(!is_valid_skill_slug(".."));
+        assert!(!is_valid_skill_slug("../../etc"));
+        assert!(!is_valid_skill_slug("my..skill"));
+        assert!(!is_valid_skill_slug("MySkill"));
+        assert!(!is_valid_skill_slug("my skill"));
+        assert!(!is_valid_skill_slug("/etc/passwd"));
+        assert!(!is_valid_skill_slug("a/b"));
+        assert!(!is_valid_skill_slug("a\\b"));
+        assert!(!is_valid_skill_slug("-invalid"));
+        assert!(!is_valid_skill_slug(".hidden"));
+        assert!(!is_valid_skill_slug("skill."));
+        assert!(!is_valid_skill_slug("skill "));
+    }
+
+    #[test]
+    fn test_parse_frontmatter() {
+        let content = "---\nname: test-skill\ndescription: \"A test skill with : special\"\n---\n\n# Body\n";
+        let (name, desc, closed) = parse_frontmatter(content);
+        assert_eq!(name, Some("test-skill".to_string()));
+        assert_eq!(desc, Some("A test skill with : special".to_string()));
+        assert!(closed);
+    }
 }
