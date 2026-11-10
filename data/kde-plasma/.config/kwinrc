@@ -4,9 +4,13 @@ e998eb04-d2de-4fcf-beb1-eed2dd6f3658=a72d16ea-9001-4ec8-a91e-c7a189b59c8a
 [Desktops]
 Id_1=df3a24cb-a8fc-40c4-954a-194e62b50d03
 Id_2=a72d16ea-9001-4ec8-a91e-c7a189b59c8a
+Id_3=2c2e02e7-1b2a-47c7-92e5-ac9250ac6586
+Id_4=889df1aa-f8fa-4869-a50a-5b5b4980bcee
 Name_1=Search
-Name_2=openhok
-Number=2
+Name_2=projeto proprio
+Name_3=estudos
+Name_4=New Desktop
+Number=4
 Rows=1
 
 [Plugins]

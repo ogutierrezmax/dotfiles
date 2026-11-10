@@ -1,6 +1,7 @@
 [ActivityManager]
 _k_friendly_name=Gerenciador de atividades
-switch-to-activity-e998eb04-d2de-4fcf-beb1-eed2dd6f3658=none,none,Alternar para a atividade "Padrão"
+switch-to-activity-534bc9e6-58e2-4f3b-af97-6688810bb1e8=,none,Alternar para a atividade "seila"
+switch-to-activity-e998eb04-d2de-4fcf-beb1-eed2dd6f3658=,none,Alternar para a atividade "Padrão"
 
 [KDE Keyboard Layout Switcher]
 Switch keyboard layout to Inglês (EUA)=none,none,Mudar para o layout de teclado para Inglês (EUA)
