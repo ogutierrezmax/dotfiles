@@ -83,6 +83,22 @@ pub struct ActiveTransfer {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupStats {
+    pub is_active: bool,
+    pub bytes: u64,
+    pub total_bytes: u64,
+    pub transfers_done: u64,
+    pub total_transfers: u64,
+    pub pending_transfers: u64,
+    pub pending_bytes: u64,
+    pub active_count: usize,
+    pub speed: f64,
+    pub eta: Option<u64>,
+    pub errors: u64,
+    pub percentage: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardResponse {
     pub mount_active: bool,
     pub backup_active: bool,
@@ -94,6 +110,7 @@ pub struct DashboardResponse {
     pub app_queue: Vec<UploadQueueItem>,
     pub mount_transfers: Vec<ActiveTransfer>,
     pub backup_transfers: Vec<ActiveTransfer>,
+    pub backup_stats: Option<BackupStats>,
     pub last_synced_files: Vec<String>,
 }
 
@@ -101,6 +118,7 @@ pub struct AppState {
     pub queue: Arc<Mutex<Vec<UploadQueueItem>>>,
     pub worker_active: Arc<AtomicBool>,
     pub backup_remote_cache: Arc<Mutex<std::collections::HashMap<String, (u64, Vec<String>)>>>,
+    pub folder_progress_cache: Arc<Mutex<std::collections::HashMap<String, u8>>>,
 }
 
 fn gdrive_root() -> PathBuf {
@@ -278,12 +296,102 @@ fn fetch_backup_remote_names(
     Some(names)
 }
 
+pub fn format_bytes_u64(bytes: u64) -> String {
+    if bytes == 0 {
+        return "0 B".to_string();
+    }
+    let units = ["B", "KB", "MB", "GB", "TB"];
+    let mut b = bytes as f64;
+    let mut i = 0;
+    while b >= 1024.0 && i < units.len() - 1 {
+        b /= 1024.0;
+        i += 1;
+    }
+    format!("{:.1} {}", b, units[i])
+}
+
+pub fn calculate_backup_root_progress(
+    bytes: u64,
+    total_bytes: u64,
+    transfers: u64,
+    total_transfers: u64,
+    active_count: usize,
+    last_progress: u8,
+    is_running: bool,
+) -> (TransferState, u8, String) {
+    if !is_running && active_count == 0 {
+        return (
+            TransferState::Uploaded,
+            100,
+            "Backup do SSD SanDisk 1TB no Google Drive".to_string(),
+        );
+    }
+
+    let calculated_pct = if total_bytes > 0 {
+        ((bytes * 100) / total_bytes).min(99) as u8
+    } else if total_transfers > 0 {
+        ((transfers * 100) / total_transfers).min(99) as u8
+    } else if active_count > 0 {
+        1
+    } else {
+        0
+    };
+
+    let pct = std::cmp::max(last_progress, calculated_pct);
+
+    let note = if total_bytes > 0 && total_transfers > 0 {
+        format!(
+            "Enviando backup: {}% ({} de {}, {}/{} arquivos)",
+            pct,
+            format_bytes_u64(bytes),
+            format_bytes_u64(total_bytes),
+            transfers,
+            total_transfers
+        )
+    } else if active_count > 0 {
+        format!("Enviando backup ({} transferências ativas)...", active_count)
+    } else {
+        "Sincronizando SSD SanDisk 1TB (:5577)...".to_string()
+    };
+
+    (TransferState::Uploading, pct.max(1), note)
+}
+
+pub fn retain_incomplete_queue(queue: &mut Vec<UploadQueueItem>) {
+    let incomplete_folders: std::collections::HashSet<String> = queue
+        .iter()
+        .filter(|it| it.state != TransferState::Uploaded)
+        .filter_map(|it| it.parent_folder.clone())
+        .collect();
+
+    let incomplete_targets: std::collections::HashSet<String> = queue
+        .iter()
+        .filter(|it| it.state != TransferState::Uploaded)
+        .map(|it| normalize_rel_path(&it.target_rel_dir))
+        .collect();
+
+    queue.retain(|it| {
+        if it.state != TransferState::Uploaded {
+            return true;
+        }
+        if let Some(ref pf) = it.parent_folder {
+            if incomplete_folders.contains(pf) {
+                return true;
+            }
+        }
+        let clean_target = normalize_rel_path(&it.target_rel_dir);
+        !clean_target.is_empty() && incomplete_targets.contains(&clean_target)
+    });
+}
+
 pub fn resolve_backup_item_state(
     sub_rel: &str,
     file_name: &str,
     is_dir: bool,
     backup_transfers_rel: &[(String, u8)],
     remote_names: Option<&[String]>,
+    is_backup_running: bool,
+    last_folder_pct: u8,
 ) -> (TransferState, FileLocation, u8, String) {
     let exists_on_remote = remote_names
         .map(|names| names.iter().any(|n| n == file_name))
@@ -322,12 +430,44 @@ pub fn resolve_backup_item_state(
         if !matching.is_empty() {
             let avg =
                 (matching.iter().map(|&p| p as u64).sum::<u64>() / matching.len() as u64) as u8;
+            let calculated = if is_backup_running {
+                avg.min(99).max(1)
+            } else {
+                avg
+            };
+            let pct = std::cmp::max(last_folder_pct, calculated);
             (
                 TransferState::Uploading,
                 FileLocation::Local,
-                avg.max(1),
-                "Enviando arquivos internos (:5577)...".to_string(),
+                pct,
+                format!(
+                    "Enviando arquivos internos (:5577) - {} ativa(s)...",
+                    matching.len()
+                ),
             )
+        } else if is_backup_running {
+            if last_folder_pct > 0 && last_folder_pct < 100 {
+                (
+                    TransferState::Aguardando,
+                    FileLocation::Local,
+                    last_folder_pct,
+                    "Arquivos internos na fila de envio (:5577)...".to_string(),
+                )
+            } else if !exists_on_remote {
+                (
+                    TransferState::Aguardando,
+                    FileLocation::Local,
+                    0,
+                    "Pasta aguardando início do upload (:5577)".to_string(),
+                )
+            } else {
+                (
+                    TransferState::Aguardando,
+                    FileLocation::Local,
+                    0,
+                    "Pasta na fila de sincronização (:5577)...".to_string(),
+                )
+            }
         } else if !exists_on_remote {
             (
                 TransferState::Aguardando,
@@ -793,8 +933,18 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
 
     // Query 5577 Backup active transfers when at root or inside Backup-SanDisk-1TB
     let mut backup_transfers_rel: Vec<(String, u8)> = Vec::new();
+    let mut backup_bytes = 0u64;
+    let mut backup_total_bytes = 0u64;
+    let mut backup_transfers = 0u64;
+    let mut backup_total_transfers = 0u64;
+
     let backup_running = if clean_rel.is_empty() || in_backup_tree {
         if let Some(stats) = query_rc(5577, "core/stats") {
+            backup_bytes = stats.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+            backup_total_bytes = stats.get("totalBytes").and_then(|v| v.as_u64()).unwrap_or(0);
+            backup_transfers = stats.get("transfers").and_then(|v| v.as_u64()).unwrap_or(0);
+            backup_total_transfers = stats.get("totalTransfers").and_then(|v| v.as_u64()).unwrap_or(0);
+
             if let Some(arr) = stats.get("transferring").and_then(|t| t.as_array()) {
                 for t in arr {
                     let name = t
@@ -872,13 +1022,26 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
                 let sub_rel = item_rel
                     .strip_prefix("Backup-SanDisk-1TB/")
                     .unwrap_or(&file_name);
-                resolve_backup_item_state(
+                let last_p = if is_dir {
+                    let guard = state.folder_progress_cache.lock().unwrap();
+                    guard.get(&item_rel).copied().unwrap_or(0)
+                } else {
+                    0
+                };
+                let res = resolve_backup_item_state(
                     sub_rel,
                     &file_name,
                     is_dir,
                     &backup_transfers_rel,
                     backup_remote_names.as_deref(),
-                )
+                    backup_running,
+                    last_p,
+                );
+                if is_dir && (res.0 == TransferState::Uploading || res.0 == TransferState::Aguardando) && res.2 > 0 {
+                    let mut guard = state.folder_progress_cache.lock().unwrap();
+                    guard.insert(item_rel.clone(), res.2);
+                }
+                res
             } else if is_dir {
                 (
                     TransferState::Uploaded,
@@ -928,27 +1091,25 @@ fn list_directory(rel_path: String, state: State<AppState>) -> Result<Vec<DriveI
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
 
-            let (b_state, b_pct, b_note) = if !backup_transfers_rel.is_empty() {
-                let avg = (backup_transfers_rel.iter().map(|(_, p)| *p as u64).sum::<u64>()
-                    / backup_transfers_rel.len() as u64) as u8;
-                (
-                    TransferState::Uploading,
-                    avg.max(1),
-                    "Enviando backup do SSD SanDisk 1TB (:5577)...".to_string(),
-                )
-            } else if backup_running {
-                (
-                    TransferState::Uploading,
-                    50,
-                    "Sincronizando SSD SanDisk 1TB (:5577)...".to_string(),
-                )
-            } else {
-                (
-                    TransferState::Uploaded,
-                    100,
-                    "Backup do SSD SanDisk 1TB no Google Drive".to_string(),
-                )
+            let last_root_pct = {
+                let guard = state.folder_progress_cache.lock().unwrap();
+                guard.get("Backup-SanDisk-1TB").copied().unwrap_or(0)
             };
+
+            let (b_state, b_pct, b_note) = calculate_backup_root_progress(
+                backup_bytes,
+                backup_total_bytes,
+                backup_transfers,
+                backup_total_transfers,
+                backup_transfers_rel.len(),
+                last_root_pct,
+                backup_running,
+            );
+
+            {
+                let mut guard = state.folder_progress_cache.lock().unwrap();
+                guard.insert("Backup-SanDisk-1TB".to_string(), b_pct);
+            }
 
             items.push(DriveItem {
                 name: "Backup-SanDisk-1TB".to_string(),
@@ -1295,6 +1456,11 @@ fn enqueue_uploads(
 
             let size = fs::metadata(&src_path).map(|m| m.len()).unwrap_or(0);
             let id = format!("{}_{}_{}", now, name, queue_guard.len());
+            let parent = if clean_target.is_empty() {
+                None
+            } else {
+                Some(clean_target.clone())
+            };
             let item = UploadQueueItem {
                 id,
                 source_path: src_str,
@@ -1306,7 +1472,7 @@ fn enqueue_uploads(
                 error_message: None,
                 created_ts: now,
                 updated_ts: now,
-                parent_folder: None,
+                parent_folder: parent,
                 rel_file_path: None,
             };
 
@@ -1471,7 +1637,7 @@ fn mark_item_result(
 #[tauri::command]
 fn clear_completed_uploads(state: State<AppState>) -> Result<(), String> {
     let mut q = state.queue.lock().unwrap();
-    q.retain(|it| it.state != TransferState::Uploaded);
+    retain_incomplete_queue(&mut q);
     Ok(())
 }
 
@@ -1570,6 +1736,7 @@ fn get_transfer_dashboard(state: State<AppState>) -> Result<DashboardResponse, S
     // Query 5577 Backup Stats
     let mut backup_transfers = Vec::new();
     let mut last_synced_files = Vec::new();
+    let mut backup_stats = None;
 
     if let Some(stats) = query_rc(5577, "core/stats") {
         if let Some(arr) = stats.get("transferring").and_then(|t| t.as_array()) {
@@ -1592,26 +1759,64 @@ fn get_transfer_dashboard(state: State<AppState>) -> Result<DashboardResponse, S
             .unwrap_or(0);
         let done_transfers = stats.get("transfers").and_then(|v| v.as_u64()).unwrap_or(0);
         let active_len = backup_transfers.len() as u64;
-        if total_transfers > done_transfers + active_len {
-            let pending_count = total_transfers - done_transfers - active_len;
-            let total_bytes = stats
-                .get("totalBytes")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
-            let done_bytes = stats.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0);
-            backup_transfers.push(ActiveTransfer {
-                name: format!(
-                    "⏳ {} arquivo(s) na fila aguardando início do upload",
-                    pending_count
-                ),
-                percentage: 0,
-                bytes: 0,
-                size: total_bytes.saturating_sub(done_bytes),
-                speed_avg: 0.0,
-                eta: None,
-                source: "Fila Backup (Aguardando)".to_string(),
-            });
-        }
+        let pending_count = total_transfers.saturating_sub(done_transfers + active_len);
+
+        let total_bytes = stats
+            .get("totalBytes")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let done_bytes = stats.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+        let pending_bytes = total_bytes.saturating_sub(done_bytes);
+
+        let speed = stats.get("speed").and_then(|s| s.as_f64()).unwrap_or(0.0);
+        let eta = stats.get("eta").and_then(|e| e.as_u64());
+        let errors = stats.get("errors").and_then(|e| e.as_u64()).unwrap_or(0);
+
+        let last_root_pct = {
+            let guard = state.folder_progress_cache.lock().unwrap();
+            guard.get("Backup-SanDisk-1TB").copied().unwrap_or(0)
+        };
+
+        let calculated_pct = if total_bytes > 0 {
+            ((done_bytes * 100) / total_bytes).min(99) as u8
+        } else if total_transfers > 0 {
+            ((done_transfers * 100) / total_transfers).min(99) as u8
+        } else if !backup_transfers.is_empty() {
+            1
+        } else {
+            0
+        };
+        let percentage = std::cmp::max(last_root_pct, calculated_pct);
+
+        backup_stats = Some(BackupStats {
+            is_active: backup_active || !backup_transfers.is_empty(),
+            bytes: done_bytes,
+            total_bytes,
+            transfers_done: done_transfers,
+            total_transfers,
+            pending_transfers: pending_count,
+            pending_bytes,
+            active_count: backup_transfers.len(),
+            speed,
+            eta,
+            errors,
+            percentage,
+        });
+    } else if backup_active {
+        backup_stats = Some(BackupStats {
+            is_active: true,
+            bytes: 0,
+            total_bytes: 0,
+            transfers_done: 0,
+            total_transfers: 0,
+            pending_transfers: 0,
+            pending_bytes: 0,
+            active_count: 0,
+            speed: 0.0,
+            eta: None,
+            errors: 0,
+            percentage: 0,
+        });
     }
 
     if let Some(trans) = query_rc(5577, "core/transferred") {
@@ -1640,6 +1845,7 @@ fn get_transfer_dashboard(state: State<AppState>) -> Result<DashboardResponse, S
         app_queue,
         mount_transfers,
         backup_transfers,
+        backup_stats,
         last_synced_files,
     })
 }
@@ -1674,6 +1880,7 @@ fn main() {
         queue: Arc::new(Mutex::new(Vec::new())),
         worker_active: Arc::new(AtomicBool::new(false)),
         backup_remote_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        folder_progress_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     tauri::Builder::default()
@@ -1864,6 +2071,8 @@ mod tests {
             false,
             &active_transfers,
             Some(&remote_names),
+            true,
+            0,
         );
         assert_eq!(st1, TransferState::Aguardando);
         assert_eq!(loc1, FileLocation::Local);
@@ -1876,6 +2085,8 @@ mod tests {
             false,
             &active_transfers,
             Some(&remote_names),
+            true,
+            0,
         );
         assert_eq!(st2, TransferState::Uploading);
         assert_eq!(loc2, FileLocation::Local);
@@ -1888,10 +2099,26 @@ mod tests {
             false,
             &active_transfers,
             Some(&remote_names),
+            true,
+            0,
         );
         assert_eq!(st3, TransferState::Uploaded);
         assert_eq!(loc3, FileLocation::Ambos);
         assert_eq!(pct3, 100);
+
+        // 4. Folder that was previously uploading stays in Aguardando with preserved pct, does not jump to Uploaded 100% while backup is running
+        let (st4, _, pct4, note4) = super::resolve_backup_item_state(
+            "Downloads/MinhaPasta",
+            "MinhaPasta",
+            true,
+            &[], // no active transfers right now in this folder
+            Some(&["MinhaPasta".to_string()]),
+            true, // backup is running
+            50, // last folder pct was 50%
+        );
+        assert_eq!(st4, TransferState::Aguardando);
+        assert_eq!(pct4, 50);
+        assert!(note4.contains("fila de envio"));
     }
 
     #[test]
@@ -1922,5 +2149,196 @@ mod tests {
     fn test_chrono_light() {
         let formatted = chrono_light(1700000000);
         assert!(formatted.starts_with("2023-11-14"));
+    }
+
+    #[test]
+    fn test_calculate_backup_root_progress_uses_total_stats() {
+        // total_bytes: 10GB, bytes: 9.5GB -> 95%, not 25% or average of active transfers
+        let (state, pct, note) = super::calculate_backup_root_progress(
+            9_500_000_000,
+            10_000_000_000,
+            250_000,
+            260_000,
+            4,
+            0,
+            true,
+        );
+        assert_eq!(state, TransferState::Uploading);
+        assert_eq!(pct, 95);
+        assert!(note.contains("95%"));
+
+        // Monotonic guarantee: if total_bytes temporarily glitches, progress never drops below last_progress
+        let (_, pct_glitch, _) = super::calculate_backup_root_progress(
+            1_000,
+            10_000_000_000,
+            1,
+            260_000,
+            1,
+            95,
+            true,
+        );
+        assert_eq!(pct_glitch, 95);
+
+        // When backup finishes
+        let (state_done, pct_done, _) = super::calculate_backup_root_progress(
+            10_000_000_000,
+            10_000_000_000,
+            260_000,
+            260_000,
+            0,
+            95,
+            false,
+        );
+        assert_eq!(state_done, TransferState::Uploaded);
+        assert_eq!(pct_done, 100);
+    }
+
+    #[test]
+    fn test_filter_completed_uploads_preserves_incomplete_folders() {
+        let mut queue = vec![
+            UploadQueueItem {
+                id: "1".into(),
+                source_path: "/tmp/A/1.txt".into(),
+                target_rel_dir: "A".into(),
+                target_name: "1.txt".into(),
+                size: 100,
+                transferred_bytes: 100,
+                state: TransferState::Uploaded,
+                error_message: None,
+                created_ts: 1,
+                updated_ts: 1,
+                parent_folder: Some("A".into()),
+                rel_file_path: Some("1.txt".into()),
+            },
+            UploadQueueItem {
+                id: "2".into(),
+                source_path: "/tmp/A/2.txt".into(),
+                target_rel_dir: "A".into(),
+                target_name: "2.txt".into(),
+                size: 100,
+                transferred_bytes: 0,
+                state: TransferState::Aguardando,
+                error_message: None,
+                created_ts: 1,
+                updated_ts: 1,
+                parent_folder: Some("A".into()),
+                rel_file_path: Some("2.txt".into()),
+            },
+            UploadQueueItem {
+                id: "3".into(),
+                source_path: "/tmp/B/standalone.txt".into(),
+                target_rel_dir: "".into(),
+                target_name: "standalone.txt".into(),
+                size: 100,
+                transferred_bytes: 100,
+                state: TransferState::Uploaded,
+                error_message: None,
+                created_ts: 1,
+                updated_ts: 1,
+                parent_folder: None,
+                rel_file_path: None,
+            },
+        ];
+
+        super::retain_incomplete_queue(&mut queue);
+
+        // standalone.txt (id 3) was uploaded and had no folder -> removed
+        // A/1.txt (id 1) was uploaded BUT folder A still has A/2.txt in Aguardando -> preserved!
+        // A/2.txt (id 2) is Aguardando -> preserved!
+        assert_eq!(queue.len(), 2);
+        assert!(queue.iter().any(|i| i.id == "1"));
+        assert!(queue.iter().any(|i| i.id == "2"));
+        assert!(!queue.iter().any(|i| i.id == "3"));
+    }
+
+    #[test]
+    fn test_subfolder_backup_capped_at_99_while_running() {
+        // If an internal file in a subfolder finishes (100%), the subfolder must cap at 99%
+        // and NOT jump to 100% Uploaded/Sincronizado while backup is actively running.
+        let active_transfers = vec![("Fotos/Viagem/1.jpg".to_string(), 100u8)];
+        let remote_names = vec!["Fotos".to_string()];
+
+        let (state, _, pct, note) = super::resolve_backup_item_state(
+            "Fotos",
+            "Fotos",
+            true,
+            &active_transfers,
+            Some(&remote_names),
+            true, // backup is running
+            0,
+        );
+        assert_eq!(state, TransferState::Uploading);
+        assert_eq!(pct, 99);
+        assert!(note.contains("1 ativa(s)"));
+
+        // When that active transfer ends, folder transitions to Aguardando retaining 99%,
+        // NOT 100% Sincronizado
+        let (state2, _, pct2, note2) = super::resolve_backup_item_state(
+            "Fotos",
+            "Fotos",
+            true,
+            &[],
+            Some(&remote_names),
+            true, // backup is running
+            99, // last_folder_pct
+        );
+        assert_eq!(state2, TransferState::Aguardando);
+        assert_eq!(pct2, 99);
+        assert!(note2.contains("fila de envio"));
+
+        // Only when backup is completely finished, folder becomes 100% Sincronizado
+        let (state3, _, pct3, note3) = super::resolve_backup_item_state(
+            "Fotos",
+            "Fotos",
+            true,
+            &[],
+            Some(&remote_names),
+            false, // backup finished
+            99,
+        );
+        assert_eq!(state3, TransferState::Uploaded);
+        assert_eq!(pct3, 100);
+        assert_eq!(note3, "Sincronizado");
+    }
+
+    #[test]
+    fn test_retain_incomplete_queue_by_target_rel_dir() {
+        let mut queue = vec![
+            UploadQueueItem {
+                id: "f1".into(),
+                source_path: "/tmp/1.txt".into(),
+                target_rel_dir: "Projetos/Trabalho".into(),
+                target_name: "1.txt".into(),
+                size: 100,
+                transferred_bytes: 100,
+                state: TransferState::Uploaded,
+                error_message: None,
+                created_ts: 1,
+                updated_ts: 1,
+                parent_folder: None,
+                rel_file_path: None,
+            },
+            UploadQueueItem {
+                id: "f2".into(),
+                source_path: "/tmp/2.txt".into(),
+                target_rel_dir: "Projetos/Trabalho".into(),
+                target_name: "2.txt".into(),
+                size: 100,
+                transferred_bytes: 0,
+                state: TransferState::Aguardando,
+                error_message: None,
+                created_ts: 1,
+                updated_ts: 1,
+                parent_folder: None,
+                rel_file_path: None,
+            },
+        ];
+
+        super::retain_incomplete_queue(&mut queue);
+
+        // f1 is Uploaded, but f2 in same target_rel_dir is Aguardando -> f1 is preserved!
+        assert_eq!(queue.len(), 2);
+        assert!(queue.iter().any(|i| i.id == "f1"));
+        assert!(queue.iter().any(|i| i.id == "f2"));
     }
 }
