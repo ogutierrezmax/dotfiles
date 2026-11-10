@@ -13,6 +13,8 @@ ExecStartPre=/usr/bin/bash -c 'test -f %h/backup-sandisk.log && mv -f %h/backup-
 ExecStart=/usr/bin/rclone copy /mnt/sandisk gdrive:Backup-SanDisk-1TB \
   --config %h/.config/rclone/rclone.conf \
   --fast-list \
+  --check-first \
+  --max-backlog=500000 \
   --transfers 4 \
   --checkers 8 \
   --drive-chunk-size 64M \
