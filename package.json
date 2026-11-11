@@ -1,0 +1,14 @@
+{
+  "name": "dotfiles",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Repositório de gerenciamento de dotfiles e apps do sistema",
+  "scripts": {
+    "dev": "echo 'Uso: npm run dev:<app> (chunk-injector-gui | dotfiles-tui | gdrive-gui | skills-gui)'",
+    "dev:nome": "echo 'Substitua :nome pelo app desejado (ex: npm run dev:skills-gui). Apps disponíveis: chunk-injector-gui, dotfiles-tui, gdrive-gui, skills-gui'",
+    "dev:chunk-injector-gui": "./data/.local/bin/chunk-injector-gui --dev",
+    "dev:dotfiles-tui": "cd apps/dotfiles-tui && go run .",
+    "dev:gdrive-gui": "./data/.local/bin/gdrive-gui --dev",
+    "dev:skills-gui": "./data/.local/bin/skills-gui --dev"
+  }
+}
