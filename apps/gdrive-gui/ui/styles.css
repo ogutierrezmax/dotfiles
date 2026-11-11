@@ -1,5 +1,6 @@
 /* Modern Dark Theme for Google Drive Manager */
 :root {
+  color-scheme: dark;
   --bg-base: #14161b;
   --bg-surface: #1a1d24;
   --bg-card: #20242e;
