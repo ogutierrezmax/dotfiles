@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-11T02:48:29Z",
+  "updatedAt": "2026-11-11T19:47:15Z",
   "categories": [
     {
       "id": "ai-config",
@@ -147,22 +147,8 @@
       "favorite": false,
       "notes": ""
     },
-    "backlog-refinement": {
-      "category": "k1-refinement",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "bug-investigation-report": {
       "category": "debugging",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "clarification": {
-      "category": "k1-refinement",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -280,36 +266,8 @@
       "favorite": false,
       "notes": ""
     },
-    "epic-analyzer": {
-      "category": "k-flow",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "epic-vs-story": {
-      "category": "k1-refinement",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "eslint-fix-all": {
       "category": "code-quality",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "fastapi": {
-      "category": "tech-domain",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "feature-classification": {
-      "category": "k1-refinement",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -366,13 +324,6 @@
     },
     "git-commit-v2": {
       "category": "devops",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "implementation-planner": {
-      "category": "implementation",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -469,36 +420,8 @@
       "favorite": false,
       "notes": ""
     },
-    "step-artifact-builder": {
-      "category": "implementation",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "subagent-driven-development": {
-      "category": "implementation",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "succinct-text": {
       "category": "utilities",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "supabase": {
-      "category": "tech-domain",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "supabase-postgres-best-practices": {
-      "category": "tech-domain",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -512,13 +435,6 @@
       "notes": ""
     },
     "tauri-deep-link-linux": {
-      "category": "tech-domain",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "tauri-gmail-oauth": {
       "category": "tech-domain",
       "tags": [],
       "tools": null,
@@ -569,20 +485,6 @@
     },
     "update-cursor-settings": {
       "category": "cursor-ide",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "user-story": {
-      "category": "k1-refinement",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "validate-skill-format": {
-      "category": "code-quality",
       "tags": [],
       "tools": null,
       "favorite": false,

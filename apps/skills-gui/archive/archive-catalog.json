@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-11T19:47:15Z",
+  "skills": {
+    "backlog-refinement": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:45:12Z"
+    },
+    "clarification": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:45:16Z"
+    },
+    "create-product-stage": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:42:53Z"
+    },
+    "epic-analyzer": {
+      "category": "k-flow",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:08Z"
+    },
+    "epic-vs-story": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:45:21Z"
+    },
+    "error-log-analyzer": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:42:49Z"
+    },
+    "factorio-modding": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:42:59Z"
+    },
+    "fastapi": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:47:11Z"
+    },
+    "feature-classification": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:45:51Z"
+    },
+    "implementation-planner": {
+      "category": "implementation",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:27Z"
+    },
+    "literal-shell-executor": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:42:44Z"
+    },
+    "pinokio": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:42:39Z"
+    },
+    "refine-product-stage": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:42:32Z"
+    },
+    "step-artifact-builder": {
+      "category": "implementation",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:17Z"
+    },
+    "subagent-driven-development": {
+      "category": "implementation",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:22Z"
+    },
+    "supabase": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:47:15Z"
+    },
+    "supabase-postgres-best-practices": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:45Z"
+    },
+    "tauri-gmail-oauth": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:51Z"
+    },
+    "user-story": {
+      "category": "k1-refinement",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:46:04Z"
+    },
+    "validate-skill-format": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-11T19:43:14Z"
+    }
+  }
+}
