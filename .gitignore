@@ -54,3 +54,14 @@ apps/chunk-injector-gui/ui/app.js.map
 apps/skills-gui/src-tauri/target/
 apps/skills-gui/ui/app.js.map
 
+
+# Go — binário compilado do dotfiles-tui (o fonte é versionado)
+apps/dotfiles-tui/bin/
+
+# POCs de stack (docs/POC-MENU-*) — artefatos de build; o fonte é versionado
+pocs/*/target/
+pocs/*/node_modules/
+pocs/*/.venv/
+pocs/*/bin/
+pocs/*/ui/app.js.map
+_bmad-output/
