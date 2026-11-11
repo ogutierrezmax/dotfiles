@@ -238,7 +238,7 @@ dotfiles_link_one() {
     # para o plugin token-daily) — necessário em máquina nova.
     mkdir -p "$(dirname "$dest")"
     echo "Criando link simbólico para $file → $dest"
-    ln -sf "$src" "$dest"
+    ln -sfn "$src" "$dest"
 }
 
 # Remove o symlink em ~ apenas se apontar para data/<file> (mesmo critério de "installed").
