@@ -33,6 +33,8 @@ interface SkillItem {
   modifiedAt: string;
   nameMismatch: boolean;
   hasFrontmatter: boolean;
+  archived: boolean;
+  archivedAt?: string;
 }
 
 interface SkillDetail extends SkillItem {
@@ -42,8 +44,10 @@ interface SkillDetail extends SkillItem {
 interface AppData {
   repoRoot: string;
   skillsDir: string;
+  archiveDir: string;
   catalogPath: string;
   skills: SkillItem[];
+  archivedSkills: SkillItem[];
   categories: Category[];
 }
 
@@ -70,6 +74,7 @@ type Filter =
   | { type: 'favorite' }
   | { type: 'uncategorized' }
   | { type: 'mismatch' }
+  | { type: 'archived' }
   | { type: 'category'; value: string }
   | { type: 'tag'; value: string }
   | { type: 'tool'; value: string };
@@ -219,6 +224,8 @@ class SkillsApp {
       this.renderGrid();
     });
     this.$('bulk-apply').addEventListener('click', () => void this.applyBulkCategory());
+    this.$('bulk-archive').addEventListener('click', () => void this.applyBulkArchive());
+    this.$('bulk-unarchive').addEventListener('click', () => void this.applyBulkUnarchive());
     this.$('modal').addEventListener('click', (ev) => {
       if (ev.target === this.$('modal')) this.closeModal();
     });
@@ -283,6 +290,7 @@ class SkillsApp {
   private matchesFilter(skill: SkillItem): boolean {
     switch (this.filter.type) {
       case 'all':
+      case 'archived':
         return true;
       case 'favorite':
         return skill.favorite;
@@ -302,7 +310,8 @@ class SkillsApp {
   private visibleSkills(): SkillItem[] {
     if (!this.data) return [];
     const q = this.search;
-    const filtered = this.data.skills.filter((skill) => {
+    const sourceSkills = this.filter.type === 'archived' ? this.data.archivedSkills : this.data.skills;
+    const filtered = sourceSkills.filter((skill) => {
       if (!this.matchesFilter(skill)) return false;
       if (!q) return true;
       const haystack = [
@@ -322,7 +331,14 @@ class SkillsApp {
     const sorted = [...filtered];
     switch (this.sort) {
       case 'recent':
-        sorted.sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt));
+        sorted.sort((a, b) => {
+          if (this.filter.type === 'archived') {
+            const dateA = a.archivedAt ?? a.modifiedAt;
+            const dateB = b.archivedAt ?? b.modifiedAt;
+            return dateB.localeCompare(dateA);
+          }
+          return b.modifiedAt.localeCompare(a.modifiedAt);
+        });
         break;
       case 'category':
         sorted.sort(
@@ -351,6 +367,7 @@ class SkillsApp {
     const favorites = skills.filter((s) => s.favorite).length;
     const uncategorized = skills.filter((s) => !s.category).length;
     const mismatches = skills.filter((s) => s.nameMismatch).length;
+    const archivedTotal = this.data.archivedSkills.length;
 
     const tagCounts = new Map<string, number>();
     for (const skill of skills) {
@@ -417,6 +434,7 @@ class SkillsApp {
         ${navItem({ type: 'favorite' }, 'Favoritas', favorites)}
         ${navItem({ type: 'uncategorized' }, 'Sem categoria', uncategorized)}
         ${navItem({ type: 'mismatch' }, 'Nome divergente', mismatches)}
+        ${navItem({ type: 'archived' }, '📦 Arquivadas', archivedTotal)}
       </div>
       <div class="sidebar-section">
         <div class="sidebar-heading">
@@ -514,11 +532,22 @@ class SkillsApp {
 
     const skills = this.visibleSkills();
 
-    this.$('count').textContent = `${skills.length} / ${this.data?.skills.length ?? 0}`;
+    const isArchivedView = this.filter.type === 'archived';
+    const totalCount = isArchivedView
+      ? (this.data?.archivedSkills.length ?? 0)
+      : (this.data?.skills.length ?? 0);
+    this.$('count').textContent = isArchivedView
+      ? `${skills.length} / ${totalCount} arquivada(s)`
+      : `${skills.length} / ${totalCount}`;
 
     const bulk = this.$('bulk-bar');
     bulk.classList.toggle('hidden', this.selected.size === 0);
     this.$('bulk-count').textContent = `${this.selected.size} selecionada(s)`;
+
+    this.$('bulk-category').classList.toggle('hidden', isArchivedView);
+    this.$('bulk-apply').classList.toggle('hidden', isArchivedView);
+    this.$('bulk-archive').classList.toggle('hidden', isArchivedView);
+    this.$('bulk-unarchive').classList.toggle('hidden', !isArchivedView);
 
     if (skills.length === 0) {
       grid.innerHTML = '<div class="empty">Nenhuma skill corresponde ao filtro.</div>';
@@ -527,6 +556,9 @@ class SkillsApp {
 
     grid.innerHTML = skills
       .map((skill) => {
+        const archivedBadge = skill.archived
+          ? '<span class="chip archived" title="Skill arquivada na pasta do app">📦 Arquivada</span>'
+          : '';
         const category = skill.category
           ? `<span class="chip cat">${escapeHtml(this.categoryLabel(skill.category))}</span>`
           : '<span class="chip">Sem categoria</span>';
@@ -544,26 +576,33 @@ class SkillsApp {
               skill.displayName,
             )}</span>`
           : '';
+        const starBtn = skill.archived
+          ? ''
+          : `<button class="star-btn ${skill.favorite ? 'on' : ''}" data-star="${escapeHtml(
+              skill.name,
+            )}" title="Favoritar">${skill.favorite ? '★' : '☆'}</button>`;
+        const dateLabel =
+          skill.archived && skill.archivedAt
+            ? `Arq. ${formatDate(skill.archivedAt)}`
+            : formatDate(skill.modifiedAt);
 
-        return `<div class="card ${this.selected.has(skill.name) ? 'selected' : ''}" data-skill="${escapeHtml(
-          skill.name,
-        )}">
+        return `<div class="card ${this.selected.has(skill.name) ? 'selected' : ''} ${
+          skill.archived ? 'is-archived' : ''
+        }" data-skill="${escapeHtml(skill.name)}">
           <input type="checkbox" class="card-check" data-check="${escapeHtml(skill.name)}" ${
             this.selected.has(skill.name) ? 'checked' : ''
           } />
           <div class="card-top">
             <div class="card-title">${escapeHtml(skill.displayName)}</div>
-            <button class="star-btn ${skill.favorite ? 'on' : ''}" data-star="${escapeHtml(
-              skill.name,
-            )}" title="Favoritar">${skill.favorite ? '★' : '☆'}</button>
+            ${starBtn}
           </div>
           ${skill.displayName !== skill.name ? `<div class="card-dir">${escapeHtml(skill.name)}</div>` : ''}
           <div class="card-desc">${escapeHtml(skill.description || 'Sem descrição no frontmatter.')}</div>
-          <div class="card-tags">${category}${tags}${tools}${mismatch}</div>
+          <div class="card-tags">${archivedBadge}${category}${tags}${tools}${mismatch}</div>
           <div class="card-meta">
             <span>${skill.fileCount} arq.</span>
             <span>${formatBytes(skill.sizeBytes)}</span>
-            <span>${formatDate(skill.modifiedAt)}</span>
+            <span>${dateLabel}</span>
           </div>
         </div>`;
       })
@@ -646,6 +685,50 @@ class SkillsApp {
     }
   }
 
+  private async applyBulkArchive(): Promise<void> {
+    if (!this.data || this.selected.size === 0) return;
+    const ok = await this.confirmDialog(
+      `Deseja arquivar as ${this.selected.size} skill(s) selecionada(s)? As pastas serão movidas para apps/skills-gui/archive/.`,
+    );
+    if (!ok) return;
+
+    try {
+      for (const name of this.selected) {
+        await this.invoke('archive_skill', { name });
+      }
+      this.selected.clear();
+      await this.refresh();
+      this.toast('Skill(s) arquivada(s) com sucesso.', false, {
+        label: '[🔗 Sincronizar Bridge]',
+        onClick: () => void this.runBridge('apply'),
+      });
+    } catch (err) {
+      this.toast(`Erro ao arquivar em lote: ${String(err)}`, true);
+    }
+  }
+
+  private async applyBulkUnarchive(): Promise<void> {
+    if (!this.data || this.selected.size === 0) return;
+    const ok = await this.confirmDialog(
+      `Deseja restaurar as ${this.selected.size} skill(s) selecionada(s) para o acervo ativo?`,
+    );
+    if (!ok) return;
+
+    try {
+      for (const name of this.selected) {
+        await this.invoke('unarchive_skill', { name });
+      }
+      this.selected.clear();
+      await this.refresh();
+      this.toast('Skill(s) restaurada(s) com sucesso.', false, {
+        label: '[🔗 Sincronizar Bridge]',
+        onClick: () => void this.runBridge('apply'),
+      });
+    } catch (err) {
+      this.toast(`Erro ao desarquivar em lote: ${String(err)}`, true);
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Drawer
   // -------------------------------------------------------------------------
@@ -712,6 +795,13 @@ class SkillsApp {
         <button class="btn-icon" id="drawer-close" title="Fechar">✕</button>
       </div>
       <div class="drawer-body">
+        ${
+          detail.archived
+            ? `<div class="banner info">📦 <strong>Esta skill está arquivada</strong> (pasta: <code>${escapeHtml(
+                detail.path,
+              )}</code>). Ela não está ativa no acervo e não é sincronizada pelo bridge.</div>`
+            : ''
+        }
         <div class="path-row">
           <code>${escapeHtml(detail.path)}</code>
           <button class="btn btn-small" id="open-folder">Abrir pasta</button>
@@ -735,8 +825,11 @@ class SkillsApp {
           <label>Exposição via bridge</label>
           <div class="tools-grid" id="d-tools">${tools}</div>
           <div class="field-hint">
-            Marcar todas equivale a <code>null</code> (todas as ferramentas). Desmarcar todas remove
-            a skill do bridge. Leitura nativa (OpenCode/Codex) não é afetada.
+            ${
+              detail.archived
+                ? 'Skills arquivadas não recebem symlinks do bridge.'
+                : 'Marcar todas equivale a <code>null</code> (todas as ferramentas). Desmarcar todas remove a skill do bridge. Leitura nativa (OpenCode/Codex) não é afetada.'
+            }
           </div>
         </div>
         <div class="field">
@@ -746,11 +839,29 @@ class SkillsApp {
           )}</textarea>
         </div>
         <div class="field" id="skill-content-container"></div>
+        ${
+          detail.archived
+            ? `<div class="archive-zone">
+                <div class="archive-zone-title">↩️ Restaurar do Arquivo</div>
+                <div class="archive-zone-desc">
+                  Move esta skill de volta para o acervo ativo (<code>data/.agents/skills/</code>) e restaura seus metadados no catálogo.
+                </div>
+                <button class="btn btn-accent" id="drawer-unarchive-skill">↩️ Desarquivar Skill</button>
+              </div>`
+            : `<div class="archive-zone">
+                <div class="archive-zone-title">📦 Arquivamento</div>
+                <div class="archive-zone-desc">
+                  Move esta skill para a pasta do arquivo do app (<code>apps/skills-gui/archive/</code>).
+                  Ela deixará de ser sincronizada pelas ferramentas de IA e poderá ser restaurada a qualquer momento.
+                </div>
+                <button class="btn" id="drawer-archive-skill">📦 Arquivar Skill</button>
+              </div>`
+        }
         <div class="danger-zone">
           <div class="danger-zone-title">⚠️ Zona de Perigo</div>
           <div class="danger-zone-desc">
-            Exclui permanentemente a pasta <code>data/.agents/skills/${escapeHtml(
-              detail.name,
+            Exclui permanentemente a pasta <code>${escapeHtml(
+              detail.path,
             )}</code> do disco e remove sua entrada do catálogo.
           </div>
           <button class="btn btn-danger" id="drawer-delete-skill" style="align-self: flex-start;">Excluir Skill</button>
@@ -758,7 +869,12 @@ class SkillsApp {
       </div>
       <div class="drawer-footer">
         <button class="btn" id="drawer-cancel">Fechar</button>
-        <button class="btn btn-accent" id="drawer-save">Salvar Metadados</button>
+        ${
+          detail.archived
+            ? '<button class="btn btn-accent" id="drawer-unarchive-footer">↩️ Desarquivar Skill</button>'
+            : ''
+        }
+        <button class="btn ${detail.archived ? '' : 'btn-accent'}" id="drawer-save">Salvar Metadados</button>
       </div>
     `;
 
@@ -770,6 +886,19 @@ class SkillsApp {
     );
     this.$('drawer-save').addEventListener('click', () => void this.saveDrawer(detail));
     this.$('drawer-delete-skill').addEventListener('click', () => this.openDeleteSkillModal(detail));
+
+    const archiveBtn = document.getElementById('drawer-archive-skill');
+    if (archiveBtn) {
+      archiveBtn.addEventListener('click', () => this.openArchiveSkillModal(detail));
+    }
+    const unarchiveBtn = document.getElementById('drawer-unarchive-skill');
+    if (unarchiveBtn) {
+      unarchiveBtn.addEventListener('click', () => this.openUnarchiveSkillModal(detail));
+    }
+    const unarchiveFooterBtn = document.getElementById('drawer-unarchive-footer');
+    if (unarchiveFooterBtn) {
+      unarchiveFooterBtn.addEventListener('click', () => this.openUnarchiveSkillModal(detail));
+    }
 
     this.$('d-tools')
       .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
@@ -932,12 +1061,82 @@ class SkillsApp {
     }
   }
 
+  private openArchiveSkillModal(detail: SkillItem): void {
+    const body = `
+      <div class="banner info">
+        A skill <strong>${escapeHtml(detail.name)}</strong> será movida para a pasta de arquivo do app (<code>apps/skills-gui/archive/${escapeHtml(detail.name)}</code>).
+      </div>
+      <p style="margin-top:12px;font-size:13px;color:var(--text-secondary)">
+        Os metadados (categoria, tags, tools e notas) serão preservados em <code>apps/skills-gui/archive/archive-catalog.json</code>. A skill deixará de ser sincronizada pelo bridge e poderá ser desarquivada a qualquer momento.
+      </p>
+    `;
+
+    this.showModal('📦 Arquivar Skill', body, [
+      { label: 'Cancelar', action: () => this.closeModal() },
+      {
+        label: 'Confirmar Arquivamento',
+        accent: true,
+        action: () => void this.archiveSkillSubmit(detail.name),
+      },
+    ]);
+  }
+
+  private async archiveSkillSubmit(name: string): Promise<void> {
+    try {
+      await this.invoke('archive_skill', { name });
+      this.closeModal();
+      this.closeDrawer(true);
+      await this.refresh();
+      this.toast(`Skill '${name}' arquivada com sucesso.`, false, {
+        label: '[🔗 Sincronizar Bridge]',
+        onClick: () => void this.runBridge('apply'),
+      });
+    } catch (err) {
+      this.toast(`Erro ao arquivar skill: ${String(err)}`, true);
+    }
+  }
+
+  private openUnarchiveSkillModal(detail: SkillItem): void {
+    const body = `
+      <div class="banner info">
+        A skill <strong>${escapeHtml(detail.name)}</strong> será restaurada para o acervo ativo (<code>data/.agents/skills/${escapeHtml(detail.name)}</code>).
+      </div>
+      <p style="margin-top:12px;font-size:13px;color:var(--text-secondary)">
+        Seus metadados serão reinseridos no catálogo principal de skills e ela voltará a ser elegível para o bridge.
+      </p>
+    `;
+
+    this.showModal('↩️ Desarquivar Skill', body, [
+      { label: 'Cancelar', action: () => this.closeModal() },
+      {
+        label: 'Restaurar Skill',
+        accent: true,
+        action: () => void this.unarchiveSkillSubmit(detail.name),
+      },
+    ]);
+  }
+
+  private async unarchiveSkillSubmit(name: string): Promise<void> {
+    try {
+      await this.invoke('unarchive_skill', { name });
+      this.closeModal();
+      this.closeDrawer(true);
+      await this.refresh();
+      this.toast(`Skill '${name}' restaurada com sucesso.`, false, {
+        label: '[🔗 Sincronizar Bridge]',
+        onClick: () => void this.runBridge('apply'),
+      });
+    } catch (err) {
+      this.toast(`Erro ao desarquivar skill: ${String(err)}`, true);
+    }
+  }
+
   private openDeleteSkillModal(detail: SkillDetail): void {
     const body = `
       <div class="banner bad">
         <strong>Esta ação é irreversível.</strong><br />
-        A pasta <code>data/.agents/skills/${escapeHtml(
-          detail.name,
+        A pasta <code>${escapeHtml(
+          detail.path,
         )}</code> será excluída permanentemente do disco, sua entrada será removida do catálogo e seus symlinks do bridge serão desvinculados.
       </div>
       <div class="field" style="margin-top:12px">

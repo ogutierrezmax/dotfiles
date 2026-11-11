@@ -52,6 +52,37 @@ struct Catalog {
 }
 
 // ---------------------------------------------------------------------------
+// Modelo do arquivo (apps/skills-gui/archive/archive-catalog.json)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveSkillEntry {
+    #[serde(default)]
+    category: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    tools: Option<Vec<String>>,
+    #[serde(default)]
+    favorite: bool,
+    #[serde(default)]
+    notes: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    archived_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveCatalog {
+    version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    updated_at: Option<String>,
+    #[serde(default)]
+    skills: BTreeMap<String, ArchiveSkillEntry>,
+}
+
+// ---------------------------------------------------------------------------
 // Modelo exposto à interface
 // ---------------------------------------------------------------------------
 
@@ -74,6 +105,9 @@ struct SkillItem {
     modified_at: String,
     name_mismatch: bool,
     has_frontmatter: bool,
+    archived: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    archived_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -89,8 +123,10 @@ struct SkillDetail {
 struct AppData {
     repo_root: String,
     skills_dir: String,
+    archive_dir: String,
     catalog_path: String,
     skills: Vec<SkillItem>,
+    archived_skills: Vec<SkillItem>,
     categories: Vec<Category>,
 }
 
@@ -195,6 +231,14 @@ fn catalog_path(root: &Path) -> PathBuf {
         .join("skills-gui")
         .join("catalog")
         .join("skills-catalog.json")
+}
+
+fn archive_dir(root: &Path) -> PathBuf {
+    root.join("apps").join("skills-gui").join("archive")
+}
+
+fn archive_catalog_path(root: &Path) -> PathBuf {
+    archive_dir(root).join("archive-catalog.json")
 }
 
 // ---------------------------------------------------------------------------
@@ -374,6 +418,33 @@ fn write_catalog(path: &Path, catalog: &Catalog) -> Result<(), String> {
     Ok(())
 }
 
+fn read_archive_catalog(path: &Path) -> ArchiveCatalog {
+    match fs::read_to_string(path) {
+        Ok(text) => serde_json::from_str::<ArchiveCatalog>(&text).unwrap_or(ArchiveCatalog {
+            version: 1,
+            updated_at: None,
+            skills: BTreeMap::new(),
+        }),
+        Err(_) => ArchiveCatalog {
+            version: 1,
+            updated_at: None,
+            skills: BTreeMap::new(),
+        },
+    }
+}
+
+fn write_archive_catalog(path: &Path, catalog: &ArchiveCatalog) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("criar diretório do arquivo: {e}"))?;
+    }
+    let json = serde_json::to_string_pretty(catalog)
+        .map_err(|e| format!("serializar catálogo do arquivo: {e}"))?;
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, format!("{json}\n")).map_err(|e| format!("gravar catálogo do arquivo: {e}"))?;
+    fs::rename(&tmp, path).map_err(|e| format!("publicar catálogo do arquivo: {e}"))?;
+    Ok(())
+}
+
 fn load_skills(root: &Path) -> Result<AppData, String> {
     let center = skills_dir(root);
     let catalog_file = catalog_path(root);
@@ -424,10 +495,65 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
             modified_at: modified_iso(&skill_md),
             name_mismatch,
             has_frontmatter,
+            archived: false,
+            archived_at: None,
         });
     }
 
     items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    // Escanear pasta do arquivo (apps/skills-gui/archive)
+    let arch_dir = archive_dir(root);
+    let arch_cat_file = archive_catalog_path(root);
+    let arch_cat = read_archive_catalog(&arch_cat_file);
+    let mut archived_items: Vec<SkillItem> = Vec::new();
+
+    if arch_dir.is_dir() {
+        if let Ok(arch_entries) = fs::read_dir(&arch_dir) {
+            for entry in arch_entries.flatten() {
+                let path = entry.path();
+                if !path.is_dir() {
+                    continue;
+                }
+                let skill_md = path.join("SKILL.md");
+                if !skill_md.is_file() {
+                    continue;
+                }
+                let dir_name = entry.file_name().to_string_lossy().to_string();
+                let content = fs::read_to_string(&skill_md).unwrap_or_default();
+                let (fm_name, fm_desc, has_frontmatter) = parse_frontmatter(&content);
+                let (file_count, size_bytes) = dir_stats(&path);
+                let meta = arch_cat.skills.get(&dir_name).cloned().unwrap_or_default();
+
+                let display_name = fm_name.clone().unwrap_or_else(|| dir_name.clone());
+                let name_mismatch = fm_name
+                    .as_deref()
+                    .map(|n| n != dir_name)
+                    .unwrap_or(false);
+
+                archived_items.push(SkillItem {
+                    name: dir_name.clone(),
+                    display_name,
+                    description: fm_desc.unwrap_or_default(),
+                    category: meta.category.clone(),
+                    tags: meta.tags.clone(),
+                    tools: meta.tools.clone(),
+                    favorite: meta.favorite,
+                    notes: meta.notes.clone(),
+                    path: path.to_string_lossy().to_string(),
+                    file_count,
+                    size_bytes,
+                    modified_at: modified_iso(&skill_md),
+                    name_mismatch,
+                    has_frontmatter,
+                    archived: true,
+                    archived_at: meta.archived_at,
+                });
+            }
+        }
+    }
+
+    archived_items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
     let mut categories = catalog.categories.clone();
     categories.sort_by_key(|c| (c.order.unwrap_or(999), c.id.clone()));
@@ -435,8 +561,10 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
     Ok(AppData {
         repo_root: root.to_string_lossy().to_string(),
         skills_dir: center.to_string_lossy().to_string(),
+        archive_dir: arch_dir.to_string_lossy().to_string(),
         catalog_path: catalog_file.to_string_lossy().to_string(),
         skills: items,
+        archived_skills: archived_items,
         categories,
     })
 }
@@ -487,6 +615,31 @@ fn valid_skill_dir(root: &Path, name: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+fn valid_archived_skill_dir(root: &Path, name: &str) -> Result<PathBuf, String> {
+    if !is_valid_skill_slug(name) {
+        return Err(format!("nome de skill inválido: {name}"));
+    }
+    let arch_dir = archive_dir(root);
+    let path = arch_dir.join(name);
+    if !path.join("SKILL.md").is_file() {
+        return Err(format!("skill arquivada não encontrada: {name}"));
+    }
+
+    // Validação estrita de caminho canônico para impedir path traversal
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|e| format!("caminho inválido: {e}"))?;
+    let canonical_arch = arch_dir
+        .canonicalize()
+        .map_err(|e| format!("pasta do arquivo inválida: {e}"))?;
+
+    if !canonical_path.starts_with(&canonical_arch) || canonical_path == canonical_arch {
+        return Err("caminho fora da pasta de arquivo de skills".to_string());
+    }
+
+    Ok(path)
+}
+
 // ---------------------------------------------------------------------------
 // Comandos Tauri
 // ---------------------------------------------------------------------------
@@ -500,18 +653,31 @@ fn list_skills() -> Result<AppData, String> {
 #[tauri::command]
 fn get_skill(name: String) -> Result<SkillDetail, String> {
     let root = find_repo_root();
-    let dir = valid_skill_dir(&root, &name)?;
-    let content = fs::read_to_string(dir.join("SKILL.md"))
-        .map_err(|e| format!("ler SKILL.md: {e}"))?;
-
     let data = load_skills(&root)?;
-    let item = data
-        .skills
-        .into_iter()
-        .find(|s| s.name == name)
-        .ok_or_else(|| format!("skill não encontrada no acervo: {name}"))?;
 
-    Ok(SkillDetail { item, content })
+    if let Ok(dir) = valid_skill_dir(&root, &name) {
+        let content = fs::read_to_string(dir.join("SKILL.md"))
+            .map_err(|e| format!("ler SKILL.md: {e}"))?;
+        let item = data
+            .skills
+            .into_iter()
+            .find(|s| s.name == name)
+            .ok_or_else(|| format!("skill não encontrada no acervo: {name}"))?;
+        return Ok(SkillDetail { item, content });
+    }
+
+    if let Ok(dir) = valid_archived_skill_dir(&root, &name) {
+        let content = fs::read_to_string(dir.join("SKILL.md"))
+            .map_err(|e| format!("ler SKILL.md arquivado: {e}"))?;
+        let item = data
+            .archived_skills
+            .into_iter()
+            .find(|s| s.name == name)
+            .ok_or_else(|| format!("skill não encontrada no arquivo: {name}"))?;
+        return Ok(SkillDetail { item, content });
+    }
+
+    Err(format!("skill não encontrada: {name}"))
 }
 
 #[tauri::command]
@@ -524,9 +690,12 @@ fn save_skill_meta(
     notes: String,
 ) -> Result<(), String> {
     let root = find_repo_root();
-    valid_skill_dir(&root, &name)?;
-    let file = catalog_path(&root);
-    let mut catalog = read_catalog(&file);
+    let is_active = valid_skill_dir(&root, &name).is_ok();
+    let is_archived = !is_active && valid_archived_skill_dir(&root, &name).is_ok();
+
+    if !is_active && !is_archived {
+        return Err(format!("skill não encontrada: {name}"));
+    }
 
     let mut tags: Vec<String> = tags
         .into_iter()
@@ -536,16 +705,32 @@ fn save_skill_meta(
     tags.sort();
     tags.dedup();
 
-    let entry = catalog.skills.entry(name).or_default();
-    entry.category = category.filter(|c| !c.is_empty() && c != "uncategorized");
-    entry.tags = tags;
-    entry.tools = tools;
-    entry.favorite = favorite;
-    entry.notes = notes;
-    entry.updated_at = Some(now_iso());
+    if is_active {
+        let file = catalog_path(&root);
+        let mut catalog = read_catalog(&file);
+        let entry = catalog.skills.entry(name).or_default();
+        entry.category = category.filter(|c| !c.is_empty() && c != "uncategorized");
+        entry.tags = tags;
+        entry.tools = tools;
+        entry.favorite = favorite;
+        entry.notes = notes;
+        entry.updated_at = Some(now_iso());
+        catalog.updated_at = Some(now_iso());
+        write_catalog(&file, &catalog)?;
+    } else {
+        let file = archive_catalog_path(&root);
+        let mut catalog = read_archive_catalog(&file);
+        let entry = catalog.skills.entry(name).or_default();
+        entry.category = category.filter(|c| !c.is_empty() && c != "uncategorized");
+        entry.tags = tags;
+        entry.tools = tools;
+        entry.favorite = favorite;
+        entry.notes = notes;
+        catalog.updated_at = Some(now_iso());
+        write_archive_catalog(&file, &catalog)?;
+    }
 
-    catalog.updated_at = Some(now_iso());
-    write_catalog(&file, &catalog)
+    Ok(())
 }
 
 #[tauri::command]
@@ -852,23 +1037,129 @@ fn create_skill(
     Ok(())
 }
 
+fn do_archive_skill(root: &Path, name: &str) -> Result<(), String> {
+    let name = name.trim();
+    if !is_valid_skill_slug(name) {
+        return Err(format!("nome de skill inválido: {name}"));
+    }
+
+    let src_dir = valid_skill_dir(root, name)?;
+    let arch_dir = archive_dir(root);
+    fs::create_dir_all(&arch_dir)
+        .map_err(|e| format!("criar pasta do arquivo: {e}"))?;
+
+    let dest_dir = arch_dir.join(name);
+    if dest_dir.exists() {
+        return Err(format!("já existe uma skill arquivada com o nome: {name}"));
+    }
+
+    // 1. Obter metadados do catálogo ativo
+    let cat_file = catalog_path(root);
+    let mut catalog = read_catalog(&cat_file);
+    let meta = catalog.skills.remove(name).unwrap_or_default();
+    catalog.updated_at = Some(now_iso());
+    write_catalog(&cat_file, &catalog)?;
+
+    // 2. Gravar metadados no catálogo do arquivo
+    let arch_cat_file = archive_catalog_path(root);
+    let mut arch_catalog = read_archive_catalog(&arch_cat_file);
+    let entry = arch_catalog.skills.entry(name.to_string()).or_default();
+    entry.category = meta.category;
+    entry.tags = meta.tags;
+    entry.tools = meta.tools;
+    entry.favorite = meta.favorite;
+    entry.notes = meta.notes;
+    entry.archived_at = Some(now_iso());
+    arch_catalog.updated_at = Some(now_iso());
+    write_archive_catalog(&arch_cat_file, &arch_catalog)?;
+
+    // 3. Mover diretório
+    fs::rename(&src_dir, &dest_dir)
+        .map_err(|e| format!("mover skill para a pasta do arquivo: {e}"))?;
+
+    Ok(())
+}
+
+fn do_unarchive_skill(root: &Path, name: &str) -> Result<(), String> {
+    let name = name.trim();
+    if !is_valid_skill_slug(name) {
+        return Err(format!("nome de skill inválido: {name}"));
+    }
+
+    let src_dir = valid_archived_skill_dir(root, name)?;
+    let center = skills_dir(root);
+    let dest_dir = center.join(name);
+    if dest_dir.exists() {
+        return Err(format!("já existe uma skill ativa no acervo com o nome: {name}"));
+    }
+
+    // 1. Obter metadados do arquivo
+    let arch_cat_file = archive_catalog_path(root);
+    let mut arch_catalog = read_archive_catalog(&arch_cat_file);
+    let meta = arch_catalog.skills.remove(name).unwrap_or_default();
+    arch_catalog.updated_at = Some(now_iso());
+    write_archive_catalog(&arch_cat_file, &arch_catalog)?;
+
+    // 2. Restaurar metadados no catálogo ativo
+    let cat_file = catalog_path(root);
+    let mut catalog = read_catalog(&cat_file);
+    let entry = catalog.skills.entry(name.to_string()).or_default();
+    entry.category = meta.category;
+    entry.tags = meta.tags;
+    entry.tools = meta.tools;
+    entry.favorite = meta.favorite;
+    entry.notes = meta.notes;
+    entry.updated_at = Some(now_iso());
+    catalog.updated_at = Some(now_iso());
+    write_catalog(&cat_file, &catalog)?;
+
+    // 3. Mover diretório de volta para o acervo ativo
+    fs::rename(&src_dir, &dest_dir)
+        .map_err(|e| format!("restaurar skill para o acervo: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn archive_skill(name: String) -> Result<(), String> {
+    let root = find_repo_root();
+    do_archive_skill(&root, &name)
+}
+
+#[tauri::command]
+fn unarchive_skill(name: String) -> Result<(), String> {
+    let root = find_repo_root();
+    do_unarchive_skill(&root, &name)
+}
+
 #[tauri::command]
 fn save_skill_content(name: String, content: String) -> Result<(), String> {
     let root = find_repo_root();
-    let dir = valid_skill_dir(&root, &name)?;
-    let skill_md = dir.join("SKILL.md");
+    if let Ok(dir) = valid_skill_dir(&root, &name) {
+        let skill_md = dir.join("SKILL.md");
+        fs::write(&skill_md, content).map_err(|e| format!("gravar SKILL.md: {e}"))?;
 
-    fs::write(&skill_md, content).map_err(|e| format!("gravar SKILL.md: {e}"))?;
+        let file = catalog_path(&root);
+        let mut catalog = read_catalog(&file);
+        let entry = catalog.skills.entry(name).or_default();
+        entry.updated_at = Some(now_iso());
+        catalog.updated_at = Some(now_iso());
+        write_catalog(&file, &catalog)?;
+        return Ok(());
+    }
 
-    // Atualiza updated_at no catálogo garantindo que a entrada exista
-    let file = catalog_path(&root);
-    let mut catalog = read_catalog(&file);
-    let entry = catalog.skills.entry(name).or_default();
-    entry.updated_at = Some(now_iso());
-    catalog.updated_at = Some(now_iso());
-    write_catalog(&file, &catalog)?;
+    if let Ok(dir) = valid_archived_skill_dir(&root, &name) {
+        let skill_md = dir.join("SKILL.md");
+        fs::write(&skill_md, content).map_err(|e| format!("gravar SKILL.md arquivado: {e}"))?;
 
-    Ok(())
+        let file = archive_catalog_path(&root);
+        let mut catalog = read_archive_catalog(&file);
+        catalog.updated_at = Some(now_iso());
+        write_archive_catalog(&file, &catalog)?;
+        return Ok(());
+    }
+
+    Err(format!("skill não encontrada: {name}"))
 }
 
 #[tauri::command]
@@ -882,42 +1173,79 @@ fn delete_skill(name: String) -> Result<(), String> {
     let center = skills_dir(&root);
     let target = center.join(&name);
 
-    let sym_meta = fs::symlink_metadata(&target)
-        .map_err(|e| format!("ler metadados da skill {name}: {e}"))?;
+    if target.exists() {
+        let sym_meta = fs::symlink_metadata(&target)
+            .map_err(|e| format!("ler metadados da skill {name}: {e}"))?;
 
-    if sym_meta.file_type().is_symlink() {
-        fs::remove_file(&target)
-            .map_err(|e| format!("remover symlink da skill {name}: {e}"))?;
-    } else {
-        if !target.is_dir() {
-            return Err(format!("diretório da skill não encontrado: {name}"));
+        if sym_meta.file_type().is_symlink() {
+            fs::remove_file(&target)
+                .map_err(|e| format!("remover symlink da skill {name}: {e}"))?;
+        } else {
+            if !target.is_dir() {
+                return Err(format!("diretório da skill não encontrado: {name}"));
+            }
+
+            // Validação estrita de caminho canônico antes da deleção física
+            let canonical_target = target
+                .canonicalize()
+                .map_err(|e| format!("resolver caminho da skill: {e}"))?;
+            let canonical_center = center
+                .canonicalize()
+                .map_err(|e| format!("resolver acervo de skills: {e}"))?;
+
+            if !canonical_target.starts_with(&canonical_center) || canonical_target == canonical_center {
+                return Err("tentativa de excluir diretório fora do acervo de skills".to_string());
+            }
+
+            // Remover fisicamente o diretório
+            fs::remove_dir_all(&canonical_target)
+                .map_err(|e| format!("excluir diretório da skill {name}: {e}"))?;
         }
 
-        // Validação estrita de caminho canônico antes da deleção física
-        let canonical_target = target
-            .canonicalize()
-            .map_err(|e| format!("resolver caminho da skill: {e}"))?;
-        let canonical_center = center
-            .canonicalize()
-            .map_err(|e| format!("resolver acervo de skills: {e}"))?;
+        // Remover do catálogo
+        let file = catalog_path(&root);
+        let mut catalog = read_catalog(&file);
+        catalog.skills.remove(&name);
+        catalog.updated_at = Some(now_iso());
+        write_catalog(&file, &catalog)?;
 
-        if !canonical_target.starts_with(&canonical_center) || canonical_target == canonical_center {
-            return Err("tentativa de excluir diretório fora do acervo de skills".to_string());
+        return Ok(());
+    }
+
+    let arch_dir = archive_dir(&root);
+    let arch_target = arch_dir.join(&name);
+
+    if arch_target.exists() {
+        if !arch_target.is_dir() {
+            return Err(format!("diretório da skill arquivada não encontrado: {name}"));
+        }
+
+        let canonical_target = arch_target
+            .canonicalize()
+            .map_err(|e| format!("resolver caminho da skill arquivada: {e}"))?;
+        let canonical_arch = arch_dir
+            .canonicalize()
+            .map_err(|e| format!("resolver pasta do arquivo: {e}"))?;
+
+        if !canonical_target.starts_with(&canonical_arch) || canonical_target == canonical_arch {
+            return Err("tentativa de excluir diretório fora da pasta do arquivo".to_string());
         }
 
         // Remover fisicamente o diretório
         fs::remove_dir_all(&canonical_target)
-            .map_err(|e| format!("excluir diretório da skill {name}: {e}"))?;
+            .map_err(|e| format!("excluir diretório da skill arquivada {name}: {e}"))?;
+
+        // Remover do catálogo do arquivo
+        let file = archive_catalog_path(&root);
+        let mut catalog = read_archive_catalog(&file);
+        catalog.skills.remove(&name);
+        catalog.updated_at = Some(now_iso());
+        write_archive_catalog(&file, &catalog)?;
+
+        return Ok(());
     }
 
-    // Remover do catálogo
-    let file = catalog_path(&root);
-    let mut catalog = read_catalog(&file);
-    catalog.skills.remove(&name);
-    catalog.updated_at = Some(now_iso());
-    write_catalog(&file, &catalog)?;
-
-    Ok(())
+    Err(format!("skill não encontrada nem no acervo nem no arquivo: {name}"))
 }
 
 fn main() {
@@ -962,7 +1290,9 @@ fn main() {
             open_path,
             create_skill,
             save_skill_content,
-            delete_skill
+            delete_skill,
+            archive_skill,
+            unarchive_skill
         ])
         .run(tauri::generate_context!())
         .expect("erro ao executar o Skills GUI");
@@ -1006,5 +1336,130 @@ mod tests {
         assert_eq!(name, Some("test-skill".to_string()));
         assert_eq!(desc, Some("A test skill with : special".to_string()));
         assert!(closed);
+    }
+
+    #[test]
+    fn test_archive_catalog_serde() {
+        let mut skills = BTreeMap::new();
+        skills.insert(
+            "sample-skill".to_string(),
+            ArchiveSkillEntry {
+                category: Some("utilities".to_string()),
+                tags: vec!["test".to_string()],
+                tools: None,
+                favorite: false,
+                notes: "Archived note".to_string(),
+                archived_at: Some("2026-11-11T10:00:00Z".to_string()),
+            },
+        );
+        let catalog = ArchiveCatalog {
+            version: 1,
+            updated_at: Some("2026-11-11T10:00:00Z".to_string()),
+            skills,
+        };
+
+        let json = serde_json::to_string_pretty(&catalog).expect("serialize archive catalog");
+        assert!(json.contains("sample-skill"));
+        assert!(json.contains("archivedAt"));
+
+        let deserialized: ArchiveCatalog =
+            serde_json::from_str(&json).expect("deserialize archive catalog");
+        assert_eq!(deserialized.version, 1);
+        assert_eq!(deserialized.skills.len(), 1);
+        let entry = deserialized.skills.get("sample-skill").unwrap();
+        assert_eq!(entry.category.as_deref(), Some("utilities"));
+        assert_eq!(entry.archived_at.as_deref(), Some("2026-11-11T10:00:00Z"));
+    }
+
+    #[test]
+    fn test_valid_archived_skill_dir_validation() {
+        let temp_dir = std::env::temp_dir().join("skills_gui_test_archive_repo");
+        let arch_dir = temp_dir.join("apps").join("skills-gui").join("archive");
+        let skill_dir = arch_dir.join("test-archived");
+        let _ = fs::create_dir_all(&skill_dir);
+        let _ = fs::write(skill_dir.join("SKILL.md"), "---\nname: test-archived\n---\n");
+
+        assert!(valid_archived_skill_dir(&temp_dir, "test-archived").is_ok());
+        assert!(valid_archived_skill_dir(&temp_dir, "non-existent").is_err());
+        assert!(valid_archived_skill_dir(&temp_dir, "../etc").is_err());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_archive_and_unarchive_lifecycle() {
+        let temp_dir = std::env::temp_dir().join("skills_gui_test_lifecycle_repo");
+        let _ = fs::remove_dir_all(&temp_dir);
+
+        let active_dir = temp_dir.join("data").join(".agents").join("skills").join("my-test-skill");
+        fs::create_dir_all(&active_dir).expect("create active skill dir");
+        fs::write(
+            active_dir.join("SKILL.md"),
+            "---\nname: my-test-skill\ndescription: Test skill\n---\n\n# Overview\n",
+        )
+        .expect("write SKILL.md");
+
+        let cat_file = catalog_path(&temp_dir);
+        let mut initial_cat = Catalog {
+            version: 1,
+            updated_at: Some("2026-11-11T00:00:00Z".to_string()),
+            categories: vec![Category {
+                id: "utilities".to_string(),
+                label: "Utilities".to_string(),
+                order: None,
+                color: None,
+            }],
+            skills: BTreeMap::new(),
+        };
+        initial_cat.skills.insert(
+            "my-test-skill".to_string(),
+            CatalogSkill {
+                category: Some("utilities".to_string()),
+                tags: vec!["demo".to_string()],
+                tools: None,
+                favorite: true,
+                notes: "Initial note".to_string(),
+                updated_at: None,
+            },
+        );
+        write_catalog(&cat_file, &initial_cat).expect("write initial catalog");
+
+        // 1. Arquivar
+        assert!(do_archive_skill(&temp_dir, "my-test-skill").is_ok());
+
+        // Verificar que sumiu do ativo e apareceu no arquivo
+        assert!(!active_dir.exists());
+        let archived_skill = archive_dir(&temp_dir).join("my-test-skill");
+        assert!(archived_skill.join("SKILL.md").exists());
+
+        // Verificar catálogos
+        let cat_after_arch = read_catalog(&cat_file);
+        assert!(!cat_after_arch.skills.contains_key("my-test-skill"));
+
+        let arch_cat = read_archive_catalog(&archive_catalog_path(&temp_dir));
+        assert!(arch_cat.skills.contains_key("my-test-skill"));
+        let arch_meta = arch_cat.skills.get("my-test-skill").unwrap();
+        assert_eq!(arch_meta.category.as_deref(), Some("utilities"));
+        assert!(arch_meta.favorite);
+        assert!(arch_meta.archived_at.is_some());
+
+        // 2. Desarquivar
+        assert!(do_unarchive_skill(&temp_dir, "my-test-skill").is_ok());
+
+        // Verificar que retornou ao ativo e sumiu do arquivo
+        assert!(active_dir.join("SKILL.md").exists());
+        assert!(!archived_skill.exists());
+
+        // Verificar catálogos restaurados
+        let cat_after_unarch = read_catalog(&cat_file);
+        assert!(cat_after_unarch.skills.contains_key("my-test-skill"));
+        let restored_meta = cat_after_unarch.skills.get("my-test-skill").unwrap();
+        assert_eq!(restored_meta.category.as_deref(), Some("utilities"));
+        assert!(restored_meta.favorite);
+
+        let arch_cat_after = read_archive_catalog(&archive_catalog_path(&temp_dir));
+        assert!(!arch_cat_after.skills.contains_key("my-test-skill"));
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

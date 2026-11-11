@@ -23,6 +23,7 @@ O Skills GUI é a interface desse catálogo:
 2. **Expõe** — escolhe em quais ferramentas a skill aparece via symlink (bridge).
 3. **Audita** — estrutura flat, cobertura do catálogo, nomes divergentes e symlinks quebrados.
 4. **Opera** — roda `flatten-agent-skills.sh --check` e o bridge (`--doctor`, `--dry-run`, apply) com um clique.
+5. **Arquiva** — move skills inativas para a pasta de arquivo do app (`apps/skills-gui/archive/`) com metadados preservados, sem gerar órfãs no acervo ativo.
 
 > [!IMPORTANT]
 > O catálogo é a **fonte de verdade da organização**, não do conteúdo. Renomear uma skill continua sendo uma
@@ -154,17 +155,30 @@ Com `--from-catalog`, as specs `*`/`**` do `config/agent-skills-bridge.list` pas
 do catálogo; links gerenciados fora do conjunto permitido são removidos. Specs explícitas (`<nome>`) vencem o
 catálogo. Sem a flag, o bridge continua expondo todas as skills (compatibilidade).
 
-Detalhes de guardrails, manifest do Antigravity e diagnóstico em [`docs/agent-skills-bridge.md`](agent-skills-bridge.md).
+Detalhamento de guardrails, manifest do Antigravity e diagnóstico em [`docs/agent-skills-bridge.md`](agent-skills-bridge.md).
+
+---
+
+## 📦 Arquivamento de Skills
+
+Skills inativas, obsoletas ou em desuso podem ser arquivadas para não poluírem o acervo ativo ou o bridge de ferramentas de IA:
+
+- **Localização física**: As pastas arquivadas ficam em `apps/skills-gui/archive/<skill>/` (dentro da pasta do app).
+- **Metadados preservados**: Os metadados (categoria, tags, tools, favorita, notas e timestamp) são isolados em `apps/skills-gui/archive/archive-catalog.json`. Isso evita que o catálogo ativo (`skills-catalog.json`) acuse skills órfãs no `flatten-agent-skills.sh --check`.
+- **Visão dedicada**: A sidebar do app exibe o filtro `📦 Arquivadas` com a contagem total de skills arquivadas.
+- **Restauração**: Pelo Drawer da skill ou na barra de ações em lote, o usuário pode clicar em `↩️ Desarquivar Skill` para retornar a pasta para `data/.agents/skills/` e reintegrar os metadados ao catálogo principal.
+- **Exclusão Definitiva**: Skills arquivadas podem ser excluídas permanentemente do disco caso não sejam mais necessárias.
 
 ---
 
 ## 🔒 Segurança
 
-- O backend só escreve **no catálogo**; nenhum comando apaga arquivos de skill.
+- O backend só escreve **no catálogo** e na pasta controlada de arquivo (`apps/skills-gui/archive/`); comandos de deleção exigem validação canônica estrita contra path traversal.
+- `archive_skill` e `unarchive_skill` validam slugs estritos (`^[a-z0-9][a-z0-9._-]*$`) e rejeitam colisões de nomes.
 - `save_skill_meta` valida que o diretório existe e tem `SKILL.md` (rejeita `/`, `\`, `..`).
 - `save_category` restringe o id a `a-z`, `0-9` e `-`.
 - `open_path` só abre caminhos canônicos dentro do repositório ou do acervo.
-- Escrita do catálogo é atômica (arquivo temporário + rename).
+- Escrita dos catálogos (ativo e arquivo) é atômica (arquivo temporário + rename).
 - O apply do bridge mantém os guardrails do script: backup em `.bkp/`, nunca `rm -rf`, nunca toca diretórios
   reais divergentes.
 
@@ -209,7 +223,9 @@ Se a grade aparecer vazia, o app mostra um painel com o caminho tentado; `--prin
 |---|---|
 | `apps/skills-gui/catalog/skills-catalog.json` | catálogo versionado (fonte da organização) |
 | `apps/skills-gui/catalog/skills-catalog.schema.json` | contrato JSON Schema |
-| `apps/skills-gui/src-tauri/src/main.rs` | comandos Tauri (catálogo, saúde, scripts) |
+| `apps/skills-gui/archive/` | pasta física do arquivo de skills inativas/obsoletas |
+| `apps/skills-gui/archive/archive-catalog.json` | catálogo de metadados das skills arquivadas |
+| `apps/skills-gui/src-tauri/src/main.rs` | comandos Tauri (catálogo, arquivo, saúde, scripts) |
 | `apps/skills-gui/src/app.ts` | frontend TypeScript (compila para `ui/app.js`) |
 | `apps/skills-gui/ui/` | HTML/CSS/JS carregados pela janela |
 | `data/.local/bin/skills-gui` | launcher (compila o frontend e o binário quando necessário) |
