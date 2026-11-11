@@ -147,6 +147,16 @@
       "skillFolderHash": "890c2c5be7db675a0ff80f875199cebf1fe5bdbd",
       "installedAt": "2026-09-10T17:48:40.413Z",
       "updatedAt": "2026-09-10T17:48:40.413Z"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "skillFolderHash": "d69b734e576aa6b430bc11a435aa11d29bc92c8e",
+      "installMode": "copy",
+      "installedAt": "2026-11-11T17:00:25.841Z",
+      "updatedAt": "2026-11-11T17:00:25.841Z"
     }
   },
   "dismissed": {
@@ -154,17 +164,19 @@
   },
   "lastSelectedAgents": [
     "amp",
-    "antigravity",
-    "antigravity-cli",
     "cline",
     "codex",
     "cursor",
-    "deepagents",
+    "droid",
+    "fx",
     "gemini-cli",
     "github-copilot",
+    "kilo",
     "kimi-code-cli",
     "opencode",
+    "pi",
     "warp",
-    "zed"
+    "zed",
+    "claude-code"
   ]
 }
