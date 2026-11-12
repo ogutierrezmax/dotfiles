@@ -1,9 +1,9 @@
 ---
 name: "dotfiles-add-program"
-description: "Orquestra o fluxo completo de adicionar um programa novo ao repositório de dotfiles. Executa 5 etapas na ordem: (0) detecta estado parcial, (P) pesquisa web de boas práticas e secrets específicos do programa, (1) _dotfiles-config-researcher pesquisa e mapeia configs, (2) _llm-config-guardian audita segurança, (3) @dotfiles-config-integrator integra ao repo com backup datado e validação cross-platform, (4) _dotfiles-doc-writer documenta e instala hook de pré-commit. Inclui checkpoints entre etapas para validação do usuário. Use quando o usuário disser 'quero adicionar programa X ao dotfiles', 'versionar configs do X', 'novo programa no repo', 'onboarding do X', 'adicionar X aos meus dotfiles' ou qualquer variação de trazer um programa para o controle de versão do repositório."
+description: "Orquestra a inclusão de um programa nos dotfiles: detecta o estado existente, coordena pesquisa, auditoria, integração e documentação, evitando retrabalho. Use quando o usuário quiser adicionar ou versionar configurações de um programa no repositório de dotfiles."
 ---
 
-# Dotfiles Add Program v2.0 — Orquestradora
+# Dotfiles Add Program — Orquestradora
 
 Esta skill é o ponto de entrada único para adicionar um programa ao repositório de dotfiles. Ela não faz o trabalho operacional — delega para 4 skills especializadas, na ordem correta, passando contexto entre elas.
 
@@ -15,48 +15,16 @@ Esta skill é o ponto de entrada único para adicionar um programa ao repositór
 - "Onboarding do [programa]"
 - Qualquer variação de "adicionar programa ao controle de versão"
 
-## Fluxo completo
+## Fluxo
 
 ```
 ENTRADA: nome do programa
 
-  ┌─────────────────────────────────────────────┐
-  │  ETAPA 0 — Detectar estado atual            │
-  │  (O programa já está parcialmente no repo?) │
-  └──────────────────┬──────────────────────────┘
-                     ▼
-  ┌─────────────────────────────────────────────┐
-  │  ETAPA P — Pesquisa Web (NOVA)              │
-  │  Boas práticas, paths obscuros, secrets     │
-  │  ► CHECKPOINT: resumo do que foi encontrado │
-  └──────────────────┬──────────────────────────┘
-                     ▼
-  ┌─────────────────────────────────────────────┐
-  │  ETAPA 1 — _dotfiles-config-researcher       │
-  │  Pesquisar e mapear configs                 │
-  │  ► CHECKPOINT: validar relatório            │
-  └──────────────────┬──────────────────────────┘
-                     ▼
-  ┌─────────────────────────────────────────────┐
-  │  ETAPA 2 — _llm-config-guardian              │
-  │  Auditar segurança dos arquivos públicos    │
-  │  ► CHECKPOINT: validar guardrails           │
-  └──────────────────┬──────────────────────────┘
-                     ▼
-  ┌─────────────────────────────────────────────┐
-  │  ETAPA 3 — @dotfiles-config-integrator       │
-  │  Mover, backup datado, symlinks, .gitignore │
-  │  Validação cross-platform incluída          │
-  │  ► CHECKPOINT: verificar integração         │
-  └──────────────────┬──────────────────────────┘
-                     ▼
-  ┌─────────────────────────────────────────────┐
-  │  ETAPA 4 — _dotfiles-doc-writer              │
-  │  Documentar, atualizar README/llms.txt      │
-  │  Verificar e instalar hook de pré-commit    │
-  │  ► CHECKPOINT: resumo final                 │
-  └─────────────────────────────────────────────┘
-
+ETAPA 1: Detectar estado atual
+ETAPA 2: Pesquisar e mapear configurações (_dotfiles-config-researcher)
+ETAPA 3: Auditar segurança (_llm-config-guardian)
+ETAPA 4: Integrar (@dotfiles-config-integrator)
+ETAPA 5: Documentar (_dotfiles-doc-writer)
 SAÍDA: resumo completo do que foi feito
 ```
 
@@ -64,390 +32,46 @@ SAÍDA: resumo completo do que foi feito
 
 ## Execução detalhada
 
-### Etapa 0 — Detectar estado parcial
+### Etapa 1 — Detectar o estado
 
-Antes de iniciar qualquer etapa, verifique o estado atual do programa no repositório:
+Inspecione somente os locais e artefatos relevantes ao programa: configurações locais, `data/`, `config/dotfile-names.list`, documentação existente e `.gitignore`. Use `dotfiles-lib.sh` ou as ferramentas existentes do repositório para determinar o estado dos links; não replique a lógica da biblioteca.
 
-```bash
-# O programa já tem arquivos em data/?
-ls data/*programa* data/.config/programa/ 2>/dev/null
-
-# O programa já está em dotfile-names.list?
-grep -i "programa" config/dotfile-names.list
-
-# O programa já tem doc?
-ls docs/programa.md 2>/dev/null
-
-# O programa já tem guardrails de segurança nos configs?
-grep -r "SECURITY NOTE\|DANGER ZONE\|NEVER" data/*programa* data/.config/programa/ 2>/dev/null
-```
-
-**Decisões baseadas no estado:**
-
-| Tem em `data/`? | Tem na lista? | Tem doc? | Tem guardrails? | Ação |
-|:---:|:---:|:---:|:---:|------|
-| ❌ | ❌ | ❌ | ❌ | Fluxo completo (P→1→2→3→4) |
-| ❌ | ✅ | ❌ | ❌ | Arquivo na lista mas sem fonte — pesquisar (P→1→2→3→4) |
-| ✅ | ❌ | ❌ | ❌ | Já foi movido mas não linkado — pular etapa 1, rodar P→2→3→4 |
-| ✅ | ✅ | ❌ | ❌ | Integrado mas sem auditoria — pular 1 e 3, rodar P→2→4 |
-| ✅ | ✅ | ❌ | ✅ | Só falta doc — pular para etapa 4 |
-| ✅ | ✅ | ✅ | ✅ | Tudo feito — informar o usuário |
-
-Use a ferramenta de estados da `dotfiles-lib.sh` para detecção mais precisa:
-
-```bash
-# Verificar estado de cada arquivo do programa
-for f in data/.config/programa/* data/programa*; do
-  basename=$(basename "$f")
-  dotfiles_status_for_file "$basename"
-done
-```
-
-**Estados possíveis (da `dotfiles-lib.sh`):**
-- `importable`: existe em `~` mas não em `data/` — pode ser importado
-- `not_installed`: existe em `data/` mas sem symlink em `~`
-- `installed`: symlink correto em `~` apontando para `data/`
-- `blocking_file`: arquivo real em `~` impedindo o symlink
-- `wrong_target`: symlink em `~` aponta para lugar errado
-- `unavailable`: não existe em `data/` nem em `~`
-
-Atenção especial para `blocking_file` e `wrong_target`:
-- `blocking_file`: arquivo real em `~` precisa de backup antes do symlink — incluir backup na Etapa 3
-- `wrong_target`: symlink existe mas aponta para outro lugar — remover symlink antigo na Etapa 3
-- `importable`: arquivo existe em `~` — mover para `data/` na Etapa 3
-
-Informe ao usuário o que foi detectado e quais etapas serão executadas.
+Resuma o que já existe e quais lacunas restam. Reuse resultados válidos de pesquisas, auditorias ou integrações anteriores. Se tudo estiver concluído, informe isso e encerre sem repetir etapas.
 
 ---
 
-### Etapa P — Pesquisa Web (OBRIGATÓRIA, executar antes das sub-skills)
+### Etapa 2 — Pesquisar e mapear (`_dotfiles-config-researcher`)
 
-**Por que esta etapa existe:** Boas práticas mudam, paths obscuros de configs variam por versão, e a IA pode desconhecer secrets específicos de um programa. A pesquisa web garante que a Etapa 1 receba contexto atualizado de 2025.
+Delegue a pesquisa online e a inspeção local ao `_dotfiles-config-researcher` em uma única passagem. Passe o nome do programa, o estado encontrado na Etapa 1 e qualquer contexto de plataforma ou dependência informado pelo usuário. Pesquise pontos específicos que permaneçam incertos; não execute uma bateria fixa de buscas antes da skill.
 
-Execute as buscas abaixo usando a ferramenta de busca web. Adapte `[programa]` ao nome informado pelo usuário.
+Use o relatório da skill para distinguir arquivos públicos, sensíveis e gerados, além de registrar dependências e exclusões relevantes. A pesquisa é somente leitura.
 
-#### Buscas obrigatórias (sempre executar)
-
-**P1 — Localização de configs e boas práticas de versionamento:**
-```
-"[programa] dotfiles config files location best practices 2025"
-"[programa] config versioning symlinks git"
-```
-
-**P2 — Secrets e dados sensíveis específicos do programa:**
-```
-"[programa] sensitive files secrets api keys gitignore"
-"[programa] credentials token dotfiles security"
-```
-
-**P3 — Paths não óbvios (cache, dados, logs que NÃO devem ir para o repo):**
-```
-"[programa] cache data directory exclude dotfiles"
-"[programa] XDG base directory config data cache"
-```
-
-#### Buscas condicionais
-
-**PC1 — Programa pouco documentado ou de nicho:**
-*Quando:* usuário menciona ferramenta incomum (Wezterm, Aerospace, Helix, Ghostty, Yabai, etc.)
-```
-"[programa] config files location linux macos"
-"[programa] dotfiles setup example github"
-```
-
-**PC2 — Plugin manager ou ferramentas dependentes:**
-*Quando:* o programa usa plugins ou se integra com outros (ex: Neovim + Mason, Zsh + OMZ)
-```
-"[programa] plugin manager dotfiles versioning"
-"[programa] [dependência] shared config dotfiles"
-```
-
-**PC3 — Múltiplas máquinas ou perfis por host:**
-*Quando:* usuário menciona mais de uma máquina ou configurações por ambiente
-```
-"[programa] per-machine config host-specific dotfiles"
-"[programa] dotfiles multiple profiles override"
-```
-
-**O que fazer com os resultados:**
-
-1. **Mapear paths não óbvios** que o usuário provavelmente não mencionou (ex: `~/.local/share/[programa]/`)
-2. **Identificar padrões de .gitignore** específicos do programa (ex: `*.session`, `*.lock`)
-3. **Levantar riscos de secret** específicos (ex: tokens em `config.toml`, auth em `credentials.json`)
-4. **Detectar dependências** que também precisam de versionar (ex: plugin manager, tema)
-
-**CHECKPOINT:**
-Apresente ao usuário um resumo antes de prosseguir:
-> "A pesquisa revelou:
-> - Paths encontrados: [lista]
-> - Riscos de secret identificados: [lista]
-> - Padrões de .gitignore recomendados: [lista]
-> - Dependências a considerar: [lista]
-> Posso prosseguir com o mapeamento detalhado?"
-
-**Dados a repassar para a Etapa 1:**
-- Lista de paths a verificar (incluindo os não óbvios)
-- Padrões de .gitignore específicos do programa
-- Riscos de secret mapeados
+Apresente um resumo do mapeamento. Peça confirmação antes de integrar apenas quando houver ambiguidade relevante, risco de dados sensíveis ou uma alteração que possa substituir dados locais; caso contrário, prossiga e registre as premissas no resumo final.
 
 ---
 
-### Etapa 1 — Pesquisa (`_dotfiles-config-researcher`)
+### Etapa 3 — Auditar segurança (`_llm-config-guardian`)
 
-Leia a skill `_dotfiles-config-researcher` e execute-a com o nome do programa, enriquecendo o input com o resultado da Etapa P.
-
-**Input para a skill:**
-- Nome do programa fornecido pelo usuário
-- Paths adicionais descobertos na Etapa P
-- Riscos de secret da Etapa P (para atenção reforçada)
-
-**Output esperado:**
-- Relatório com paths, classificação de arquivos (público/sensível/gerado), dependências, boas práticas
-
-**CHECKPOINT:**
-Apresente o relatório ao usuário e pergunte:
-> "Este é o mapeamento dos configs do [programa]. Está correto? Quer ajustar algo antes de continuar com a auditoria de segurança?"
-
-**Dados a repassar para a próxima etapa:**
-- Lista de arquivos classificados como **público** (serão auditados na etapa 2)
-- Lista de arquivos classificados como **sensível** (serão tratados na etapa 3)
-- Dependências identificadas (serão documentadas na etapa 4)
+Execute a auditoria nos arquivos que podem ser versionados, considerando os riscos e exclusões apontados pela pesquisa. Aplique comentários de segurança somente quando forem compatíveis com o formato e úteis no contexto. Nunca versionize credenciais; repasse ao integrador os padrões de exclusão e as recomendações de permissões.
 
 ---
 
-### Etapa 2 — Auditoria de segurança (`_llm-config-guardian`)
+### Etapa 4 — Integrar (`@dotfiles-config-integrator`)
 
-Leia a skill `_llm-config-guardian` e execute-a nos arquivos **públicos** identificados na etapa 1.
+Delegue a integração à skill especializada, passando o relatório de pesquisa, os resultados da auditoria, os arquivos a incluir ou excluir e o estado local. Ela deve seguir as APIs e convenções do repositório, preservar dados existentes com backup antes de substituí-los e verificar o resultado. Não replique aqui comandos de movimentação, criação de links ou diferenças entre sistemas operacionais.
 
-**Input para a skill:**
-- Cada arquivo de configuração classificado como "público"
-- Riscos de secret mapeados na Etapa P (reforçar verificação nesses pontos)
+### Etapa 5 — Documentar (`_dotfiles-doc-writer`)
 
-**Output esperado:**
-- Arquivos anotados com comentários `SECURITY NOTE`, `DANGER ZONE`, `NEVER`
-- Verificação do `.gitignore` para arquivos sensíveis (incluindo padrões da Etapa P)
-- Recomendações de permissões de arquivo
-
-**CHECKPOINT:**
-Apresente os guardrails aplicados ao usuário:
-> "Os seguintes guardrails de segurança foram aplicados: [lista]. Os configs estão protegidos. Quer revisar antes de integrar ao repositório?"
-
-**Dados a repassar para a próxima etapa:**
-- Arquivos públicos auditados (prontos para mover)
-- Padrões de `.gitignore` recomendados (da Etapa P + descobertos aqui)
-- Recomendações de permissão
-
----
-
-### Etapa 3 — Integração (`@dotfiles-config-integrator`)
-
-Leia a skill `@dotfiles-config-integrator` e execute-a com os dados das etapas anteriores.
-
-**Input para a skill:**
-- Arquivos públicos auditados (da etapa 2)
-- Arquivos sensíveis identificados (da etapa 1)
-- Padrões de `.gitignore` recomendados (da etapa 2)
-
-**Output esperado:**
-- Arquivos movidos para `data/` **com backup datado obrigatório antes de mover**
-- Symlinks criados de forma idempotente
-- `config/dotfile-names.list` atualizado
-- `.gitignore` atualizado com todos os padrões
-- Arquivos `.example` criados para sensíveis
-
-#### Regras de integração obrigatórias (herdadas da dotfiles-manager)
-
-**Backup datado antes de qualquer movimentação:**
-```bash
-# Sempre fazer backup antes de mover ou substituir
-make_symlink() {
-  local src="$1" dst="$2"
-
-  # Backup se arquivo real existir (não symlink)
-  if [[ -e "$dst" && ! -L "$dst" ]]; then
-    local backup="${dst}.bak.$(date +%Y%m%d_%H%M%S)"
-    mv "$dst" "$backup"
-    echo "  ↳ backup: $backup"
-  fi
-
-  # Remover symlink antigo quebrado
-  [[ -L "$dst" ]] && rm "$dst"
-
-  # Criar diretório pai se necessário
-  mkdir -p "$(dirname "$dst")"
-
-  ln -s "$src" "$dst"
-  echo "  ✓ $dst → $src"
-}
-```
-
-**Validação cross-platform antes de executar comandos:**
-
-Detecte o OS atual e aplique os comandos corretos:
-
-```bash
-detect_os() {
-  case "$(uname -s)" in
-    Linux*)
-      if grep -qi microsoft /proc/version 2>/dev/null; then
-        echo "wsl"
-      else
-        echo "linux"
-      fi
-      ;;
-    Darwin*) echo "macos" ;;
-    *)       echo "unknown" ;;
-  esac
-}
-```
-
-| Comando | Linux | macOS | WSL |
-|---------|-------|-------|-----|
-| `ln -s` | ✓ | ✓ | ✓* |
-| `readlink -f` | ✓ | ✗** | ✓ |
-| `stat -c %a` | ✓ | ✗*** | ✓ |
-| `sed -i ''` | ✗ | ✓ | ✗ |
-
-\* WSL: symlinks para `/mnt/c/` têm limitações  
-\** macOS: usar `greadlink` (coreutils) ou `realpath`  
-\*** macOS: usar `stat -f %p`
-
-**Idempotência obrigatória:**
-- Checar se o symlink já existe antes de criar: `[[ -L "$dst" ]] && continue`
-- Checar se o arquivo já está em `data/` antes de mover
-- Nunca sobrescrever `.gitignore` — sempre **append** de novos padrões
-
-**Uso de `dotfiles-lib.sh`:**
-
-Nunca reinvente funções que já existem na lib do repositório. Sempre prefira:
-- `dotfiles_status_for_file` para detectar estado do arquivo (importable, not_installed, blocking_file, etc.)
-- `./dotfiles-menu.sh` para criar symlinks interativamente
-- `dotfiles-lib.sh` para operações batch de instalação/remoção
-
-**Mecanismo de nomeação do `dotfile-names.list`:**
-
-Ao adicionar entradas na lista, siga estas regras:
-- Sem ponto no nome em `data/` → o symlink em `~` ganha ponto (ex: `gitconfig` → `~/.gitconfig`)
-- Com ponto no nome em `data/` → o symlink em `~` mantém o nome (ex: `.zshrc` → `~/.zshrc`)
-- Paths com `/` são suportados e espelham a estrutura (ex: `.config/Cursor/User/settings.json`)
-- Agrupe entradas sob um comentário `# [Nome do programa]`
-
-**CHECKPOINT:**
-Mostre o estado final:
-> "Integração concluída:
-> - [N] arquivo(s) movido(s) para data/ (backups em: [paths])
-> - [N] symlink(s) criado(s)
-> - [N] entrada(s) adicionada(s) a dotfile-names.list
-> - [N] padrão(ões) adicionado(s) ao .gitignore
-> - OS detectado: [linux/macos/wsl] — comandos compatíveis usados
-> Quer revisar antes de documentar?"
-
----
-
-### Etapa 4 — Documentação e Hook (`_dotfiles-doc-writer`)
-
-Leia a skill `_dotfiles-doc-writer` e execute-a com todo o contexto acumulado. Em seguida, verifique e instale o hook de pré-commit.
-
-**Input para a skill:**
-- Relatório do `_dotfiles-config-researcher` (etapa 1)
-- Guardrails do `_llm-config-guardian` (etapa 2)
-- Estado da integração do `@dotfiles-config-integrator` (etapa 3)
-- Resumo da Etapa P (boas práticas, riscos, dependências)
-
-**Output esperado:**
-- `docs/[programa].md` criado
-- `README.md` atualizado
-- `llms.txt` atualizado
-- Padrões registrados no `_knowledge-manager`
-
-#### Verificação e instalação do hook de pré-commit (NOVA)
-
-Após a documentação, verifique se o hook de detecção de secrets está instalado:
-
-```bash
-# Verificar se o hook já existe
-if [[ -x ".git/hooks/pre-commit" ]]; then
-  echo "✓ Hook de pré-commit já instalado."
-else
-  echo "⚠️  Hook de pré-commit não encontrado. Instalando..."
-
-  cat > .git/hooks/pre-commit << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-STAGED=$(git diff --cached --name-only)
-FOUND=0
-
-for file in $STAGED; do
-  [[ -f "$file" ]] || continue
-  if grep -qEi '(api[_-]?key\s*=|secret\s*=|password\s*=|-----BEGIN|AWS_SECRET|GITHUB_TOKEN|PRIVATE_KEY)' "$file"; then
-    echo "🔴 BLOQUEADO: possível secret em '$file'"
-    FOUND=1
-  fi
-done
-
-[[ $FOUND -eq 1 ]] && echo "Remova os secrets antes de commitar." && exit 1
-exit 0
-EOF
-
-  chmod +x .git/hooks/pre-commit
-  echo "✓ Hook de pré-commit instalado em .git/hooks/pre-commit"
-fi
-```
-
-Informe ao usuário se o hook já existia ou se foi instalado agora.
+Delegue a documentação com o relatório, as decisões de segurança e o resultado da integração. Siga os padrões e artefatos já adotados pelo repositório; não crie índices ou automações locais novos apenas por causa deste onboarding. Instalação ou alteração de hooks é uma tarefa independente.
 
 **FINALIZAÇÃO:**
-Apresente o resumo final:
 
-```markdown
-## ✅ Onboarding do [programa] concluído
+Resuma o que foi encontrado e alterado, incluindo arquivos adicionados ou excluídos, backups, validações executadas e pendências. Não faça commit nem use `git add .`; deixe o staging e o commit para uma solicitação explícita do usuário.
 
-### Etapa P — Pesquisa Web
-- Paths não óbvios descobertos: [lista ou "nenhum"]
-- Riscos de secret mapeados: [lista]
-- Padrões de .gitignore adicionados: [lista]
-- Dependências detectadas: [lista ou "nenhuma"]
+## Regras
 
-### Etapa 1 — Pesquisa de Configs
-- [N] arquivo(s) mapeado(s): [N] público(s), [N] sensível(is), [N] gerado(s)
-- Segue XDG: sim/não
-- Plugin manager: [nome] ou nenhum
-
-### Etapa 2 — Segurança
-- [N] guardrail(s) aplicado(s)
-- .gitignore: [N] padrão(ões) adicionado(s)
-
-### Etapa 3 — Integração
-- OS detectado: [linux/macos/wsl]
-- Arquivos em data/: [lista]
-- Backups criados: [lista de .bak.TIMESTAMP ou "nenhum"]
-- Symlinks em ~/: [lista]
-- dotfile-names.list: atualizado
-
-### Etapa 4 — Documentação e Hook
-- docs/[programa].md: criado
-- README.md: atualizado
-- llms.txt: atualizado
-- Base de conhecimento: [N] padrão(ões) registrado(s)
-- Hook de pré-commit: [instalado agora / já existia]
-
-### Próximo passo
-Faça o commit das mudanças com uma mensagem descritiva:
-`git add . && git commit -m "feat([programa]): add program to dotfiles"`
-```
-
----
-
-## Regras da orquestradora
-
-1. **Nunca pular a Etapa P** — a pesquisa web garante contexto atualizado que a IA pode não ter
-2. **Nunca pular etapa** — o `_dotfiles-config-researcher` precisa do output da Etapa P; o `_llm-config-guardian` precisa do output da Etapa 1
-3. **Checkpoint obrigatório** — o usuário valida antes de seguir para a próxima etapa
-4. **Contexto passa adiante** — cada etapa recebe o output acumulado de todas as anteriores
-5. **Detecta estado parcial** — a etapa 0 evita retrabalho e duplicação
-6. **Não executa operações diretamente** — delega para as skills especializadas
-7. **Backup sempre** — nunca mover arquivo sem criar `.bak.TIMESTAMP` antes
-8. **Cross-platform** — sempre detectar OS e usar comandos compatíveis
-9. **Hook de pré-commit** — verificar e instalar ao final de todo onboarding
-10. **Apresenta resumo final** — o usuário sabe exatamente o que foi feito em cada etapa
+- Reaproveite o estado existente e execute apenas as etapas necessárias; não repita pesquisa ou auditoria válida.
+- Delegue pesquisa, segurança, integração e documentação às skills responsáveis, sem duplicar suas instruções operacionais.
+- Preserve arquivos locais: faça backup antes de substituir dados e nunca inclua segredos no repositório.
+- Peça confirmação antes de uma ação destrutiva, ambígua ou que possa expor dados sensíveis; para o restante, avance e informe as premissas.
+- Valide o resultado da integração e comunique claramente qualquer etapa não executada ou bloqueada.
