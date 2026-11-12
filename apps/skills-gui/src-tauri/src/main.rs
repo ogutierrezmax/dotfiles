@@ -88,6 +88,30 @@ struct ArchiveCatalog {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct FileEntry {
+    /// Caminho relativo ao diretório da skill.
+    path: String,
+    size_bytes: u64,
+}
+
+/// Estado do diretório da skill no working tree do repositório de dotfiles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum GitState {
+    /// Nenhuma alteração pendente nos arquivos da pasta.
+    Clean,
+    /// Só há arquivos ignorados pelo `.gitignore` pendentes.
+    Ignored,
+    /// A pasta não tem nenhum arquivo rastreado (tudo novo).
+    Untracked,
+    /// Há arquivos rastreados com alterações não commitadas.
+    Modified,
+    /// `git` indisponível ou pasta fora de um repositório.
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct SkillItem {
     /// Nome do diretório em ~/.agents/skills (id estável).
     name: String,
@@ -102,6 +126,24 @@ struct SkillItem {
     path: String,
     file_count: usize,
     size_bytes: u64,
+    /// Número de linhas do SKILL.md.
+    line_count: usize,
+    /// Destinos de link (`[texto](destino)`) e URLs http(s) soltas no SKILL.md.
+    link_count: usize,
+    /// Quantidade de outras skills mencionadas no conteúdo desta skill.
+    mention_count: usize,
+    /// Quantidade de outras skills que mencionam esta.
+    mentioned_by_count: usize,
+    /// Destinos dos links encontrados no SKILL.md (ordem de aparição, sem duplicatas).
+    link_targets: Vec<String>,
+    /// Nomes das outras skills mencionadas no conteúdo desta.
+    mentions: Vec<String>,
+    /// Nomes das skills que mencionam esta.
+    mentioned_by: Vec<String>,
+    /// Arquivos da pasta da skill, com caminho relativo e tamanho.
+    files: Vec<FileEntry>,
+    /// Estado da pasta da skill no working tree do repositório.
+    git_state: GitState,
     modified_at: String,
     name_mismatch: bool,
     has_frontmatter: bool,
@@ -369,9 +411,10 @@ fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>, bool) {
     (name, description, closed)
 }
 
-fn dir_stats(path: &Path) -> (usize, u64) {
-    let mut files = 0usize;
-    let mut bytes = 0u64;
+/// Arquivos de uma skill (recursivo), com caminho relativo ao diretório da skill.
+/// Ordenados por caminho para a listagem ficar estável.
+fn collect_files(path: &Path) -> Vec<FileEntry> {
+    let mut files: Vec<FileEntry> = Vec::new();
     let mut stack = vec![path.to_path_buf()];
     while let Some(dir) = stack.pop() {
         let Ok(entries) = fs::read_dir(&dir) else { continue };
@@ -381,12 +424,264 @@ fn dir_stats(path: &Path) -> (usize, u64) {
             if meta.is_dir() {
                 stack.push(p);
             } else if meta.is_file() {
-                files += 1;
-                bytes += meta.len();
+                let rel = p
+                    .strip_prefix(path)
+                    .unwrap_or(&p)
+                    .to_string_lossy()
+                    .to_string();
+                files.push(FileEntry {
+                    path: rel,
+                    size_bytes: meta.len(),
+                });
             }
         }
     }
-    (files, bytes)
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    files
+}
+
+/// Uma entrada de `git status --porcelain`: código X, código Y e caminho relativo
+/// à raiz do repositório (separador `/`).
+struct GitChange {
+    x: u8,
+    y: u8,
+    path: String,
+}
+
+/// Lê o `git status` uma única vez, restrito às pastas do acervo e do arquivo.
+/// Devolve `None` quando o git não está disponível ou a raiz não é um repositório,
+/// para que a UI mostre `unknown` em vez de mentir "limpo".
+fn collect_git_changes(root: &Path, scope: &[PathBuf]) -> Option<Vec<GitChange>> {
+    let mut cmd = Command::new("git");
+    cmd.arg("-C")
+        .arg(root)
+        .args([
+            "status",
+            "--porcelain",
+            "-z",
+            "--untracked-files=all",
+            "--ignored=matching",
+            "--",
+        ]);
+    for path in scope {
+        cmd.arg(path);
+    }
+    let output = cmd.output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let mut changes = Vec::new();
+    let mut fields = output.stdout.split(|b| *b == 0);
+    while let Some(field) = fields.next() {
+        // "XY <caminho>": códigos + espaço antes do caminho.
+        if field.len() < 4 {
+            continue;
+        }
+        let x = field[0];
+        let y = field[1];
+        let path = String::from_utf8_lossy(&field[3..]).into_owned();
+        // Em renomeações/cópias o caminho de origem vem no campo seguinte.
+        if matches!(x, b'R' | b'C') || matches!(y, b'R' | b'C') {
+            fields.next();
+        }
+        changes.push(GitChange { x, y, path });
+    }
+    Some(changes)
+}
+
+/// Estado de uma skill: considera só as mudanças dentro do diretório dela.
+/// Alteração rastreada vence "não versionada", que vence "ignorada".
+fn git_state_for(changes: Option<&[GitChange]>, root: &Path, path: &Path) -> GitState {
+    let Some(changes) = changes else {
+        return GitState::Unknown;
+    };
+    let Ok(rel) = path.strip_prefix(root) else {
+        return GitState::Unknown;
+    };
+    let prefix = rel.to_string_lossy().replace('\\', "/");
+
+    let mut untracked = false;
+    let mut ignored = false;
+    for change in changes {
+        let inside = change.path == prefix
+            || change
+                .path
+                .strip_prefix(&prefix)
+                .is_some_and(|rest| rest.starts_with('/'));
+        if !inside {
+            continue;
+        }
+        match (change.x, change.y) {
+            (b'?', b'?') => untracked = true,
+            (b'!', b'!') => ignored = true,
+            _ => return GitState::Modified,
+        }
+    }
+
+    if untracked {
+        GitState::Untracked
+    } else if ignored {
+        GitState::Ignored
+    } else {
+        GitState::Clean
+    }
+}
+
+/// Quantidade de linhas do SKILL.md.
+fn count_lines(content: &str) -> usize {
+    content.lines().count()
+}
+
+/// Prefixo `http://`/`https://` case-insensitive; devolve o comprimento do esquema.
+fn url_scheme_len(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let starts = |prefix: &[u8]| {
+        bytes.len() >= prefix.len() && bytes[..prefix.len()].eq_ignore_ascii_case(prefix)
+    };
+    if starts(b"https://") {
+        Some(8)
+    } else if starts(b"http://") {
+        Some(7)
+    } else {
+        None
+    }
+}
+
+fn is_url_terminator(b: u8) -> bool {
+    b.is_ascii_whitespace()
+        || matches!(
+            b,
+            b')' | b']' | b'}' | b'>' | b'"' | b'\'' | b'`' | b'<' | b'|'
+        )
+}
+
+/// Pontuação final que normalmente pertence à prosa e não ao destino de uma URL
+/// solta (`veja https://exemplo.com.`).
+fn is_trailing_url_punctuation(b: u8) -> bool {
+    matches!(b, b'.' | b',' | b';' | b':' | b'!' | b'?')
+}
+
+fn push_link(links: &mut Vec<String>, target: &str) {
+    let target = target.trim();
+    if target.is_empty() {
+        return;
+    }
+    if !links.iter().any(|existing| existing == target) {
+        links.push(target.to_string());
+    }
+}
+
+/// Destinos de link no conteúdo: links markdown inline `[texto](destino)` e URLs
+/// `http(s)://` soltas. O span do link markdown é consumido por inteiro antes de
+/// procurar URLs soltas, então um destino não aparece duas vezes por causa disso;
+/// o dedupe final preserva a ordem de primeira aparição.
+fn collect_links(content: &str) -> Vec<String> {
+    let bytes = content.as_bytes();
+    let mut links: Vec<String> = Vec::new();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        // Link markdown: ](destino)
+        if bytes[i] == b']' && i + 1 < bytes.len() && bytes[i + 1] == b'(' {
+            if let Some(rel_end) = content[i + 2..].find(')') {
+                let target = content[i + 2..i + 2 + rel_end].trim();
+                push_link(&mut links, target);
+                i = i + 2 + rel_end + 1;
+                continue;
+            }
+        }
+
+        // URL solta (fora de um link markdown)
+        if let Some(scheme_len) = url_scheme_len(&content[i..]) {
+            let mut end = i + scheme_len;
+            while end < bytes.len() && !is_url_terminator(bytes[end]) {
+                end += 1;
+            }
+            if end > i + scheme_len {
+                let mut trimmed = &content[i..end];
+                while let Some(last) = trimmed.as_bytes().last() {
+                    if is_trailing_url_punctuation(*last) {
+                        trimmed = &trimmed[..trimmed.len() - 1];
+                    } else {
+                        break;
+                    }
+                }
+                if !trimmed.is_empty() {
+                    push_link(&mut links, trimmed);
+                }
+            }
+            i = end;
+            continue;
+        }
+
+        // Avança um caractere completo (UTF-8)
+        i += content[i..].chars().next().map(char::len_utf8).unwrap_or(1);
+    }
+    links
+}
+
+/// Caractere que, colado a um nome de skill, indica que não é uma menção
+/// (ex.: `skill-creator` dentro de `skill-creator-v2`).
+fn is_mention_boundary(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.')
+}
+
+fn contains_mention(haystack_lower: &str, needle_lower: &str) -> bool {
+    if needle_lower.is_empty() {
+        return false;
+    }
+    let bytes = haystack_lower.as_bytes();
+    let mut start = 0usize;
+    while start < haystack_lower.len() {
+        let Some(rel) = haystack_lower[start..].find(needle_lower) else {
+            return false;
+        };
+        let at = start + rel;
+        let before_ok = at == 0 || !is_mention_boundary(bytes[at - 1]);
+        let after = at + needle_lower.len();
+        let after_ok = after >= bytes.len() || !is_mention_boundary(bytes[after]);
+        if before_ok && after_ok {
+            return true;
+        }
+        start = at + needle_lower.len().max(1);
+    }
+    false
+}
+
+struct MentionInput {
+    /// Nome do diretório — é o identificador devolvido nas listas.
+    name: String,
+    tokens: Vec<String>,
+    content_lower: String,
+}
+
+/// Para cada skill, devolve os nomes das OUTRAS skills mencionadas no conteúdo
+/// (saída) e os nomes das que mencionam esta (entrada). Menção = nome do diretório
+/// ou `name` do frontmatter, case-insensitive, com fronteira de token; cada skill
+/// aparece no máximo uma vez por lista.
+fn compute_mentions(inputs: &[MentionInput]) -> (Vec<Vec<String>>, Vec<Vec<String>>) {
+    let mut outgoing: Vec<Vec<String>> = vec![Vec::new(); inputs.len()];
+    let mut incoming: Vec<Vec<String>> = vec![Vec::new(); inputs.len()];
+
+    for (i, source) in inputs.iter().enumerate() {
+        for (j, target) in inputs.iter().enumerate() {
+            // Auto-menção nunca conta: nem pelo índice (a própria entrada), nem pelo
+            // nome (protege contra a mesma skill aparecer ativa e arquivada).
+            if i == j || source.name == target.name {
+                continue;
+            }
+            let mentioned = target
+                .tokens
+                .iter()
+                .any(|token| contains_mention(&source.content_lower, token));
+            if mentioned {
+                outgoing[i].push(target.name.clone());
+                incoming[j].push(source.name.clone());
+            }
+        }
+    }
+
+    (outgoing, incoming)
 }
 
 fn read_catalog(path: &Path) -> Catalog {
@@ -447,10 +742,13 @@ fn write_archive_catalog(path: &Path, catalog: &ArchiveCatalog) -> Result<(), St
 
 fn load_skills(root: &Path) -> Result<AppData, String> {
     let center = skills_dir(root);
+    let arch_dir = archive_dir(root);
     let catalog_file = catalog_path(root);
     let catalog = read_catalog(&catalog_file);
+    // Uma única chamada ao git cobre acervo + arquivo; sem repo/git tudo vira `unknown`.
+    let git_changes = collect_git_changes(root, &[center.clone(), arch_dir.clone()]);
 
-    let mut items: Vec<SkillItem> = Vec::new();
+    let mut items: Vec<(SkillItem, String)> = Vec::new();
     let entries = fs::read_dir(&center).map_err(|e| {
         format!(
             "ler acervo {}: {e} (repo detectado: {})",
@@ -471,7 +769,9 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
         let dir_name = entry.file_name().to_string_lossy().to_string();
         let content = fs::read_to_string(&skill_md).unwrap_or_default();
         let (fm_name, fm_desc, has_frontmatter) = parse_frontmatter(&content);
-        let (file_count, size_bytes) = dir_stats(&path);
+        let files = collect_files(&path);
+        let file_count = files.len();
+        let size_bytes: u64 = files.iter().map(|f| f.size_bytes).sum();
         let meta = catalog.skills.get(&dir_name).cloned().unwrap_or_default();
 
         let display_name = fm_name.clone().unwrap_or_else(|| dir_name.clone());
@@ -480,33 +780,42 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
             .map(|n| n != dir_name)
             .unwrap_or(false);
 
-        items.push(SkillItem {
-            name: dir_name.clone(),
-            display_name,
-            description: fm_desc.unwrap_or_default(),
-            category: meta.category.clone(),
-            tags: meta.tags.clone(),
-            tools: meta.tools.clone(),
-            favorite: meta.favorite,
-            notes: meta.notes.clone(),
-            path: path.to_string_lossy().to_string(),
-            file_count,
-            size_bytes,
-            modified_at: modified_iso(&skill_md),
-            name_mismatch,
-            has_frontmatter,
-            archived: false,
-            archived_at: None,
-        });
+        items.push((
+            SkillItem {
+                name: dir_name.clone(),
+                display_name,
+                description: fm_desc.unwrap_or_default(),
+                category: meta.category.clone(),
+                tags: meta.tags.clone(),
+                tools: meta.tools.clone(),
+                favorite: meta.favorite,
+                notes: meta.notes.clone(),
+                path: path.to_string_lossy().to_string(),
+                file_count,
+                size_bytes,
+                line_count: 0,
+                link_count: 0,
+                mention_count: 0,
+                mentioned_by_count: 0,
+                link_targets: Vec::new(),
+                mentions: Vec::new(),
+                mentioned_by: Vec::new(),
+                files,
+                git_state: git_state_for(git_changes.as_deref(), root, &path),
+                modified_at: modified_iso(&skill_md),
+                name_mismatch,
+                has_frontmatter,
+                archived: false,
+                archived_at: None,
+            },
+            content,
+        ));
     }
 
-    items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-
     // Escanear pasta do arquivo (apps/skills-gui/archive)
-    let arch_dir = archive_dir(root);
     let arch_cat_file = archive_catalog_path(root);
     let arch_cat = read_archive_catalog(&arch_cat_file);
-    let mut archived_items: Vec<SkillItem> = Vec::new();
+    let mut archived_items: Vec<(SkillItem, String)> = Vec::new();
 
     if arch_dir.is_dir() {
         if let Ok(arch_entries) = fs::read_dir(&arch_dir) {
@@ -522,7 +831,9 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
                 let dir_name = entry.file_name().to_string_lossy().to_string();
                 let content = fs::read_to_string(&skill_md).unwrap_or_default();
                 let (fm_name, fm_desc, has_frontmatter) = parse_frontmatter(&content);
-                let (file_count, size_bytes) = dir_stats(&path);
+                let files = collect_files(&path);
+                let file_count = files.len();
+                let size_bytes: u64 = files.iter().map(|f| f.size_bytes).sum();
                 let meta = arch_cat.skills.get(&dir_name).cloned().unwrap_or_default();
 
                 let display_name = fm_name.clone().unwrap_or_else(|| dir_name.clone());
@@ -531,28 +842,85 @@ fn load_skills(root: &Path) -> Result<AppData, String> {
                     .map(|n| n != dir_name)
                     .unwrap_or(false);
 
-                archived_items.push(SkillItem {
-                    name: dir_name.clone(),
-                    display_name,
-                    description: fm_desc.unwrap_or_default(),
-                    category: meta.category.clone(),
-                    tags: meta.tags.clone(),
-                    tools: meta.tools.clone(),
-                    favorite: meta.favorite,
-                    notes: meta.notes.clone(),
-                    path: path.to_string_lossy().to_string(),
-                    file_count,
-                    size_bytes,
-                    modified_at: modified_iso(&skill_md),
-                    name_mismatch,
-                    has_frontmatter,
-                    archived: true,
-                    archived_at: meta.archived_at,
-                });
+                archived_items.push((
+                    SkillItem {
+                        name: dir_name.clone(),
+                        display_name,
+                        description: fm_desc.unwrap_or_default(),
+                        category: meta.category.clone(),
+                        tags: meta.tags.clone(),
+                        tools: meta.tools.clone(),
+                        favorite: meta.favorite,
+                        notes: meta.notes.clone(),
+                        path: path.to_string_lossy().to_string(),
+                        file_count,
+                        size_bytes,
+                        line_count: 0,
+                        link_count: 0,
+                        mention_count: 0,
+                        mentioned_by_count: 0,
+                        link_targets: Vec::new(),
+                        mentions: Vec::new(),
+                        mentioned_by: Vec::new(),
+                        files,
+                        git_state: git_state_for(git_changes.as_deref(), root, &path),
+                        modified_at: modified_iso(&skill_md),
+                        name_mismatch,
+                        has_frontmatter,
+                        archived: true,
+                        archived_at: meta.archived_at,
+                    },
+                    content,
+                ));
             }
         }
     }
 
+    // Métricas de conteúdo e menções cruzadas, calculadas sobre o conjunto
+    // completo (ativas + arquivadas) para que os números não mudem ao trocar de visão.
+    let mut combined: Vec<(SkillItem, String)> = items;
+    combined.extend(archived_items);
+
+    let mention_inputs: Vec<MentionInput> = combined
+        .iter()
+        .map(|(item, content)| {
+            let mut tokens = vec![item.name.to_lowercase()];
+            let display_lower = item.display_name.to_lowercase();
+            if display_lower != tokens[0] {
+                tokens.push(display_lower);
+            }
+            MentionInput {
+                name: item.name.clone(),
+                tokens,
+                content_lower: content.to_lowercase(),
+            }
+        })
+        .collect();
+
+    let (outgoing, incoming) = compute_mentions(&mention_inputs);
+
+    let mut items: Vec<SkillItem> = Vec::new();
+    let mut archived_items: Vec<SkillItem> = Vec::new();
+    for ((mut item, content), (mentions, mentioned_by)) in combined
+        .into_iter()
+        .zip(outgoing.into_iter().zip(incoming.into_iter()))
+    {
+        let links = collect_links(&content);
+        item.line_count = count_lines(&content);
+        item.link_count = links.len();
+        item.link_targets = links;
+        item.mention_count = mentions.len();
+        item.mentions = mentions;
+        item.mentioned_by_count = mentioned_by.len();
+        item.mentioned_by = mentioned_by;
+        if item.archived {
+            archived_items.push(item);
+        } else {
+            items.push(item);
+        }
+    }
+
+    items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     archived_items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
     let mut categories = catalog.categories.clone();
@@ -930,6 +1298,37 @@ fn run_bridge(mode: String) -> Result<ScriptResult, String> {
     Ok(run_script(&root, &script.to_string_lossy(), &args))
 }
 
+/// Aceita apenas URLs http/https absolutas e sem caracteres de controle. É a
+/// única superfície que entrega texto vindo do acervo ao `xdg-open`, então o
+/// esquema é validado aqui de novo (nunca confiar só na UI).
+fn is_allowed_url(url: &str) -> bool {
+    let trimmed = url.trim();
+    if trimmed.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return false;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    let rest = if let Some(rest) = lower.strip_prefix("https://") {
+        rest
+    } else if let Some(rest) = lower.strip_prefix("http://") {
+        rest
+    } else {
+        return false;
+    };
+    !rest.is_empty() && rest.chars().any(|c| c != '/')
+}
+
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !is_allowed_url(&url) {
+        return Err("apenas URLs http(s) podem ser abertas".to_string());
+    }
+    Command::new("xdg-open")
+        .arg(url.trim())
+        .spawn()
+        .map_err(|e| format!("abrir URL: {e}"))?;
+    Ok(())
+}
+
 #[tauri::command]
 fn open_path(path: String) -> Result<(), String> {
     let root = find_repo_root();
@@ -1266,7 +1665,12 @@ fn main() {
                 println!("skills={}", data.skills.len());
                 println!("categories={}", data.categories.len());
                 for skill in &data.skills {
-                    println!("{}\t{}", skill.name, skill.category.as_deref().unwrap_or("-"));
+                    println!(
+                        "{}\t{}\t{:?}",
+                        skill.name,
+                        skill.category.as_deref().unwrap_or("-"),
+                        skill.git_state
+                    );
                 }
             }
             Err(err) => {
@@ -1287,6 +1691,7 @@ fn main() {
             health_report,
             run_check,
             run_bridge,
+            open_url,
             open_path,
             create_skill,
             save_skill_content,
@@ -1336,6 +1741,194 @@ mod tests {
         assert_eq!(name, Some("test-skill".to_string()));
         assert_eq!(desc, Some("A test skill with : special".to_string()));
         assert!(closed);
+    }
+
+    #[test]
+    fn test_collect_lines_and_links() {
+        let content = "---\nname: demo\n---\n\n# Demo\n\nVeja [a doc](https://example.com/a) e https://example.com/b.\nLink relativo: [outra](../outra-skill/SKILL.md).\n";
+        assert_eq!(count_lines(content), 8);
+        assert_eq!(
+            collect_links(content),
+            vec![
+                "https://example.com/a".to_string(),
+                "https://example.com/b".to_string(),
+                "../outra-skill/SKILL.md".to_string(),
+            ]
+        );
+        assert!(collect_links("sem links aqui").is_empty());
+        assert!(collect_links("[vazio]()").is_empty());
+    }
+
+    #[test]
+    fn test_collect_links_dedupes_and_trims_punctuation() {
+        let content = "https://a.example/x, https://a.example/x. [b](https://b.example) https://b.example";
+        assert_eq!(
+            collect_links(content),
+            vec!["https://a.example/x".to_string(), "https://b.example".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_is_allowed_url() {
+        assert!(is_allowed_url("https://example.com"));
+        assert!(is_allowed_url("HTTP://example.com/x?y=1"));
+        assert!(!is_allowed_url("file:///etc/passwd"));
+        assert!(!is_allowed_url("javascript:alert(1)"));
+        assert!(!is_allowed_url("https://"));
+        assert!(!is_allowed_url("https://exa mple.com"));
+        assert!(!is_allowed_url("/caminho/local"));
+    }
+
+    #[test]
+    fn test_collect_files_relative_paths() {
+        let dir = std::env::temp_dir().join(format!("skills-gui-files-{}", std::process::id()));
+        let nested = dir.join("sub");
+        fs::create_dir_all(&nested).expect("criar diretório de teste");
+        fs::write(dir.join("SKILL.md"), b"abc").expect("escrever SKILL.md");
+        fs::write(nested.join("extra.md"), b"de").expect("escrever extra.md");
+
+        let files = collect_files(&dir);
+        let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(paths, vec!["SKILL.md", "sub/extra.md"]);
+        assert_eq!(files.iter().map(|f| f.size_bytes).sum::<u64>(), 5);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_git_state_for_skill_dirs() {
+        let root = Path::new("/repo");
+        let alpha = root.join("data/.agents/skills/alpha");
+        let beta = root.join("data/.agents/skills/beta");
+        let gamma = root.join("data/.agents/skills/gamma");
+        let alpha_v2 = root.join("data/.agents/skills/alpha-v2");
+        let delta = root.join("data/.agents/skills/delta");
+
+        let changes = vec![
+            GitChange {
+                x: b' ',
+                y: b'M',
+                path: "data/.agents/skills/alpha/SKILL.md".to_string(),
+            },
+            GitChange {
+                x: b'?',
+                y: b'?',
+                path: "data/.agents/skills/beta/SKILL.md".to_string(),
+            },
+            GitChange {
+                x: b'!',
+                y: b'!',
+                path: "data/.agents/skills/gamma/notes.md".to_string(),
+            },
+        ];
+
+        assert_eq!(
+            git_state_for(Some(&changes), root, &alpha),
+            GitState::Modified
+        );
+        assert_eq!(
+            git_state_for(Some(&changes), root, &beta),
+            GitState::Untracked
+        );
+        assert_eq!(
+            git_state_for(Some(&changes), root, &gamma),
+            GitState::Ignored
+        );
+        assert_eq!(
+            git_state_for(Some(&changes), root, &delta),
+            GitState::Clean
+        );
+        // Fronteira de diretório: `alpha` não pode contaminar `alpha-v2`.
+        assert_eq!(
+            git_state_for(Some(&changes), root, &alpha_v2),
+            GitState::Clean
+        );
+        // Sem repositório/git o estado é desconhecido, nunca "limpo".
+        assert_eq!(git_state_for(None, root, &alpha), GitState::Unknown);
+        // Pasta fora da raiz do repo também é desconhecida.
+        assert_eq!(
+            git_state_for(Some(&changes), root, Path::new("/outro/alpha")),
+            GitState::Unknown
+        );
+    }
+
+    #[test]
+    fn test_mention_boundaries() {
+        assert!(contains_mention("use a skill skill-creator aqui", "skill-creator"));
+        assert!(contains_mention("`skill-creator`", "skill-creator"));
+        assert!(!contains_mention("skill-creator-v2", "skill-creator"));
+        assert!(!contains_mention("meu-skill-creator", "skill-creator"));
+        assert!(!contains_mention("skill-creator.md", "skill-creator"));
+    }
+
+    #[test]
+    fn test_compute_mentions_outgoing_and_incoming() {
+        let inputs = vec![
+            MentionInput {
+                name: "alpha".to_string(),
+                tokens: vec!["alpha".to_string()],
+                content_lower: "chame alpha e beta".to_string(),
+            },
+            MentionInput {
+                name: "beta".to_string(),
+                tokens: vec!["beta".to_string()],
+                content_lower: "nada aqui".to_string(),
+            },
+            MentionInput {
+                name: "gamma".to_string(),
+                tokens: vec!["gamma".to_string()],
+                content_lower: "beta tambem".to_string(),
+            },
+        ];
+        let (outgoing, incoming) = compute_mentions(&inputs);
+        assert_eq!(
+            outgoing,
+            vec![
+                vec!["beta".to_string()],
+                Vec::<String>::new(),
+                vec!["beta".to_string()],
+            ]
+        );
+        assert_eq!(
+            incoming,
+            vec![
+                Vec::<String>::new(),
+                vec!["alpha".to_string(), "gamma".to_string()],
+                Vec::<String>::new(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_self_mention_not_counted() {
+        let inputs = vec![MentionInput {
+            name: "alpha".to_string(),
+            tokens: vec!["alpha".to_string()],
+            content_lower: "alpha menciona alpha varias vezes".to_string(),
+        }];
+        let (outgoing, incoming) = compute_mentions(&inputs);
+        assert!(outgoing[0].is_empty());
+        assert!(incoming[0].is_empty());
+    }
+
+    #[test]
+    fn test_same_name_is_never_a_cross_mention() {
+        // Cenário defensivo: a mesma skill aparecendo ativa e arquivada.
+        let inputs = vec![
+            MentionInput {
+                name: "alpha".to_string(),
+                tokens: vec!["alpha".to_string()],
+                content_lower: "alpha".to_string(),
+            },
+            MentionInput {
+                name: "alpha".to_string(),
+                tokens: vec!["alpha".to_string()],
+                content_lower: "alpha".to_string(),
+            },
+        ];
+        let (outgoing, incoming) = compute_mentions(&inputs);
+        assert!(outgoing.iter().all(|list| list.is_empty()));
+        assert!(incoming.iter().all(|list| list.is_empty()));
     }
 
     #[test]

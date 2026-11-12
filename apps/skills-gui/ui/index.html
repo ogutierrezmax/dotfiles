@@ -11,6 +11,8 @@
   <div class="app-layout">
     <header class="app-header">
       <div class="header-left">
+        <button id="btn-sidebar-toggle" class="btn btn-square" title="Recolher menu lateral (Ctrl+B)"
+          aria-label="Recolher menu lateral" aria-controls="sidebar" aria-expanded="true">☰</button>
         <div class="logo-icon">🧩</div>
         <div class="header-titles">
           <h1>Skills</h1>
@@ -43,12 +45,22 @@
             <button id="bulk-clear" class="btn btn-small btn-ghost">Limpar</button>
           </div>
           <div class="toolbar-right">
+            <div class="view-toggle" role="group" aria-label="Modo de visualização">
+              <button id="view-cards" class="view-btn active" title="Visualização em cards" aria-pressed="true">▦ Cards</button>
+              <button id="view-table" class="view-btn" title="Visualização em tabela" aria-pressed="false">☰ Tabela</button>
+            </div>
             <span class="count" id="count"></span>
             <select id="sort" title="Ordenar">
               <option value="name">Nome A→Z</option>
               <option value="recent">Mais recentes</option>
               <option value="category">Categoria</option>
               <option value="files">Mais arquivos</option>
+              <option value="lines">Mais linhas</option>
+              <option value="links">Mais links</option>
+              <option value="mentions">Mais menções</option>
+              <option value="received">Mais recebidas</option>
+              <option value="git">Status git</option>
+              <option value="size">Maior tamanho</option>
             </select>
           </div>
         </div>

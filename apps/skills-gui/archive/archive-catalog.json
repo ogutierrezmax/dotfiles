@@ -1,7 +1,47 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-11T19:47:15Z",
+  "updatedAt": "2026-11-12T19:36:30Z",
   "skills": {
+    "acceptance-criteria": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:28:35Z"
+    },
+    "agents-md": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:24:26Z"
+    },
+    "ai-ecosystem-sync": {
+      "category": "ai-ecosystem",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:29:17Z"
+    },
+    "ai-jail-security-layer-mapper": {
+      "category": "ai-ecosystem",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:23:59Z"
+    },
+    "analytical-canvas": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:22:41Z"
+    },
     "backlog-refinement": {
       "category": "k1-refinement",
       "tags": [],
@@ -9,6 +49,14 @@
       "favorite": false,
       "notes": "",
       "archivedAt": "2026-11-11T19:45:12Z"
+    },
+    "bug-investigation-report": {
+      "category": "debugging",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:29:10Z"
     },
     "clarification": {
       "category": "k1-refinement",
@@ -18,6 +66,22 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:45:16Z"
     },
+    "command-creator": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:23:19Z"
+    },
+    "create-hook": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:27:06Z"
+    },
     "create-product-stage": {
       "category": null,
       "tags": [],
@@ -25,6 +89,46 @@
       "favorite": false,
       "notes": "",
       "archivedAt": "2026-11-11T19:42:53Z"
+    },
+    "create-rule": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:35:30Z"
+    },
+    "create-skill": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:13Z"
+    },
+    "create-subagent": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:28:17Z"
+    },
+    "curso-absoluto": {
+      "category": "curso",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:25:05Z"
+    },
+    "curso-na-pratica": {
+      "category": "curso",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:22Z"
     },
     "epic-analyzer": {
       "category": "k-flow",
@@ -50,6 +154,14 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:42:49Z"
     },
+    "eslint-fix-all": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:32:51Z"
+    },
     "factorio-modding": {
       "category": null,
       "tags": [],
@@ -74,6 +186,62 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:45:51Z"
     },
+    "find-skills": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:32:37Z"
+    },
+    "find-technical-debt": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:33:02Z"
+    },
+    "gemini-api-dev": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:24:07Z"
+    },
+    "gemini-interactions-api": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:24:11Z"
+    },
+    "gemini-live-api-dev": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:25:08Z"
+    },
+    "gemini-omni-flash-api": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:21:53Z"
+    },
+    "git-commit": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:35:41Z"
+    },
     "implementation-planner": {
       "category": "implementation",
       "tags": [],
@@ -81,6 +249,14 @@
       "favorite": false,
       "notes": "",
       "archivedAt": "2026-11-11T19:46:27Z"
+    },
+    "install-prettier": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:32:43Z"
     },
     "literal-shell-executor": {
       "category": null,
@@ -90,6 +266,70 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:42:44Z"
     },
+    "migrate-to-skills": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:28:25Z"
+    },
+    "optimize-prompt": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:28Z"
+    },
+    "paseo": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:49Z"
+    },
+    "paseo-advisor": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:36:20Z"
+    },
+    "paseo-committee": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:36:24Z"
+    },
+    "paseo-handoff": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:36:26Z"
+    },
+    "paseo-help": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:36:30Z"
+    },
+    "paseo-plugin": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:23:33Z"
+    },
     "pinokio": {
       "category": null,
       "tags": [],
@@ -98,6 +338,30 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:42:39Z"
     },
+    "pr-maintenance": {
+      "category": "devops",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:33:12Z"
+    },
+    "prompt-engineer": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:31Z"
+    },
+    "prompt-optimizer": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:04Z"
+    },
     "refine-product-stage": {
       "category": null,
       "tags": [],
@@ -105,6 +369,30 @@
       "favorite": false,
       "notes": "",
       "archivedAt": "2026-11-11T19:42:32Z"
+    },
+    "skill-creator": {
+      "category": "ai-config",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:22:00Z"
+    },
+    "sonar-ai-refactor": {
+      "category": "code-quality",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:33:22Z"
+    },
+    "statusline": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:27:53Z"
     },
     "step-artifact-builder": {
       "category": "implementation",
@@ -122,6 +410,14 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:46:22Z"
     },
+    "succinct-text": {
+      "category": "utilities",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:34:27Z"
+    },
     "supabase": {
       "category": "tech-domain",
       "tags": [],
@@ -138,6 +434,22 @@
       "notes": "",
       "archivedAt": "2026-11-11T19:46:45Z"
     },
+    "systematic-debugging": {
+      "category": "debugging",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:23:13Z"
+    },
+    "tauri-deep-link-linux": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:35:12Z"
+    },
     "tauri-gmail-oauth": {
       "category": "tech-domain",
       "tags": [],
@@ -145,6 +457,62 @@
       "favorite": false,
       "notes": "",
       "archivedAt": "2026-11-11T19:46:51Z"
+    },
+    "test-driven-development": {
+      "category": "testing",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:24:52Z"
+    },
+    "top-down-planner": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:18Z"
+    },
+    "typescript-vite-references": {
+      "category": "tech-domain",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:34:31Z"
+    },
+    "ui-prompt-optimizer": {
+      "category": null,
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:45Z"
+    },
+    "unit-test-specialist": {
+      "category": "testing",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:26:53Z"
+    },
+    "update-cli-config": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:34:38Z"
+    },
+    "update-cursor-settings": {
+      "category": "cursor-ide",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:34:45Z"
     },
     "user-story": {
       "category": "k1-refinement",
@@ -161,6 +529,14 @@
       "favorite": false,
       "notes": "",
       "archivedAt": "2026-11-11T19:43:14Z"
+    },
+    "vitest": {
+      "category": "uncategorized",
+      "tags": [],
+      "tools": null,
+      "favorite": false,
+      "notes": "",
+      "archivedAt": "2026-11-12T19:35:02Z"
     }
   }
 }

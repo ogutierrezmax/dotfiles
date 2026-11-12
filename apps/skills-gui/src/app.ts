@@ -18,6 +18,14 @@ interface Category {
   color?: string;
 }
 
+interface SkillFile {
+  path: string;
+  sizeBytes: number;
+}
+
+/** Estado do diretório da skill no working tree do repositório (calculado no backend). */
+type GitState = 'clean' | 'modified' | 'untracked' | 'ignored' | 'unknown';
+
 interface SkillItem {
   name: string;
   displayName: string;
@@ -30,6 +38,15 @@ interface SkillItem {
   path: string;
   fileCount: number;
   sizeBytes: number;
+  lineCount: number;
+  linkCount: number;
+  mentionCount: number;
+  mentionedByCount: number;
+  linkTargets: string[];
+  mentions: string[];
+  mentionedBy: string[];
+  files: SkillFile[];
+  gitState: GitState;
   modifiedAt: string;
   nameMismatch: boolean;
   hasFrontmatter: boolean;
@@ -79,6 +96,56 @@ type Filter =
   | { type: 'tag'; value: string }
   | { type: 'tool'; value: string };
 
+type SortKey =
+  | 'name'
+  | 'recent'
+  | 'category'
+  | 'files'
+  | 'lines'
+  | 'links'
+  | 'mentions'
+  | 'received'
+  | 'git'
+  | 'size';
+
+type ViewMode = 'cards' | 'table';
+
+/** Colunas numéricas da tabela cujo valor abre uma lista detalhada. */
+type MetricKind = 'links' | 'mentions' | 'received' | 'files';
+
+/** Ordenações que começam em ordem decrescente ao serem escolhidas. */
+const NUMERIC_SORTS: ReadonlySet<SortKey> = new Set<SortKey>([
+  'recent',
+  'files',
+  'lines',
+  'links',
+  'mentions',
+  'received',
+  'git',
+  'size',
+]);
+
+/** Peso do estado git para ordenação: pendências primeiro, limpo por último. */
+const GIT_WEIGHT: Record<GitState, number> = {
+  modified: 4,
+  untracked: 3,
+  ignored: 2,
+  clean: 1,
+  unknown: 0,
+};
+
+/** Rótulo e ícone de cada estado git (o título explica o símbolo). */
+const GIT_LABELS: Record<GitState, { icon: string; label: string }> = {
+  clean: { icon: '✓', label: 'Sem alterações pendentes' },
+  modified: { icon: '●', label: 'Alterações não commitadas' },
+  untracked: { icon: '?', label: 'Não versionada (untracked)' },
+  ignored: { icon: '⊘', label: 'Ignorada pelo .gitignore' },
+  unknown: { icon: '—', label: 'git indisponível ou fora de um repositório' },
+};
+
+const VIEW_STORAGE_KEY = 'skills-gui.view';
+const SIDEBAR_STORAGE_KEY = 'skills-gui.sidebar';
+
 const TOOLS = ['claude', 'devin', 'antigravity', 'copilot', 'cursor', 'gemini'];
 
 const TOOL_LABELS: Record<string, string> = {
@@ -99,6 +166,10 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\/\S+$/i.test(value.trim());
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -117,7 +188,10 @@ class SkillsApp {
   private loadError: string | null = null;
   private filter: Filter = { type: 'all' };
   private search = '';
-  private sort: 'name' | 'recent' | 'category' | 'files' = 'name';
+  private sort: SortKey = 'name';
+  private sortDir: 'asc' | 'desc' = 'asc';
+  private viewMode: ViewMode = 'cards';
+  private sidebarCollapsed = false;
   private selected = new Set<string>();
   private activeSkill: string | null = null;
   private activeSkillDetail: SkillDetail | null = null;
@@ -195,8 +269,85 @@ class SkillsApp {
   // -------------------------------------------------------------------------
 
   public async init(): Promise<void> {
+    this.restoreViewMode();
+    this.restoreSidebarState();
     this.bindEvents();
     await this.refresh();
+  }
+
+  private restoreViewMode(): void {
+    try {
+      const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved === 'cards' || saved === 'table') {
+        this.viewMode = saved;
+      }
+    } catch {
+      // localStorage indisponível: mantém o padrão em cards.
+    }
+  }
+
+  private restoreSidebarState(): void {
+    try {
+      this.sidebarCollapsed = window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'collapsed';
+    } catch {
+      // localStorage indisponível: mantém o menu expandido.
+      this.sidebarCollapsed = false;
+    }
+    this.applySidebarState();
+  }
+
+  private toggleSidebar(): void {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_STORAGE_KEY,
+        this.sidebarCollapsed ? 'collapsed' : 'expanded',
+      );
+    } catch {
+      // Sem persistência: a troca continua valendo nesta sessão.
+    }
+    this.applySidebarState();
+  }
+
+  private applySidebarState(): void {
+    const body = document.querySelector('.app-body');
+    body?.classList.toggle('sidebar-collapsed', this.sidebarCollapsed);
+
+    const sidebar = this.$('sidebar');
+    sidebar.setAttribute('aria-hidden', String(this.sidebarCollapsed));
+    sidebar.toggleAttribute('inert', this.sidebarCollapsed);
+
+    const btn = this.$('btn-sidebar-toggle');
+    btn.setAttribute('aria-expanded', String(!this.sidebarCollapsed));
+    btn.setAttribute(
+      'aria-label',
+      this.sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral',
+    );
+    btn.title = this.sidebarCollapsed
+      ? 'Expandir menu lateral (Ctrl+B)'
+      : 'Recolher menu lateral (Ctrl+B)';
+    btn.classList.toggle('is-collapsed', this.sidebarCollapsed);
+  }
+
+  private setViewMode(mode: ViewMode): void {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    } catch {
+      // Sem persistência: a troca continua valendo nesta sessão.
+    }
+    this.renderGrid();
+  }
+
+  private syncViewButtons(): void {
+    const isTable = this.viewMode === 'table';
+    const cardsBtn = this.$('view-cards');
+    const tableBtn = this.$('view-table');
+    cardsBtn.classList.toggle('active', !isTable);
+    cardsBtn.setAttribute('aria-pressed', String(!isTable));
+    tableBtn.classList.toggle('active', isTable);
+    tableBtn.setAttribute('aria-pressed', String(isTable));
   }
 
   private bindEvents(): void {
@@ -212,9 +363,14 @@ class SkillsApp {
       this.renderGrid();
     });
 
+    this.$('view-cards').addEventListener('click', () => this.setViewMode('cards'));
+    this.$('view-table').addEventListener('click', () => this.setViewMode('table'));
+    this.$('btn-sidebar-toggle').addEventListener('click', () => this.toggleSidebar());
+
     const sort = this.$('sort') as HTMLSelectElement;
     sort.addEventListener('change', () => {
-      this.sort = sort.value as typeof this.sort;
+      this.sort = sort.value as SortKey;
+      this.sortDir = NUMERIC_SORTS.has(this.sort) ? 'desc' : 'asc';
       this.renderGrid();
     });
 
@@ -239,6 +395,19 @@ class SkillsApp {
         if (this.activeSkill && this.drawerMode === 'edit') {
           ev.preventDefault();
           void this.saveDrawerContent();
+          return;
+        }
+      }
+      if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'b' || ev.key === 'B')) {
+        const target = ev.target;
+        const editing =
+          target instanceof HTMLElement &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable);
+        if (!editing) {
+          ev.preventDefault();
+          this.toggleSidebar();
           return;
         }
       }
@@ -328,31 +497,43 @@ class SkillsApp {
       return haystack.includes(q);
     });
 
+    const dir = this.sortDir === 'asc' ? 1 : -1;
+    const dateOf = (skill: SkillItem): string =>
+      this.filter.type === 'archived'
+        ? (skill.archivedAt ?? skill.modifiedAt)
+        : skill.modifiedAt;
+
+    const primary = (a: SkillItem, b: SkillItem): number => {
+      switch (this.sort) {
+        case 'recent':
+          return dateOf(a).localeCompare(dateOf(b));
+        case 'category':
+          return this.categoryLabel(a.category).localeCompare(this.categoryLabel(b.category));
+        case 'files':
+          return a.fileCount - b.fileCount;
+        case 'size':
+          return a.sizeBytes - b.sizeBytes;
+        case 'lines':
+          return a.lineCount - b.lineCount;
+        case 'links':
+          return a.linkCount - b.linkCount;
+        case 'mentions':
+          return a.mentionCount - b.mentionCount;
+        case 'received':
+          return a.mentionedByCount - b.mentionedByCount;
+        case 'git':
+          return GIT_WEIGHT[a.gitState] - GIT_WEIGHT[b.gitState];
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    };
+
     const sorted = [...filtered];
-    switch (this.sort) {
-      case 'recent':
-        sorted.sort((a, b) => {
-          if (this.filter.type === 'archived') {
-            const dateA = a.archivedAt ?? a.modifiedAt;
-            const dateB = b.archivedAt ?? b.modifiedAt;
-            return dateB.localeCompare(dateA);
-          }
-          return b.modifiedAt.localeCompare(a.modifiedAt);
-        });
-        break;
-      case 'category':
-        sorted.sort(
-          (a, b) =>
-            this.categoryLabel(a.category).localeCompare(this.categoryLabel(b.category)) ||
-            a.name.localeCompare(b.name),
-        );
-        break;
-      case 'files':
-        sorted.sort((a, b) => b.fileCount - a.fileCount || a.name.localeCompare(b.name));
-        break;
-      default:
-        sorted.sort((a, b) => a.name.localeCompare(b.name));
-    }
+    sorted.sort((a, b) => {
+      const result = primary(a, b);
+      if (result !== 0) return result * dir;
+      return a.name.localeCompare(b.name);
+    });
     return sorted;
   }
 
@@ -516,6 +697,8 @@ class SkillsApp {
     if (!this.data) {
       this.$('count').textContent = '—';
       this.$('bulk-bar').classList.add('hidden');
+      grid.classList.remove('table-mode');
+      this.syncViewButtons();
       grid.innerHTML = `<div class="empty">
         <div class="banner bad" style="text-align:left;max-width:720px;margin:0 auto">
           <strong>Não foi possível carregar o acervo.</strong><br />
@@ -549,8 +732,17 @@ class SkillsApp {
     this.$('bulk-archive').classList.toggle('hidden', isArchivedView);
     this.$('bulk-unarchive').classList.toggle('hidden', !isArchivedView);
 
+    grid.classList.toggle('table-mode', this.viewMode === 'table');
+    this.syncViewButtons();
+
     if (skills.length === 0) {
       grid.innerHTML = '<div class="empty">Nenhuma skill corresponde ao filtro.</div>';
+      return;
+    }
+
+    if (this.viewMode === 'table') {
+      grid.innerHTML = this.tableHtml(skills);
+      this.bindTable(skills);
       return;
     }
 
@@ -608,10 +800,178 @@ class SkillsApp {
       })
       .join('');
 
-    this.bindGrid();
+    this.bindCards();
   }
 
-  private bindGrid(): void {
+  private tableHtml(skills: SkillItem[]): string {
+    const allSelected = skills.length > 0 && skills.every((s) => this.selected.has(s.name));
+
+    const arrow = (key: SortKey): string => {
+      if (this.sort !== key) return '';
+      return this.sortDir === 'asc' ? '▲' : '▼';
+    };
+    const ariaSort = (key: SortKey): string => {
+      if (this.sort !== key) return 'none';
+      return this.sortDir === 'asc' ? 'ascending' : 'descending';
+    };
+    const th = (key: SortKey, label: string, numeric = false, extra = ''): string =>
+      `<th scope="col" class="${numeric ? 'num' : ''} ${extra}" data-sort="${key}" aria-sort="${ariaSort(
+        key,
+      )}" title="Ordenar por ${escapeHtml(label)}">${escapeHtml(label)}<span class="sort-ind">${arrow(
+        key,
+      )}</span></th>`;
+
+    const metricCell = (skill: SkillItem, kind: MetricKind, count: number, label: string): string =>
+      count > 0
+        ? `<td class="num"><button class="metric-btn" data-metric="${kind}" data-skill="${escapeHtml(
+            skill.name,
+          )}" title="Ver ${escapeHtml(label)}">${count}</button></td>`
+        : '<td class="num">0</td>';
+
+    const gitCell = (skill: SkillItem): string => {
+      const state: GitState = GIT_LABELS[skill.gitState] ? skill.gitState : 'unknown';
+      const info = GIT_LABELS[state];
+      return `<td class="col-git"><span class="git-state ${state}" title="${escapeHtml(
+        info.label,
+      )}" aria-label="${escapeHtml(info.label)}">${info.icon}</span></td>`;
+    };
+
+    const rows = skills
+      .map((skill) => {
+        const selected = this.selected.has(skill.name);
+        const category = skill.category
+          ? `<span class="chip cat">${escapeHtml(this.categoryLabel(skill.category))}</span>`
+          : '<span class="chip">Sem categoria</span>';
+        const archivedBadge = skill.archived
+          ? '<span class="chip archived" title="Skill arquivada na pasta do app">📦</span>'
+          : '';
+        const starBtn = skill.archived
+          ? ''
+          : `<button class="star-btn ${skill.favorite ? 'on' : ''}" data-star="${escapeHtml(
+              skill.name,
+            )}" title="Favoritar">${skill.favorite ? '★' : '☆'}</button>`;
+
+        return `<tr class="${selected ? 'selected' : ''} ${
+          skill.archived ? 'is-archived' : ''
+        }" data-skill="${escapeHtml(skill.name)}">
+          <td class="col-check"><input type="checkbox" data-check="${escapeHtml(skill.name)}" ${
+            selected ? 'checked' : ''
+          } aria-label="Selecionar ${escapeHtml(skill.name)}" /></td>
+          <td class="col-skill">
+            <div class="row-skill">
+              ${starBtn}
+              <div class="row-skill-titles">
+                <span class="row-title">${escapeHtml(skill.displayName)}</span>
+                ${
+                  skill.displayName !== skill.name
+                    ? `<span class="row-dir">${escapeHtml(skill.name)}</span>`
+                    : ''
+                }
+              </div>
+              ${archivedBadge}
+            </div>
+          </td>
+          <td class="col-category">${category}</td>
+          <td class="num">${skill.lineCount}</td>
+          ${metricCell(skill, 'links', skill.linkCount, 'links')}
+          <td class="col-updated">${formatDate(skill.modifiedAt)}</td>
+          ${gitCell(skill)}
+          ${metricCell(skill, 'mentions', skill.mentionCount, 'menções')}
+          ${metricCell(skill, 'received', skill.mentionedByCount, 'menções recebidas')}
+          ${metricCell(skill, 'files', skill.fileCount, 'arquivos')}
+          <td class="num col-size">${formatBytes(skill.sizeBytes)}</td>
+        </tr>`;
+      })
+      .join('');
+
+    return `<div class="table-wrap">
+      <table class="skills-table">
+        <thead>
+          <tr>
+            <th scope="col" class="col-check"><input type="checkbox" id="select-all" ${
+              allSelected ? 'checked' : ''
+            } aria-label="Selecionar todas as visíveis" /></th>
+            ${th('name', 'Skill')}
+            ${th('category', 'Categoria', false, 'col-category')}
+            ${th('lines', 'Linhas', true)}
+            ${th('links', 'Links', true)}
+            ${th('recent', 'Atualizado')}
+            ${th('git', 'Git', false, 'col-git')}
+            ${th('mentions', 'Menções', true)}
+            ${th('received', 'Recebidas', true)}
+            ${th('files', 'Arq.', true)}
+            ${th('size', 'Tamanho', true, 'col-size')}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  private bindTable(skills: SkillItem[]): void {
+    const grid = this.$('grid');
+
+    grid.querySelectorAll<HTMLTableRowElement>('tr[data-skill]').forEach((row) => {
+      row.addEventListener('click', (ev) => {
+        const target = ev.target as HTMLElement;
+        const check = target.closest<HTMLInputElement>('[data-check]');
+        if (check) {
+          ev.stopPropagation();
+          const name = check.dataset.check;
+          if (name) {
+            if (check.checked) this.selected.add(name);
+            else this.selected.delete(name);
+            this.renderGrid();
+          }
+          return;
+        }
+        const star = target.closest<HTMLElement>('[data-star]');
+        if (star) {
+          ev.stopPropagation();
+          const name = star.dataset.star;
+          if (name) void this.toggleFavorite(name);
+          return;
+        }
+        const metric = target.closest<HTMLElement>('[data-metric]');
+        if (metric) {
+          ev.stopPropagation();
+          const kind = metric.dataset.metric as MetricKind | undefined;
+          const name = metric.dataset.skill;
+          if (kind && name) this.openMetricList(name, kind);
+          return;
+        }
+        const name = row.dataset.skill;
+        if (name) void this.openDrawer(name);
+      });
+    });
+
+    grid.querySelectorAll<HTMLElement>('th[data-sort]').forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort as SortKey | undefined;
+        if (key) this.sortBy(key);
+      });
+    });
+
+    const selectAll = document.getElementById('select-all') as HTMLInputElement | null;
+    selectAll?.addEventListener('change', () => {
+      if (selectAll.checked) skills.forEach((s) => this.selected.add(s.name));
+      else skills.forEach((s) => this.selected.delete(s.name));
+      this.renderGrid();
+    });
+  }
+
+  private sortBy(key: SortKey): void {
+    if (this.sort === key) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sort = key;
+      this.sortDir = NUMERIC_SORTS.has(key) ? 'desc' : 'asc';
+    }
+    (this.$('sort') as HTMLSelectElement).value = key;
+    this.renderGrid();
+  }
+
+  private bindCards(): void {
     const grid = this.$('grid');
 
     grid.querySelectorAll<HTMLElement>('.card').forEach((card) => {
@@ -755,9 +1115,75 @@ class SkillsApp {
     return currentVal !== this.originalDrawerContent;
   }
 
+  private isMetadataDirty(): boolean {
+    if (!this.activeSkillDetail) return false;
+
+    const catSelect = document.getElementById('d-category') as HTMLSelectElement | null;
+    if (catSelect) {
+      const currentCat = catSelect.value || null;
+      const initialCat = this.activeSkillDetail.category || null;
+      if (currentCat !== initialCat) return true;
+    }
+
+    const tagsInput = document.getElementById('d-tags') as HTMLInputElement | null;
+    if (tagsInput) {
+      const currentTags = tagsInput.value
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .sort()
+        .join(',');
+      const initialTags = [...this.activeSkillDetail.tags]
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .sort()
+        .join(',');
+      if (currentTags !== initialTags) return true;
+    }
+
+    const notesTextarea = document.getElementById('d-notes') as HTMLTextAreaElement | null;
+    if (notesTextarea) {
+      const currentNotes = notesTextarea.value.trim();
+      const initialNotes = (this.activeSkillDetail.notes || '').trim();
+      if (currentNotes !== initialNotes) return true;
+    }
+
+    const toolsContainer = document.getElementById('d-tools');
+    if (toolsContainer) {
+      const checked = [
+        ...toolsContainer.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked'),
+      ]
+        .map((i) => i.dataset.tool ?? '')
+        .filter(Boolean)
+        .sort();
+      const currentTools = checked.length === TOOLS.length ? null : checked;
+      const initialTools = this.activeSkillDetail.tools
+        ? [...this.activeSkillDetail.tools].sort()
+        : null;
+
+      if (currentTools === null && initialTools !== null) return true;
+      if (currentTools !== null && initialTools === null) return true;
+      if (currentTools !== null && initialTools !== null) {
+        if (currentTools.join(',') !== initialTools.join(',')) return true;
+      }
+    }
+
+    return false;
+  }
+
+  private isDrawerDirty(): boolean {
+    return this.isContentDirty() || this.isMetadataDirty();
+  }
+
   private closeDrawer(force = false): boolean {
-    if (!force && this.activeSkill && this.isContentDirty()) {
-      if (!window.confirm('Há alterações não salvas no SKILL.md. Deseja realmente fechar?')) {
+    if (!force && this.activeSkill && this.isDrawerDirty()) {
+      const msg =
+        this.isContentDirty() && this.isMetadataDirty()
+          ? 'Há alterações não salvas no SKILL.md e nos metadados. Deseja realmente fechar e descartar?'
+          : this.isContentDirty()
+            ? 'Há alterações não salvas no SKILL.md. Deseja realmente fechar e descartar?'
+            : 'Há alterações não salvas nos metadados da skill (categoria, tags, notas ou ferramentas). Deseja realmente fechar e descartar?';
+      if (!window.confirm(msg)) {
         return false;
       }
     }
@@ -1590,6 +2016,126 @@ class SkillsApp {
     this.showModal(title, body, [{ label: 'Fechar', accent: true, action: () => this.closeModal() }]);
   }
 
+  private findSkill(name: string): SkillItem | undefined {
+    if (!this.data) return undefined;
+    return (
+      this.data.skills.find((skill) => skill.name === name) ??
+      this.data.archivedSkills.find((skill) => skill.name === name)
+    );
+  }
+
+  private async openUrl(url: string): Promise<void> {
+    if (!isHttpUrl(url)) {
+      this.toast('Só é possível abrir links http(s).', true);
+      return;
+    }
+    try {
+      await this.invoke('open_url', { url });
+    } catch (err) {
+      this.toast(`Erro ao abrir link: ${String(err)}`, true);
+    }
+  }
+
+  /** Lista detalhada de uma métrica da tabela (links, menções, recebidas, arquivos). */
+  private openMetricList(name: string, kind: MetricKind): void {
+    const skill = this.findSkill(name);
+    if (!skill) {
+      this.toast('Skill não encontrada.', true);
+      return;
+    }
+    const close = [{ label: 'Fechar', accent: true, action: () => this.closeModal() }];
+    const body = this.$('modal-body');
+
+    if (kind === 'links') {
+      const links = skill.linkTargets;
+      const html = links.length
+        ? `<ul class="metric-list">${links
+            .map((link, i) =>
+              isHttpUrl(link)
+                ? `<li class="metric-item"><button class="metric-link" data-link-index="${i}">${escapeHtml(
+                    link,
+                  )}</button></li>`
+                : `<li class="metric-item"><code class="metric-path">${escapeHtml(link)}</code></li>`,
+            )
+            .join('')}</ul>
+          <p class="field-hint">Links relativos aparecem como texto e não abrem no navegador.</p>`
+        : '<div class="empty">Nenhum link.</div>';
+      this.showModal(`🔗 ${links.length} link(s) — ${skill.name}`, html, close, false, 'modal-metric');
+      body.querySelectorAll<HTMLElement>('[data-link-index]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const url = links[Number(el.dataset.linkIndex)];
+          if (url) void this.openUrl(url);
+        });
+      });
+      return;
+    }
+
+    if (kind === 'mentions' || kind === 'received') {
+      const names = kind === 'mentions' ? skill.mentions : skill.mentionedBy;
+      const title =
+        kind === 'mentions'
+          ? `🗣 ${names.length} menção(ões) — ${skill.name}`
+          : `📥 ${names.length} recebida(s) — ${skill.name}`;
+      const hint =
+        kind === 'mentions'
+          ? 'Skills mencionadas no conteúdo desta.'
+          : 'Skills que mencionam esta.';
+      const html = names.length
+        ? `<p class="field-hint">${hint}</p><ul class="metric-list">${names
+            .map((mentioned) => {
+              const target = this.findSkill(mentioned);
+              const label =
+                target && target.displayName !== mentioned
+                  ? `${escapeHtml(target.displayName)} <span class="metric-path">${escapeHtml(
+                      mentioned,
+                    )}</span>`
+                  : escapeHtml(mentioned);
+              return `<li class="metric-item"><button class="metric-link" data-jump="${escapeHtml(
+                mentioned,
+              )}">${label}</button></li>`;
+            })
+            .join('')}</ul>`
+        : '<div class="empty">Nada aqui.</div>';
+      this.showModal(title, html, close, false, 'modal-metric');
+      body.querySelectorAll<HTMLElement>('[data-jump]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const jump = el.dataset.jump;
+          if (!jump) return;
+          this.closeModal();
+          void this.openDrawer(jump);
+        });
+      });
+      return;
+    }
+
+    const files = skill.files;
+    const total = files.reduce((sum, file) => sum + file.sizeBytes, 0);
+    const html = files.length
+      ? `<p class="field-hint">${formatBytes(total)} no total. Clique em um arquivo para abrir.</p>
+        <ul class="metric-list">${files
+          .map(
+            (file, i) =>
+              `<li class="metric-item"><button class="metric-link" data-file-index="${i}"><span class="metric-path">${escapeHtml(
+                file.path,
+              )}</span><span class="metric-size">${formatBytes(file.sizeBytes)}</span></button></li>`,
+          )
+          .join('')}</ul>`
+      : '<div class="empty">Nenhum arquivo.</div>';
+    this.showModal(
+      `📄 ${files.length} arquivo(s) — ${skill.name}`,
+      html,
+      [{ label: 'Abrir pasta', action: () => void this.openPath(skill.path) }, ...close],
+      false,
+      'modal-metric',
+    );
+    body.querySelectorAll<HTMLElement>('[data-file-index]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const file = files[Number(el.dataset.fileIndex)];
+        if (file) void this.openPath(`${skill.path}/${file.path}`);
+      });
+    });
+  }
+
   private async openPath(path: string): Promise<void> {
     try {
       await this.invoke('open_path', { path });
@@ -1652,7 +2198,7 @@ class SkillsApp {
 
   private closeModal(): void {
     this.$('modal').classList.add('hidden');
-    this.$('modal-body').classList.remove('modal-danger', 'modal-create', 'modal-delete');
+    this.$('modal-body').classList.remove('modal-danger', 'modal-create', 'modal-delete', 'modal-metric');
     this.$('modal-body').innerHTML = '';
   }
 

@@ -127,10 +127,14 @@ skills para **Sem categoria** (nunca apaga skill).
 ## 🖥️ Interface
 
 - **Sidebar** — visões (todas, favoritas, sem categoria, nome divergente), categorias com contagem, tags e
-  ferramentas (exposição via bridge).
+  ferramentas (exposição via bridge). O botão `☰` no cabeçalho (ou `Ctrl+B`) recolhe/expande o menu lateral;
+  o estado fica persistido em `localStorage`.
 - **Busca** — nome, nome de exibição, descrição, notas, categoria e tags.
 - **Cards** — descrição, categoria, tags, ferramentas, favoritar, tamanho/contagem de arquivos e data.
-- **Seleção múltipla** — mover várias skills para uma categoria de uma vez.
+- **Tabela** — alternador `▦ Cards | ☰ Tabela` no toolbar (persistido em `localStorage`). Mostra uma linha por
+  skill com métricas de conteúdo e de grafo (ver abaixo), com cabeçalho fixo e ordenação por coluna.
+- **Seleção múltipla** — mover várias skills para uma categoria de uma vez (funciona nos dois modos; o
+  cabeçalho da tabela tem um checkbox para selecionar todas as visíveis).
 - **Drawer** — edita categoria/tags/tools/favorita/notas, mostra o `SKILL.md` e abre a pasta ou o arquivo no
   editor padrão (`xdg-open`).
 - **Saúde** — mesmas checagens do `flatten-agent-skills.sh --check`, em painel.
@@ -138,8 +142,48 @@ skills para **Sem categoria** (nunca apaga skill).
 
 ### Ordenação e filtros
 
-`Nome A→Z`, `Mais recentes`, `Categoria`, `Mais arquivos`. O filtro de ferramenta considera `tools: null` como
-"todas" — e a UI avisa que **leitura nativa** (OpenCode, Codex, Cursor, Copilot) não é afetada.
+`Nome A→Z`, `Mais recentes`, `Categoria`, `Mais arquivos`, `Mais linhas`, `Mais links`, `Mais menções`,
+`Mais recebidas`, `Status git` e `Maior tamanho`. No modo tabela, clicar no cabeçalho de uma coluna ordena
+por ela e um novo clique inverte a direção (▲/▼); ordenações numéricas começam em ordem decrescente — na
+coluna `Git`, isso coloca as pendências (modificado → não versionada → ignorada → limpa) no topo. O filtro de
+ferramenta considera `tools: null` como "todas" — e a UI avisa que **leitura nativa** (OpenCode, Codex,
+Cursor, Copilot) não é afetada.
+
+### Métricas da tabela
+
+Calculadas no backend ao carregar o acervo, sobre o conjunto completo (ativas + arquivadas):
+
+| Coluna | Definição |
+|---|---|
+| **Linhas** | número de linhas do `SKILL.md` |
+| **Links** | destinos de link markdown inline (`[texto](destino)`) + URLs `http(s)://` soltas; um destino não é contado duas vezes |
+| **Atualizado** | `mtime` do `SKILL.md` (mesma data exibida nos cards) |
+| **Git** | estado da pasta da skill no working tree: `✓` limpa, `●` com alterações não commitadas, `?` não versionada (untracked), `⊘` só arquivos ignorados, `—` git indisponível |
+| **Menções** | quantas **outras** skills são mencionadas no conteúdo desta (saída) |
+| **Recebidas** | por quantas **outras** skills esta é mencionada (entrada) |
+| **Arq.** | quantidade de arquivos na pasta da skill |
+| **Tamanho** | soma dos bytes dos arquivos da skill |
+
+O estado **Git** vem de uma única chamada
+`git status --porcelain -z --untracked-files=all --ignored=matching`, restrita a `data/.agents/skills` e
+`apps/skills-gui/archive`, com o resultado mapeado por pasta (uma alteração rastreada vence "não versionada",
+que vence "ignorada"). Sem git ou fora de um repositório, todas as linhas mostram `—` em vez de "limpa".
+
+Menção = nome do diretório ou `name` do frontmatter, case-insensitive, com **fronteira de token** (o caractere
+antes/depois não pode ser alfanumérico, `_`, `-` ou `.`), então `skill-creator` não casa dentro de
+`skill-creator-v2`. Cada skill conta uma vez por origem. **Auto-menção não conta**: o conteúdo de uma skill
+mencionar o próprio nome não entra nem em Menções nem em Recebidas. É uma heurística textual: nomes genéricos
+(ex.: `report`) podem casar em prosa.
+
+Os números de **Links**, **Menções**, **Recebidas** e **Arq.** são botões: clicar abre um modal com a lista
+detalhada.
+
+- **Links** — URLs `http(s)` abrem no navegador padrão; destinos relativos aparecem como texto (não abrem).
+- **Menções / Recebidas** — cada nome abre o drawer da skill correspondente (inclusive arquivadas).
+- **Arq.** — cada arquivo abre no app padrão; o rodapé tem **Abrir pasta**.
+
+As listas (`linkTargets`, `mentions`, `mentionedBy`, `files`) vêm embutidas na resposta de `list_skills` — o
+acervo é pequeno (~300 arquivos), então não há busca sob demanda.
 
 ---
 
@@ -178,6 +222,8 @@ Skills inativas, obsoletas ou em desuso podem ser arquivadas para não poluírem
 - `save_skill_meta` valida que o diretório existe e tem `SKILL.md` (rejeita `/`, `\`, `..`).
 - `save_category` restringe o id a `a-z`, `0-9` e `-`.
 - `open_path` só abre caminhos canônicos dentro do repositório ou do acervo.
+- `open_url` só aceita URLs absolutas `http://`/`https://`, sem espaços ou caracteres de controle; qualquer outro
+  esquema (`file:`, `javascript:`, caminhos locais) é rejeitado no backend, não apenas na UI.
 - Escrita dos catálogos (ativo e arquivo) é atômica (arquivo temporário + rename).
 - O apply do bridge mantém os guardrails do script: backup em `.bkp/`, nunca `rm -rf`, nunca toca diretórios
   reais divergentes.

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-11T19:47:15Z",
+  "updatedAt": "2026-11-12T19:36:30Z",
   "categories": [
     {
       "id": "ai-config",
@@ -36,11 +36,6 @@
       "id": "devops",
       "label": "DevOps",
       "order": 70
-    },
-    {
-      "id": "dotfiles",
-      "label": "Dotfiles",
-      "order": 80
     },
     {
       "id": "implementation",
@@ -84,78 +79,8 @@
     }
   ],
   "skills": {
-    "_dotfiles-config-researcher": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "_dotfiles-doc-writer": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "_knowledge-manager": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "_llm-config-guardian": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "agents-md": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "ai-ecosystem-sync": {
-      "category": "ai-ecosystem",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "ai-jail-security-layer-mapper": {
-      "category": "ai-ecosystem",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "analytical-canvas": {
-      "category": "cursor-ide",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "arch-map": {
       "category": "utilities",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "bug-investigation-report": {
-      "category": "debugging",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "command-creator": {
-      "category": "ai-config",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -175,50 +100,8 @@
       "favorite": false,
       "notes": ""
     },
-    "create-hook": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "create-rule": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "create-shortcut-installer": {
       "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "create-skill": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "create-subagent": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "curso-absoluto": {
-      "category": "curso",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "curso-na-pratica": {
-      "category": "curso",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -232,90 +115,6 @@
       "notes": ""
     },
     "documentation-expert": {
-      "category": "devops",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "dotfiles-add-program": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "dotfiles-config-integrator": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "dotfiles-manager": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "dotfiles-secure-commit": {
-      "category": "dotfiles",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "eslint-fix-all": {
-      "category": "code-quality",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "find-skills": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "find-technical-debt": {
-      "category": "code-quality",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "gemini-api-dev": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "gemini-interactions-api": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "gemini-live-api-dev": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "gemini-omni-flash-api": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "git-commit": {
       "category": "devops",
       "tags": [],
       "tools": null,
@@ -336,50 +135,8 @@
       "favorite": false,
       "notes": ""
     },
-    "install-prettier": {
-      "category": "code-quality",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "migrate-to-skills": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "optimize-prompt": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "pattern-generalizer": {
       "category": "utilities",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "pr-maintenance": {
-      "category": "devops",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "prompt-engineer": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "prompt-optimizer": {
-      "category": "uncategorized",
       "tags": [],
       "tools": null,
       "favorite": false,
@@ -399,62 +156,6 @@
       "favorite": false,
       "notes": ""
     },
-    "skill-creator": {
-      "category": "ai-config",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "sonar-ai-refactor": {
-      "category": "code-quality",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "statusline": {
-      "category": "cursor-ide",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "succinct-text": {
-      "category": "utilities",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "systematic-debugging": {
-      "category": "debugging",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "tauri-deep-link-linux": {
-      "category": "tech-domain",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "test-driven-development": {
-      "category": "testing",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "typescript-vite-references": {
-      "category": "tech-domain",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
     "ub-mode": {
       "category": "uncategorized",
       "tags": [],
@@ -463,34 +164,6 @@
       "notes": ""
     },
     "ub-workflow": {
-      "category": "uncategorized",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "unit-test-specialist": {
-      "category": "testing",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "update-cli-config": {
-      "category": "cursor-ide",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "update-cursor-settings": {
-      "category": "cursor-ide",
-      "tags": [],
-      "tools": null,
-      "favorite": false,
-      "notes": ""
-    },
-    "vitest": {
       "category": "uncategorized",
       "tags": [],
       "tools": null,
