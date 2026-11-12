@@ -1,6 +1,6 @@
 ---
 name: "git-commit-v2"
-description: 'Executa git commit com análise de mensagem convencional, staging inteligente, commits atômicos e geração de mensagem. Use quando o usuário pedir para commitar mudanças, criar um git commit ou mencionar "/commit". Suporta: (1) Detecção automática de tipo e escopo das mudanças, (2) Geração de mensagens de commit convencionais a partir do diff, (3) Commit interativo com substituições opcionais de tipo/escopo/descrição, (4) Staging inteligente com agrupamento lógico e commits atômicos.'
+description: 'Executa git commit com análise de mensagem convencional, staging inteligente, commits atômicos e geração de mensagem. Use quando o usuário pedir para commitar mudanças, criar um git commit ou mencionar "/commit"'
 license: MIT
 allowed-tools: Bash
 ---
@@ -92,7 +92,19 @@ Analyze the diff to determine:
 - **Scope**: What area/module is affected?
 - **Description**: One-line summary of what changed (present tense, imperative mood, <72 chars)
 
-### 4. Execute Commit
+### 4. Present Proposal & Await Confirmation
+
+Before running `git commit`, present the commit proposal to the user and wait for explicit confirmation:
+
+- **Files**: List the staged (or to-be-staged) files included in the commit
+- **Message**: Show the full proposed commit message (header, and body/footer if applicable)
+- If multiple atomic commits are planned, present the full sequence of proposed commits for review
+
+Only proceed to execution after the user approves the proposal.
+
+### 5. Execute Commit
+
+Once confirmed by the user:
 
 ```bash
 # Single line
@@ -143,6 +155,7 @@ Every commit MUST represent a single logical change. In this repository, "atomic
 
 ## Git Safety Protocol
 
+- NEVER execute a commit without presenting the proposal and receiving user confirmation
 - NEVER update git config
 - NEVER run destructive commands (--force, hard reset) without explicit request
 - NEVER skip hooks (--no-verify) unless user asks
